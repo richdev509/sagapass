@@ -6,3 +6,26 @@
 
 // Bootstrap
 @import 'bootstrap/scss/bootstrap';
+
+// Custom Styles - Enlever décorations liens et puces listes
+a {
+    text-decoration: none !important;
+}
+
+a:hover {
+    text-decoration: none !important;
+}
+
+.footer ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.footer-links {
+    list-style: none;
+    padding-left: 0;
+}
+
+.footer-links li {
+    list-style: none;
+}

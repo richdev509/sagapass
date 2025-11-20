@@ -1,4 +1,4 @@
-<footer class="footer">
+<footer class="footer" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 3rem 0; color: #fff;">
     <div class="container">
         <div class="row">
             <div class="col-md-4 mb-4">

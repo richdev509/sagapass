@@ -27,6 +27,14 @@
         .badge-status-verified { background: #28a745; color: white; }
         .badge-status-rejected { background: #dc3545; color: white; }
         @media (max-width: 768px) { .main-content { padding-top: 60px; } }
+
+        /* Enlever décorations liens */
+        a { text-decoration: none !important; }
+        a:hover { text-decoration: none !important; }
+
+        /* Enlever puces listes footer */
+        .footer ul, .footer-links { list-style: none; padding-left: 0; }
+        .footer-links li { list-style: none; }
     </style>
 
     @stack('styles')
