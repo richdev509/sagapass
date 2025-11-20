@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Redirection OAuth</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4f46e5;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #4338ca;
+        }
+        .info {
+            background: #eff6ff;
+            padding: 15px;
+            border-left: 4px solid #3b82f6;
+            margin: 20px 0;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+        }
+        .status.info {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        pre {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+        .logout-btn {
+            background: #dc2626;
+            margin-top: 10px;
+        }
+        .logout-btn:hover {
+            background: #b91c1c;
+        }
+        h1 {
+            color: #1f2937;
+        }
+        h2 {
+            color: #374151;
+            font-size: 18px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🧪 Test de Redirection OAuth</h1>
+
+        <div class="info">
+            <strong>📋 Instructions de test :</strong>
+            <ol>
+                <li>Assurez-vous d'être <strong>déconnecté</strong> (cliquez sur "Se déconnecter" ci-dessous)</li>
+                <li>Cliquez sur "🚀 Tester la redirection OAuth"</li>
+                <li>✅ <strong>Résultat attendu :</strong> Vous devriez être redirigé vers <code>/oauth/login</code></li>
+                <li>❌ <strong>Ancien comportement :</strong> Redirection vers <code>/login</code> standard</li>
+                <li>La page OAuth devrait afficher :
+                    <ul>
+                        <li>Logo SAGAPASS à droite</li>
+                        <li>Formulaire de connexion à gauche</li>
+                        <li>Nom de l'application : <strong>"saga test"</strong></li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <h2>🔧 Configuration du test</h2>
+        <div>
+            <strong>Client ID :</strong>
+            <pre>f395e2f6-8829-463b-80bd-f5af1fb3223c</pre>
+        </div>
+
+        <div>
+            <strong>Redirect URI :</strong>
+            <pre>http://127.0.0.1:8085/callback</pre>
+        </div>
+
+        <div>
+            <strong>URL complète générée :</strong>
+            <pre id="generatedUrl"></pre>
+        </div>
+
+        <button onclick="logout()" class="logout-btn">
+            🚪 Se déconnecter (pour tester)
+        </button>
+
+        <button onclick="testOAuthRedirect()">
+            🚀 Tester la redirection OAuth
+        </button>
+
+        <div id="status"></div>
+    </div>
+
+    <script>
+        // Générer et afficher l'URL
+        function generateUrl() {
+            const params = new URLSearchParams({
+                client_id: 'f395e2f6-8829-463b-80bd-f5af1fb3223c',
+                redirect_uri: 'http://127.0.0.1:8085/callback',
+                response_type: 'code',
+                scope: 'profile',
+                state: 'test_' + Math.random().toString(36).substring(7),
+                code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+                code_challenge_method: 'S256'
+            });
+
+            return `http://127.0.0.1:8000/oauth/authorize?${params}`;
+        }
+
+        // Afficher l'URL au chargement
+        document.getElementById('generatedUrl').textContent = generateUrl();
+
+        function logout() {
+            // Créer un formulaire de déconnexion
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'http://127.0.0.1:8000/logout';
+
+            // Token CSRF
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = '_token';
+            csrfInput.value = '{{ csrf_token() }}'; // Sera remplacé par le serveur
+            form.appendChild(csrfInput);
+
+            document.body.appendChild(form);
+
+            document.getElementById('status').innerHTML =
+                '<div class="status info">⏳ Déconnexion en cours...</div>';
+
+            // Note: Pour un vrai test, visitez /logout manuellement
+            setTimeout(() => {
+                document.getElementById('status').innerHTML =
+                    '<div class="status success">✅ Vous pouvez maintenant tester la redirection OAuth.<br><small>Si vous étiez connecté, déconnectez-vous manuellement en visitant /logout</small></div>';
+            }, 500);
+        }
+
+        function testOAuthRedirect() {
+            const authUrl = generateUrl();
+
+            document.getElementById('status').innerHTML =
+                '<div class="status info">⏳ Redirection en cours...<br><br><strong>Vérifiez que vous êtes redirigé vers :</strong><br><code>/oauth/login</code><br><br><strong>PAS vers :</strong><br><code>/login</code></div>';
+
+            setTimeout(() => {
+                window.location.href = authUrl;
+            }, 1500);
+        }
+
+        // Afficher l'URL actuelle pour le débogage
+        window.onload = function() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('error')) {
+                document.getElementById('status').innerHTML =
+                    '<div class="status" style="background: #fee2e2; color: #991b1b;">❌ Erreur : ' +
+                    params.get('error') + '<br>' + (params.get('error_description') || '') + '</div>';
+            }
+        };
+    </script>
+</body>
+</html>
+

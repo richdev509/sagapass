@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test OAuth SAGAPASS - Local</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .section {
+            background: white;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .button-secondary {
+            background: #48bb78;
+        }
+        .button-secondary:hover {
+            background: #38a169;
+        }
+        .result {
+            background: #f7fafc;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .success {
+            border-left-color: #48bb78;
+            background: #f0fff4;
+        }
+        .error {
+            border-left-color: #f56565;
+            background: #fff5f5;
+            color: #c53030;
+        }
+        .info {
+            background: #ebf8ff;
+            border: 1px solid #90cdf4;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+            color: #2c5282;
+        }
+        .status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 5px;
+        }
+        .status-success { background: #c6f6d5; color: #22543d; }
+        .status-pending { background: #feebc8; color: #7c2d12; }
+        .status-error { background: #fed7d7; color: #742a2a; }
+        .token-display {
+            background: #2d3748;
+            color: #48bb78;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Test OAuth SAGAPASS</h1>
+            <p>Interface de test pour développement local</p>
+        </div>
+
+        <!-- Configuration -->
+        <div class="section">
+            <h2><span class="step-number">1</span> Configuration</h2>
+            <div class="info">
+                💡 Obtenez votre Client ID et Secret depuis :
+                <a href="http://127.0.0.1:8000/developers/applications" target="_blank">Dashboard Développeur</a>
+            </div>
+            <input type="text" id="clientId" placeholder="Client ID (UUID)">
+            <input type="password" id="clientSecret" placeholder="Client Secret">
+            <button onclick="saveConfig()">💾 Sauvegarder la configuration</button>
+            <div id="configStatus"></div>
+        </div>
+
+        <!-- Étape 1 : Authorization -->
+        <div class="section">
+            <h2><span class="step-number">2</span> Obtenir l'autorisation</h2>
+            <p style="color: #718096; margin-bottom: 15px;">
+                Cliquez pour démarrer le flow OAuth. Vous serez redirigé vers la page de consentement SAGAPASS.
+            </p>
+            <div class="grid">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="scope-profile" checked> 👤 Profile
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="scope-email" checked> 📧 Email
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="scope-phone"> 📞 Phone
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="scope-documents"> 📄 Documents
+                </label>
+            </div>
+            <button onclick="startOAuth()">🚀 Démarrer OAuth Flow</button>
+            <div id="oauthStatus"></div>
+        </div>
+
+        <!-- Étape 2 : Code reçu -->
+        <div class="section" id="codeSection" style="display: none;">
+            <h2><span class="step-number">3</span> Code d'autorisation reçu</h2>
+            <div id="codeResult"></div>
+            <button onclick="exchangeToken()" class="button-secondary" id="exchangeBtn">
+                🔄 Échanger contre Access Token
+            </button>
+        </div>
+
+        <!-- Étape 3 : Token -->
+        <div class="section" id="tokenSection" style="display: none;">
+            <h2><span class="step-number">4</span> Access Token obtenu</h2>
+            <div id="tokenResult"></div>
+        </div>
+
+        <!-- Étape 4 : Test API -->
+        <div class="section" id="apiSection" style="display: none;">
+            <h2><span class="step-number">5</span> Tester l'API</h2>
+            <div class="grid">
+                <button onclick="testProfile()" class="button-secondary">
+                    👤 GET /api/v1/user
+                </button>
+                <button onclick="testDocuments()" class="button-secondary">
+                    📄 GET /api/v1/user/documents
+                </button>
+                <button onclick="revokeToken()" style="background: #f56565;">
+                    🔒 Révoquer le Token
+                </button>
+            </div>
+            <div id="apiResult"></div>
+        </div>
+
+        <!-- Logs -->
+        <div class="section">
+            <h2>📋 Logs de débogage</h2>
+            <button onclick="clearLogs()" style="background: #718096;">🗑️ Effacer</button>
+            <div id="logs" class="result" style="min-height: 100px; max-height: 300px; overflow-y: auto;">
+                Aucun log pour le moment...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://127.0.0.1:8000';
+        const REDIRECT_URI = window.location.href.split('?')[0];
+
+        // Logs
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const emoji = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            logs.innerHTML += `[${timestamp}] ${emoji} ${message}\n`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = 'Logs effacés...\n';
+        }
+
+        // Configuration
+        function saveConfig() {
+            const clientId = document.getElementById('clientId').value.trim();
+            const clientSecret = document.getElementById('clientSecret').value.trim();
+
+            if (!clientId || !clientSecret) {
+                document.getElementById('configStatus').innerHTML =
+                    '<div class="result error">❌ Veuillez remplir tous les champs</div>';
+                return;
+            }
+
+            localStorage.setItem('clientId', clientId);
+            localStorage.setItem('clientSecret', clientSecret);
+
+            document.getElementById('configStatus').innerHTML =
+                '<div class="result success">✅ Configuration sauvegardée avec succès !</div>';
+
+            log('Configuration sauvegardée', 'success');
+        }
+
+        function loadConfig() {
+            const clientId = localStorage.getItem('clientId');
+            const clientSecret = localStorage.getItem('clientSecret');
+
+            if (clientId) document.getElementById('clientId').value = clientId;
+            if (clientSecret) document.getElementById('clientSecret').value = clientSecret;
+
+            if (clientId && clientSecret) {
+                document.getElementById('configStatus').innerHTML =
+                    '<div class="result success">✅ Configuration chargée</div>';
+            }
+        }
+
+        // PKCE utilities
+        function generateCodeVerifier() {
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            return base64URLEncode(array);
+        }
+
+        function base64URLEncode(buffer) {
+            return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=/g, '');
+        }
+
+        async function generateCodeChallenge(verifier) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(verifier);
+            const hash = await crypto.subtle.digest('SHA-256', data);
+            return base64URLEncode(hash);
+        }
+
+        // OAuth Flow
+        async function startOAuth() {
+            const clientId = localStorage.getItem('clientId');
+
+            if (!clientId) {
+                alert('⚠️ Veuillez d\'abord sauvegarder votre configuration');
+                return;
+            }
+
+            // Récupérer les scopes sélectionnés
+            const scopes = [];
+            if (document.getElementById('scope-profile').checked) scopes.push('profile');
+            if (document.getElementById('scope-email').checked) scopes.push('email');
+            if (document.getElementById('scope-phone').checked) scopes.push('phone');
+            if (document.getElementById('scope-documents').checked) scopes.push('documents');
+
+            if (scopes.length === 0) {
+                alert('⚠️ Veuillez sélectionner au moins un scope');
+                return;
+            }
+
+            log('Génération des paramètres PKCE...');
+            const verifier = generateCodeVerifier();
+            const challenge = await generateCodeChallenge(verifier);
+            const state = Math.random().toString(36).substring(7);
+
+            localStorage.setItem('codeVerifier', verifier);
+            localStorage.setItem('oauthState', state);
+
+            log('Code Verifier généré : ' + verifier.substring(0, 20) + '...');
+            log('Code Challenge généré : ' + challenge.substring(0, 20) + '...');
+
+            const params = new URLSearchParams({
+                client_id: clientId,
+                redirect_uri: REDIRECT_URI,
+                response_type: 'code',
+                scope: scopes.join(' '),
+                state: state,
+                code_challenge: challenge,
+                code_challenge_method: 'S256'
+            });
+
+            const authUrl = `${BASE_URL}/oauth/authorize?${params}`;
+            log('Redirection vers : ' + authUrl);
+
+            document.getElementById('oauthStatus').innerHTML =
+                '<div class="result"><span class="loading"></span> Redirection vers la page de consentement...</div>';
+
+            setTimeout(() => {
+                window.location.href = authUrl;
+            }, 1000);
+        }
+
+        // Détecter le retour avec code
+        window.onload = function() {
+            loadConfig();
+
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            const state = params.get('state');
+            const error = params.get('error');
+
+            if (error) {
+                log('Erreur OAuth : ' + error, 'error');
+                document.getElementById('oauthStatus').innerHTML =
+                    '<div class="result error">❌ Erreur : ' + error + '</div>';
+                return;
+            }
+
+            if (code) {
+                const savedState = localStorage.getItem('oauthState');
+
+                if (state !== savedState) {
+                    log('Erreur : State mismatch (possible CSRF)', 'error');
+                    return;
+                }
+
+                log('Code d\'autorisation reçu : ' + code.substring(0, 20) + '...', 'success');
+                localStorage.setItem('authCode', code);
+
+                document.getElementById('codeSection').style.display = 'block';
+                document.getElementById('codeResult').innerHTML =
+                    '<div class="result success">✅ Code d\'autorisation reçu :\n' + code + '</div>' +
+                    '<span class="status status-success">Prêt pour l\'échange</span>';
+
+                // Nettoyer l'URL
+                window.history.replaceState({}, document.title, REDIRECT_URI);
+            }
+        };
+
+        // Échanger le code contre un token
+        async function exchangeToken() {
+            const code = localStorage.getItem('authCode');
+            const verifier = localStorage.getItem('codeVerifier');
+            const clientId = localStorage.getItem('clientId');
+            const clientSecret = localStorage.getItem('clientSecret');
+
+            document.getElementById('exchangeBtn').disabled = true;
+            document.getElementById('exchangeBtn').innerHTML = '<span class="loading"></span> Échange en cours...';
+
+            log('Échange du code contre un token...');
+
+            try {
+                const response = await fetch(`${BASE_URL}/oauth/token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        grant_type: 'authorization_code',
+                        code: code,
+                        redirect_uri: REDIRECT_URI,
+                        client_id: clientId,
+                        client_secret: clientSecret,
+                        code_verifier: verifier
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.access_token) {
+                    localStorage.setItem('accessToken', data.access_token);
+                    log('Token obtenu avec succès !', 'success');
+
+                    document.getElementById('tokenSection').style.display = 'block';
+                    document.getElementById('tokenResult').innerHTML =
+                        '<div class="token-display">' + data.access_token + '</div>' +
+                        '<span class="status status-success">Token actif</span>' +
+                        '<p style="margin-top: 10px; color: #718096;">Expires dans : ' +
+                        Math.floor(data.expires_in / 86400) + ' jours</p>';
+
+                    document.getElementById('apiSection').style.display = 'block';
+                } else {
+                    log('Erreur lors de l\'échange : ' + JSON.stringify(data), 'error');
+                    document.getElementById('codeResult').innerHTML +=
+                        '<div class="result error">❌ Erreur : ' + JSON.stringify(data, null, 2) + '</div>';
+                }
+            } catch (error) {
+                log('Erreur réseau : ' + error.message, 'error');
+                document.getElementById('codeResult').innerHTML +=
+                    '<div class="result error">❌ Erreur : ' + error.message + '</div>';
+            } finally {
+                document.getElementById('exchangeBtn').disabled = false;
+                document.getElementById('exchangeBtn').innerHTML = '🔄 Échanger contre Access Token';
+            }
+        }
+
+        // Tester l'API
+        async function testProfile() {
+            await testAPI('/api/v1/user', 'Profile Utilisateur');
+        }
+
+        async function testDocuments() {
+            await testAPI('/api/v1/user/documents', 'Documents Vérifiés');
+        }
+
+        async function testAPI(endpoint, name) {
+            const token = localStorage.getItem('accessToken');
+
+            if (!token) {
+                alert('⚠️ Veuillez d\'abord obtenir un token');
+                return;
+            }
+
+            log('Appel API : GET ' + endpoint);
+            document.getElementById('apiResult').innerHTML =
+                '<div class="result"><span class="loading"></span> Chargement...</div>';
+
+            try {
+                const response = await fetch(`${BASE_URL}${endpoint}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    log('Réponse API reçue : ' + response.status, 'success');
+                    document.getElementById('apiResult').innerHTML =
+                        '<h3 style="color: #2d3748; margin-bottom: 10px;">✅ ' + name + '</h3>' +
+                        '<div class="result success">' + JSON.stringify(data, null, 2) + '</div>';
+                } else {
+                    log('Erreur API : ' + response.status, 'error');
+                    document.getElementById('apiResult').innerHTML =
+                        '<h3 style="color: #c53030; margin-bottom: 10px;">❌ Erreur ' + response.status + '</h3>' +
+                        '<div class="result error">' + JSON.stringify(data, null, 2) + '</div>';
+                }
+            } catch (error) {
+                log('Erreur réseau : ' + error.message, 'error');
+                document.getElementById('apiResult').innerHTML =
+                    '<div class="result error">❌ Erreur réseau : ' + error.message + '</div>';
+            }
+        }
+
+        // Révoquer le token
+        async function revokeToken() {
+            const token = localStorage.getItem('accessToken');
+
+            if (!token || !confirm('Êtes-vous sûr de vouloir révoquer ce token ?')) {
+                return;
+            }
+
+            log('Révocation du token...');
+
+            try {
+                const response = await fetch(`${BASE_URL}/oauth/revoke`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        token: token
+                    })
+                });
+
+                if (response.ok) {
+                    log('Token révoqué avec succès', 'success');
+                    localStorage.removeItem('accessToken');
+                    document.getElementById('apiResult').innerHTML =
+                        '<div class="result success">✅ Token révoqué avec succès !</div>';
+                    document.getElementById('tokenResult').innerHTML =
+                        '<span class="status status-error">Token révoqué</span>';
+                } else {
+                    log('Erreur lors de la révocation', 'error');
+                }
+            } catch (error) {
+                log('Erreur réseau : ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
