@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\VerificationController;
+use App\Http\Controllers\Admin\CitizenController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\StatisticsController;
@@ -60,6 +61,39 @@ Route::middleware(['auth:admin'])->prefix('admin')->name('admin.')->group(functi
         Route::post('/{document}/reject', [VerificationController::class, 'reject'])
             ->middleware('permission:verify-documents,admin')
             ->name('reject');
+    });
+
+    // Gestion des citoyens
+    Route::prefix('citizens')->name('citizens.')->middleware('permission:view-users,admin')->group(function () {
+        Route::get('/', [CitizenController::class, 'index'])->name('index');
+
+        Route::get('/search', [CitizenController::class, 'search'])
+            ->middleware('permission:search-users,admin')
+            ->name('search');
+
+        Route::get('/export', [CitizenController::class, 'export'])
+            ->middleware('permission:export-users,admin')
+            ->name('export');
+
+        Route::get('/{id}', [CitizenController::class, 'show'])
+            ->middleware('permission:view-user-details,admin')
+            ->name('show');
+
+        Route::put('/{id}', [CitizenController::class, 'update'])
+            ->middleware('permission:edit-users,admin')
+            ->name('update');
+
+        Route::post('/{id}/suspend', [CitizenController::class, 'suspend'])
+            ->middleware('permission:suspend-users,admin')
+            ->name('suspend');
+
+        Route::post('/{id}/activate', [CitizenController::class, 'activate'])
+            ->middleware('permission:activate-users,admin')
+            ->name('activate');
+
+        Route::post('/{id}/reset-password', [CitizenController::class, 'resetPassword'])
+            ->middleware('permission:reset-user-password,admin')
+            ->name('reset-password');
     });
 
     // Gestion des administrateurs (réservé au Super Admin)
@@ -124,5 +158,38 @@ Route::middleware(['auth:admin'])->prefix('admin')->name('admin.')->group(functi
     });
 
     Route::get('/permissions', [\App\Http\Controllers\Admin\RolePermissionController::class, 'permissions'])->name('permissions.index');
+
+    // Routes de sécurité (Super Admin + Cyber Admin)
+    Route::prefix('security')->name('security.')->middleware('permission:view-security-logs,admin')->group(function () {
+        // Dashboard de sécurité
+        Route::get('/', [\App\Http\Controllers\Admin\SecurityController::class, 'index'])->name('dashboard');
+
+        // Gestion des logs
+        Route::get('/logs', [\App\Http\Controllers\Admin\SecurityController::class, 'logsPage'])->name('logs');
+        Route::get('/logs/{id}', [\App\Http\Controllers\Admin\SecurityController::class, 'showLog'])->name('logs.show');
+
+        // IPs bloquées
+        Route::get('/blocked-ips', [\App\Http\Controllers\Admin\SecurityController::class, 'blockedIpsPage'])
+            ->middleware('permission:view-blocked-ips,admin')
+            ->name('blocked-ips');
+
+        // API endpoints pour AJAX
+        Route::post('/api/logs', [\App\Http\Controllers\Admin\SecurityController::class, 'logs'])->name('api.logs');
+        Route::get('/api/stats', [\App\Http\Controllers\Admin\SecurityController::class, 'stats'])->name('api.stats');
+
+        // Actions (nécessitent permissions spécifiques)
+        Route::post('/block-ip', [\App\Http\Controllers\Admin\SecurityController::class, 'blockIp'])
+            ->middleware('permission:block-ips,admin')
+            ->name('block-ip');
+        Route::post('/unblock-ip', [\App\Http\Controllers\Admin\SecurityController::class, 'unblockIp'])
+            ->middleware('permission:unblock-ips,admin')
+            ->name('unblock-ip');
+        Route::delete('/logs', [\App\Http\Controllers\Admin\SecurityController::class, 'deleteLogs'])
+            ->middleware('permission:delete-security-logs,admin')
+            ->name('logs.delete');
+        Route::post('/clean-expired', [\App\Http\Controllers\Admin\SecurityController::class, 'cleanExpiredBlocks'])
+            ->middleware('permission:manage-security,admin')
+            ->name('clean-expired');
+    });
 });
 

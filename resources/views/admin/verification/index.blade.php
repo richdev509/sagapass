@@ -165,7 +165,12 @@
                             </span>
                             @endif
                         </td>
-                        <td><code class="text-dark">{{ $document->document_number }}</code></td>
+                        <td>
+                            @if($document->document_type === 'cni' && $document->card_number)
+                                <div><small class="text-muted">N° Carte:</small> <code class="text-primary">{{ $document->card_number }}</code></div>
+                            @endif
+                            <div><small class="text-muted">N° Doc:</small> <code class="text-dark">{{ $document->document_number }}</code></div>
+                        </td>
                         <td>{{ \Carbon\Carbon::parse($document->issue_date)->format('d/m/Y') }}</td>
                         <td>
                             {{ \Carbon\Carbon::parse($document->expiry_date)->format('d/m/Y') }}

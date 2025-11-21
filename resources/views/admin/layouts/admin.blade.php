@@ -8,6 +8,8 @@
 
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts -->
@@ -336,6 +338,15 @@
             </li>
             @endcan
 
+            @can('view-users', 'admin')
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.citizens.*') ? 'active' : '' }}" href="{{ route('admin.citizens.index') }}">
+                    <i class="fas fa-users"></i>
+                    <span>Gestion Citoyens</span>
+                </a>
+            </li>
+            @endcan
+
             @can('view-admins', 'admin')
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('admin.admins.*') ? 'active' : '' }}" href="{{ route('admin.admins.index') }}">
@@ -383,6 +394,15 @@
                 <a class="nav-link {{ request()->routeIs('admin.statistics') ? 'active' : '' }}" href="{{ route('admin.statistics') }}">
                     <i class="fas fa-chart-bar"></i>
                     <span>Statistiques Avancées</span>
+                </a>
+            </li>
+            @endcan
+
+            @can('view-security-logs', 'admin')
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.security.*') ? 'active' : '' }}" href="{{ route('admin.security.dashboard') }}">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Sécurité</span>
                 </a>
             </li>
             @endcan

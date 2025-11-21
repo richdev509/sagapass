@@ -16,13 +16,18 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // Définir toutes les permissions du système
         $permissions = [
-            // Gestion des utilisateurs
+            // Gestion des utilisateurs (citoyens)
             'view-users' => 'Voir les utilisateurs',
+            'search-users' => 'Rechercher des utilisateurs',
+            'view-user-details' => 'Voir les détails complets d\'un utilisateur',
             'create-users' => 'Créer des utilisateurs',
             'edit-users' => 'Modifier les utilisateurs',
             'delete-users' => 'Supprimer les utilisateurs',
             'approve-users' => 'Approuver les utilisateurs',
             'suspend-users' => 'Suspendre les utilisateurs',
+            'activate-users' => 'Activer les utilisateurs',
+            'export-users' => 'Exporter les données utilisateurs',
+            'reset-user-password' => 'Réinitialiser le mot de passe utilisateur',
 
             // Gestion des documents
             'view-documents' => 'Voir les documents',
@@ -78,6 +83,14 @@ class RolesAndPermissionsSeeder extends Seeder
             // Paramètres système
             'manage-settings' => 'Gérer les paramètres système',
             'manage-emails' => 'Gérer les emails',
+
+            // Sécurité et monitoring
+            'view-security-logs' => 'Voir les logs de sécurité',
+            'manage-security' => 'Gérer la sécurité (bloquer/débloquer IPs)',
+            'view-blocked-ips' => 'Voir les IPs bloquées',
+            'block-ips' => 'Bloquer des IPs',
+            'unblock-ips' => 'Débloquer des IPs',
+            'delete-security-logs' => 'Supprimer les logs de sécurité',
         ];
 
         // Créer les permissions
@@ -103,13 +116,14 @@ class RolesAndPermissionsSeeder extends Seeder
             ['description' => 'Administrateur avec droits de gestion']
         );
         $admin->syncPermissions([
-            'view-users', 'edit-users', 'approve-users', 'suspend-users',
+            'view-users', 'search-users', 'view-user-details', 'edit-users', 'approve-users', 'suspend-users', 'activate-users', 'reset-user-password', 'export-users',
             'view-documents', 'verify-documents', 'approve-documents', 'reject-documents',
             'view-developers', 'edit-developers', 'approve-developers', 'suspend-developers',
             'view-oauth-apps', 'edit-oauth-apps', 'approve-oauth-apps', 'suspend-oauth-apps',
             'view-scope-requests', 'approve-scope-requests', 'reject-scope-requests', 'manage-scopes',
             'view-audit-logs', 'view-connection-logs',
             'view-statistics', 'view-reports',
+            'view-security-logs', 'view-blocked-ips', // Ajout permissions sécurité (lecture seule)
         ]);
 
         // 3. Modérateur - Validation des documents et utilisateurs
@@ -118,7 +132,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ['description' => 'Modérateur - Validation des documents et utilisateurs']
         );
         $moderator->syncPermissions([
-            'view-users', 'approve-users', 'suspend-users',
+            'view-users', 'search-users', 'view-user-details', 'approve-users', 'suspend-users', 'activate-users',
             'view-documents', 'verify-documents', 'approve-documents', 'reject-documents',
             'view-developers', 'approve-developers',
             'view-oauth-apps', 'approve-oauth-apps',
@@ -132,7 +146,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ['description' => 'Support - Consultation et assistance']
         );
         $support->syncPermissions([
-            'view-users',
+            'view-users', 'search-users', 'view-user-details',
             'view-documents',
             'view-developers',
             'view-oauth-apps',
@@ -155,6 +169,23 @@ class RolesAndPermissionsSeeder extends Seeder
             'view-statistics',
         ]);
 
+        // 6. Cyber Security Admin - Gestion complète de la sécurité
+        $cyberAdmin = Role::firstOrCreate(
+            ['name' => 'cyber-admin', 'guard_name' => 'admin'],
+            ['description' => 'Administrateur Cyber Sécurité - Gestion complète de la sécurité']
+        );
+        $cyberAdmin->syncPermissions([
+            'view-security-logs',
+            'manage-security',
+            'view-blocked-ips',
+            'block-ips',
+            'unblock-ips',
+            'delete-security-logs',
+            'view-audit-logs',
+            'view-connection-logs',
+            'view-statistics',
+        ]);
+
         $this->command->info('Rôles et permissions créés avec succès !');
         $this->command->info('');
         $this->command->info('Rôles créés :');
@@ -163,5 +194,6 @@ class RolesAndPermissionsSeeder extends Seeder
         $this->command->info('- moderator : ' . $moderator->permissions->count() . ' permissions');
         $this->command->info('- support : ' . $support->permissions->count() . ' permissions');
         $this->command->info('- oauth-manager : ' . $oauthManager->permissions->count() . ' permissions');
+        $this->command->info('- cyber-admin : ' . $cyberAdmin->permissions->count() . ' permissions');
     }
 }

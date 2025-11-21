@@ -25,6 +25,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/*',
         ]);
 
+        // Configuration du rate limiting
+        $middleware->throttleApi('60,1'); // 60 requêtes par minute pour l'API
+
+        // Définir des limites personnalisées
+        $middleware->throttleWithRedis(); // Utiliser Redis si disponible
+
         // Alias de middleware Spatie Permission
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
@@ -32,7 +38,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'developer' => \App\Http\Middleware\EnsureUserIsDeveloper::class,
             'oauth.auth' => \App\Http\Middleware\EnsureAuthenticatedForOAuth::class,
+            'security.check' => \App\Http\Middleware\SecurityCheck::class,
         ]);
+
+        // Middleware global de sécurité
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+
+        // Middleware de détection d'attaques (facultatif - à activer avec précaution)
+        // $middleware->append(\App\Http\Middleware\SecurityCheck::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -177,6 +177,12 @@
                         @endif
                     </span>
                 </div>
+                @if($document->document_type === 'cni' && $document->card_number)
+                <div class="info-row">
+                    <span class="info-label">Numéro de Carte (CNI)</span>
+                    <span class="info-value"><code class="text-primary fs-5">{{ $document->card_number }}</code></span>
+                </div>
+                @endif
                 <div class="info-row">
                     <span class="info-label">Numéro de Document</span>
                     <span class="info-value"><code class="text-dark fs-5">{{ $document->document_number }}</code></span>
@@ -218,7 +224,7 @@
                         @endif
                     </span>
                 </div>
-                
+
                 @if($document->verification_status !== 'pending' && $document->verifiedBy)
                 <div class="info-row">
                     <span class="info-label">Vérifié par</span>
@@ -259,7 +265,7 @@
                     </span>
                 </div>
                 @endif
-                
+
                 @if($document->verification_status === 'rejected' && $document->rejection_reason)
                 <div class="info-row">
                     <span class="info-label">Raison du rejet</span>
@@ -315,13 +321,13 @@
                 <div class="timeline">
                     @foreach($document->histories as $history)
                     <div class="timeline-item">
-                        <div class="timeline-marker 
+                        <div class="timeline-marker
                             @if($history->action === 'verified') bg-success
                             @elseif($history->action === 'rejected') bg-danger
                             @elseif($history->action === 'submitted') bg-primary
                             @else bg-info
                             @endif">
-                            <i class="fas 
+                            <i class="fas
                                 @if($history->action === 'verified') fa-check-circle
                                 @elseif($history->action === 'rejected') fa-times-circle
                                 @elseif($history->action === 'submitted') fa-upload
