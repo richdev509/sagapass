@@ -6,6 +6,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
@@ -34,6 +35,16 @@ class User extends Authenticatable implements MustVerifyEmail
         'developer_bio',
         'developer_website',
         'developer_verified_at',
+        // Nouveaux champs pour système à 2 niveaux
+        'account_level',
+        'verification_level',
+        'verified_at',
+        'profile_picture',
+        'verification_video',
+        'video_verified_at',
+        'video_status',
+        'video_rejection_reason',
+        'video_consent_at',
     ];
 
     /**
@@ -59,7 +70,164 @@ class User extends Authenticatable implements MustVerifyEmail
             'date_of_birth' => 'date',
             'is_developer' => 'boolean',
             'developer_verified_at' => 'datetime',
+            // Nouveaux casts
+            'verified_at' => 'datetime',
+            'video_verified_at' => 'datetime',
+            'video_consent_at' => 'datetime',
         ];
+    }
+
+    // ============================================
+    // MÉTHODES POUR SYSTÈME À 2 NIVEAUX
+    // ============================================
+
+    /**
+     * Check if user has a Basic account level.
+     */
+    public function isBasicAccount(): bool
+    {
+        return $this->account_level === 'basic';
+    }
+
+    /**
+     * Check if user has a Verified account level.
+     */
+    public function isVerifiedAccount(): bool
+    {
+        return $this->account_level === 'verified';
+    }
+
+    /**
+     * Check if video verification is pending.
+     */
+    public function isVideoPending(): bool
+    {
+        return $this->video_status === 'pending';
+    }
+
+    /**
+     * Check if video has been approved.
+     */
+    public function isVideoApproved(): bool
+    {
+        return $this->video_status === 'approved';
+    }
+
+    /**
+     * Check if video has been rejected.
+     */
+    public function isVideoRejected(): bool
+    {
+        return $this->video_status === 'rejected';
+    }
+
+    /**
+     * Check if user needs video verification.
+     */
+    public function needsVideoVerification(): bool
+    {
+        return empty($this->verification_video) || 
+               $this->video_status === 'none' || 
+               $this->video_status === 'rejected';
+    }
+
+    /**
+     * Check if user can upgrade to Verified account.
+     */
+    public function canUpgradeToVerified(): bool
+    {
+        return $this->isBasicAccount() && 
+               $this->isVideoApproved() && 
+               $this->email_verified_at !== null;
+    }
+
+    /**
+     * Check if user has a document pending verification.
+     */
+    public function hasDocumentPending(): bool
+    {
+        return $this->documents()
+                    ->where('status', 'pending')
+                    ->exists();
+    }
+
+    /**
+     * Upgrade user from Basic to Verified account.
+     */
+    public function upgradeToVerified(): void
+    {
+        $this->update([
+            'account_level' => 'verified',
+            'verification_level' => 'document',
+            'verified_at' => now(),
+        ]);
+    }
+
+    /**
+     * Get allowed OAuth scopes based on account level.
+     */
+    public function getAllowedScopes(): array
+    {
+        if ($this->isVerifiedAccount()) {
+            return [
+                'profile',
+                'email',
+                'documents',
+                'documents:verified',
+                'address',
+                'phone',
+            ];
+        }
+
+        // Scopes limités pour compte Basic
+        return [
+            'profile:basic',
+            'email',
+        ];
+    }
+
+    /**
+     * Get user badge based on account level and video status.
+     */
+    public function getBadgeAttribute(): string
+    {
+        if ($this->isVerifiedAccount()) {
+            return 'verified';
+        }
+
+        if ($this->isVideoApproved()) {
+            return 'basic-video';
+        }
+
+        if ($this->isVideoPending()) {
+            return 'basic-pending';
+        }
+
+        return 'basic';
+    }
+
+    /**
+     * Get profile picture URL.
+     */
+    public function getProfilePictureUrlAttribute(): ?string
+    {
+        if (!$this->profile_picture) {
+            return null;
+        }
+
+        return Storage::url($this->profile_picture);
+    }
+
+    // ============================================
+    // RELATIONS
+    // ============================================
+
+    /**
+     * Get all video verifications for the user.
+     */
+    public function videoVerifications()
+    {
+        return $this->hasMany(VideoVerification::class);
     }
 
     /**

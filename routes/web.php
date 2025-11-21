@@ -7,6 +7,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\Developer\DeveloperController;
 use App\Http\Controllers\Developer\DeveloperAuthController;
 use App\Http\Controllers\OAuth\OAuthController;
+use App\Http\Controllers\Auth\RegisterBasicController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
 
@@ -15,6 +16,28 @@ Route::get('/', function () {
 });
 
 Auth::routes();
+
+/*
+|--------------------------------------------------------------------------
+| Inscription Basic (3 étapes: infos → photo → vidéo)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('register/basic')->name('register.basic.')->group(function () {
+    // Étape 1 : Informations de base
+    Route::get('/step1', [RegisterBasicController::class, 'showStep1'])->name('step1');
+    Route::post('/step1', [RegisterBasicController::class, 'postStep1'])->name('step1.submit');
+
+    // Étape 2 : Photo de profil (webcam)
+    Route::get('/step2', [RegisterBasicController::class, 'showStep2'])->name('step2');
+    Route::post('/step2', [RegisterBasicController::class, 'postStep2'])->name('step2.submit');
+
+    // Étape 3 : Vidéo de vérification
+    Route::get('/step3', [RegisterBasicController::class, 'showStep3'])->name('step3');
+    Route::post('/step3', [RegisterBasicController::class, 'postStep3'])->name('step3.submit');
+
+    // Page de confirmation
+    Route::get('/complete', [RegisterBasicController::class, 'complete'])->name('complete')->middleware('auth:web');
+});
 
 // Routes de vérification d'email
 Route::middleware(['auth:web'])->group(function () {
