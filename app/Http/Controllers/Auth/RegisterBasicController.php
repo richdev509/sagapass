@@ -70,7 +70,7 @@ class RegisterBasicController extends Controller
 
         // Décoder l'image base64
         $imageData = $request->input('photo');
-        
+
         if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $type)) {
             $imageData = substr($imageData, strpos($imageData, ',') + 1);
             $type = strtolower($type[1]);

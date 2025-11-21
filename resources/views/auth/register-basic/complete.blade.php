@@ -70,8 +70,8 @@
                     <div class="alert alert-warning mt-4 text-start">
                         <h6><i class="fas fa-star"></i> Votre compte SagaPass Basic</h6>
                         <p class="mb-0">
-                            Vous avez créé un compte <strong>Basic</strong>. Après validation de votre vidéo, 
-                            vous pourrez passer à un compte <strong>Vérifié</strong> en ajoutant vos documents d'identité 
+                            Vous avez créé un compte <strong>Basic</strong>. Après validation de votre vidéo,
+                            vous pourrez passer à un compte <strong>Vérifié</strong> en ajoutant vos documents d'identité
                             (CNI ou Passeport) pour accéder à tous les services.
                         </p>
                     </div>
@@ -84,7 +84,7 @@
 
                     <div class="mt-3">
                         <small class="text-muted">
-                            Vous n'avez pas reçu l'email ? 
+                            Vous n'avez pas reçu l'email ?
                             <form method="POST" action="{{ route('verification.resend') }}" class="d-inline">
                                 @csrf
                                 <button type="submit" class="btn btn-link btn-sm p-0">Renvoyer l'email</button>
@@ -98,7 +98,7 @@
             <div class="card mt-4">
                 <div class="card-body">
                     <h5 class="card-title"><i class="fas fa-question-circle"></i> Questions fréquentes</h5>
-                    
+
                     <div class="accordion" id="faqAccordion">
                         <div class="accordion-item">
                             <h2 class="accordion-header">
@@ -108,7 +108,7 @@
                             </h2>
                             <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                                 <div class="accordion-body">
-                                    La vérification de votre vidéo prend généralement entre 24 et 48 heures. 
+                                    La vérification de votre vidéo prend généralement entre 24 et 48 heures.
                                     Vous recevrez un email dès que votre compte sera activé.
                                 </div>
                             </div>
@@ -122,8 +122,8 @@
                             </h2>
                             <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
                                 <div class="accordion-body">
-                                    Si votre vidéo ne respecte pas les critères (visage non visible, pas de son, etc.), 
-                                    vous recevrez un email avec la raison du rejet et pourrez soumettre une nouvelle vidéo 
+                                    Si votre vidéo ne respecte pas les critères (visage non visible, pas de son, etc.),
+                                    vous recevrez un email avec la raison du rejet et pourrez soumettre une nouvelle vidéo
                                     depuis votre profil.
                                 </div>
                             </div>

@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->timestamps();
-            
+
             // Index pour optimiser les requêtes
             $table->index(['status', 'created_at']);
             $table->index('user_id');

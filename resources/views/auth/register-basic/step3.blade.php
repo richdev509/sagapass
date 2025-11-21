@@ -49,7 +49,7 @@
                     <!-- Webcam pour enregistrement -->
                     <div id="recording-container" class="text-center" style="display: none;">
                         <video id="webcam-video" width="100%" height="auto" autoplay muted style="max-width: 640px; border-radius: 10px; border: 3px solid #ddd;"></video>
-                        
+
                         <!-- Barre de progression -->
                         <div id="progress-container" style="display: none; max-width: 640px; margin: 20px auto;">
                             <div class="d-flex justify-content-between mb-2">
@@ -84,7 +84,7 @@
                     <div id="preview-container" style="display: none;" class="text-center">
                         <h5 class="mb-3">Aperçu de votre vidéo</h5>
                         <video id="preview-video" width="100%" height="auto" controls style="max-width: 640px; border-radius: 10px; border: 3px solid #28a745;"></video>
-                        
+
                         <div class="mt-3">
                             <button type="button" class="btn btn-success btn-lg" id="validate-video-btn">
                                 <i class="fas fa-check"></i> Valider et créer mon compte
@@ -100,8 +100,8 @@
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="consent-checkbox" name="consent" required>
                             <label class="form-check-label" for="consent-checkbox">
-                                J'accepte que ma photo et ma vidéo soient stockées pour vérifier mon identité. 
-                                Je peux demander leur suppression à tout moment via mon profil. 
+                                J'accepte que ma photo et ma vidéo soient stockées pour vérifier mon identité.
+                                Je peux demander leur suppression à tout moment via mon profil.
                                 <a href="#" target="_blank">Politique de confidentialité</a>
                             </label>
                         </div>
@@ -139,8 +139,8 @@ const timerDisplay = document.getElementById('timer-display');
 // Fonction pour demander accès média (appelée directement depuis onclick)
 async function requestMediaAccess() {
     try {
-        videoStream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
+        videoStream = await navigator.mediaDevices.getUserMedia({
+            video: {
                 width: { ideal: 1280 },
                 height: { ideal: 720 },
                 facingMode: 'user'
@@ -148,13 +148,13 @@ async function requestMediaAccess() {
             audio: true
         });
         webcamVideo.srcObject = videoStream;
-        
+
         // Masquer le message de permission et afficher la webcam
         document.getElementById('permission-request').style.display = 'none';
         document.getElementById('recording-container').style.display = 'block';
     } catch (error) {
         console.error('Erreur:', error);
-        
+
         let errorMsg = 'Impossible d\'accéder à la webcam et au microphone.';
         if (error.name === 'NotAllowedError') {
             errorMsg = 'Vous avez refusé l\'accès. Veuillez autoriser l\'accès à la webcam et au microphone dans les paramètres de votre navigateur.';
@@ -163,7 +163,7 @@ async function requestMediaAccess() {
         } else if (error.name === 'NotReadableError') {
             errorMsg = 'Votre webcam ou microphone est déjà utilisé par une autre application.';
         }
-        
+
         document.getElementById('permission-request').innerHTML = `
             <div class="alert alert-danger">
                 <i class="fas fa-times-circle"></i>
@@ -194,14 +194,14 @@ function startCountdown() {
     let countdownElement = document.getElementById('countdown');
     let countdownNumber = document.getElementById('countdown-number');
     let count = 3;
-    
+
     countdownElement.style.display = 'block';
     startRecordBtn.style.display = 'none';
-    
+
     let interval = setInterval(() => {
         count--;
         countdownNumber.textContent = count;
-        
+
         if (count === 0) {
             clearInterval(interval);
             countdownElement.style.display = 'none';
@@ -212,7 +212,7 @@ function startCountdown() {
 
 function startRecording() {
     recordedChunks = [];
-    
+
     // Créer le MediaRecorder
     try {
         mediaRecorder = new MediaRecorder(videoStream, {
@@ -222,40 +222,40 @@ function startRecording() {
         // Fallback si le codec n'est pas supporté
         mediaRecorder = new MediaRecorder(videoStream);
     }
-    
+
     mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
             recordedChunks.push(event.data);
         }
     };
-    
+
     mediaRecorder.onstop = () => {
         // Créer le blob vidéo
         const blob = new Blob(recordedChunks, { type: 'video/webm' });
         const videoURL = URL.createObjectURL(blob);
         previewVideo.src = videoURL;
-        
+
         // Convertir en fichier pour le formulaire
         const file = new File([blob], 'verification-video.webm', { type: 'video/webm' });
         const dataTransfer = new DataTransfer();
         dataTransfer.items.add(file);
         document.getElementById('video-file').files = dataTransfer.files;
-        
+
         // Afficher le preview
         showPreview();
     };
-    
+
     // Démarrer l'enregistrement
     mediaRecorder.start();
     recordingStartTime = Date.now();
-    
+
     // Afficher la barre de progression
     progressContainer.style.display = 'block';
     stopRecordBtn.style.display = 'inline-block';
-    
+
     // Démarrer le timer
     timerInterval = setInterval(updateProgress, 100);
-    
+
     // Arrêter automatiquement après 15 secondes
     setTimeout(() => {
         if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -267,10 +267,10 @@ function startRecording() {
 function updateProgress() {
     const elapsed = (Date.now() - recordingStartTime) / 1000;
     const percentage = (elapsed / MAX_DURATION) * 100;
-    
+
     progressBar.style.width = percentage + '%';
     timerDisplay.textContent = Math.floor(elapsed);
-    
+
     if (elapsed >= MAX_DURATION) {
         clearInterval(timerInterval);
     }
@@ -285,7 +285,7 @@ function stopRecording() {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
         clearInterval(timerInterval);
-        
+
         // Arrêter la webcam
         if (videoStream) {
             videoStream.getTracks().forEach(track => track.stop());
@@ -302,15 +302,15 @@ function showPreview() {
 // Valider la vidéo
 document.getElementById('validate-video-btn').addEventListener('click', () => {
     const consentCheckbox = document.getElementById('consent-checkbox');
-    
+
     if (!consentCheckbox.checked) {
         alert('Veuillez accepter le consentement pour continuer.');
         return;
     }
-    
+
     // Copier le consentement
     document.getElementById('consent-hidden').checked = true;
-    
+
     // Soumettre le formulaire
     document.getElementById('video-form').submit();
 });
@@ -322,18 +322,18 @@ document.getElementById('retake-video-btn').addEventListener('click', async () =
     progressBar.style.width = '0%';
     timerDisplay.textContent = '0';
     progressContainer.style.display = 'none';
-    
+
     // Réafficher l'interface d'enregistrement
     document.getElementById('preview-container').style.display = 'none';
     document.getElementById('consent-container').style.display = 'none';
     document.getElementById('recording-container').style.display = 'block';
     startRecordBtn.style.display = 'inline-block';
     stopRecordBtn.style.display = 'none';
-    
+
     // Redémarrer la webcam
     try {
-        videoStream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
+        videoStream = await navigator.mediaDevices.getUserMedia({
+            video: {
                 width: { ideal: 1280 },
                 height: { ideal: 720 },
                 facingMode: 'user'

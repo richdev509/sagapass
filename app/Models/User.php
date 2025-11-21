@@ -126,8 +126,8 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function needsVideoVerification(): bool
     {
-        return empty($this->verification_video) || 
-               $this->video_status === 'none' || 
+        return empty($this->verification_video) ||
+               $this->video_status === 'none' ||
                $this->video_status === 'rejected';
     }
 
@@ -136,8 +136,8 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function canUpgradeToVerified(): bool
     {
-        return $this->isBasicAccount() && 
-               $this->isVideoApproved() && 
+        return $this->isBasicAccount() &&
+               $this->isVideoApproved() &&
                $this->email_verified_at !== null;
     }
 

@@ -35,12 +35,12 @@
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label for="first_name" class="form-label">Prénom *</label>
-                                <input type="text" 
-                                       class="form-control @error('first_name') is-invalid @enderror" 
-                                       id="first_name" 
-                                       name="first_name" 
-                                       value="{{ old('first_name') }}" 
-                                       required 
+                                <input type="text"
+                                       class="form-control @error('first_name') is-invalid @enderror"
+                                       id="first_name"
+                                       name="first_name"
+                                       value="{{ old('first_name') }}"
+                                       required
                                        autofocus>
                                 @error('first_name')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -49,11 +49,11 @@
 
                             <div class="col-md-6">
                                 <label for="last_name" class="form-label">Nom *</label>
-                                <input type="text" 
-                                       class="form-control @error('last_name') is-invalid @enderror" 
-                                       id="last_name" 
-                                       name="last_name" 
-                                       value="{{ old('last_name') }}" 
+                                <input type="text"
+                                       class="form-control @error('last_name') is-invalid @enderror"
+                                       id="last_name"
+                                       name="last_name"
+                                       value="{{ old('last_name') }}"
                                        required>
                                 @error('last_name')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -63,11 +63,11 @@
 
                         <div class="mb-3">
                             <label for="email" class="form-label">Adresse Email *</label>
-                            <input type="email" 
-                                   class="form-control @error('email') is-invalid @enderror" 
-                                   id="email" 
-                                   name="email" 
-                                   value="{{ old('email') }}" 
+                            <input type="email"
+                                   class="form-control @error('email') is-invalid @enderror"
+                                   id="email"
+                                   name="email"
+                                   value="{{ old('email') }}"
                                    required>
                             @error('email')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -77,11 +77,11 @@
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label for="password" class="form-label">Mot de passe *</label>
-                                <input type="password" 
-                                       class="form-control @error('password') is-invalid @enderror" 
-                                       id="password" 
-                                       name="password" 
-                                       required 
+                                <input type="password"
+                                       class="form-control @error('password') is-invalid @enderror"
+                                       id="password"
+                                       name="password"
+                                       required
                                        minlength="8">
                                 @error('password')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -91,10 +91,10 @@
 
                             <div class="col-md-6">
                                 <label for="password_confirmation" class="form-label">Confirmer le mot de passe *</label>
-                                <input type="password" 
-                                       class="form-control" 
-                                       id="password_confirmation" 
-                                       name="password_confirmation" 
+                                <input type="password"
+                                       class="form-control"
+                                       id="password_confirmation"
+                                       name="password_confirmation"
                                        required>
                             </div>
                         </div>
@@ -102,12 +102,12 @@
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label for="date_of_birth" class="form-label">Date de naissance *</label>
-                                <input type="date" 
-                                       class="form-control @error('date_of_birth') is-invalid @enderror" 
-                                       id="date_of_birth" 
-                                       name="date_of_birth" 
-                                       value="{{ old('date_of_birth') }}" 
-                                       max="{{ date('Y-m-d') }}" 
+                                <input type="date"
+                                       class="form-control @error('date_of_birth') is-invalid @enderror"
+                                       id="date_of_birth"
+                                       name="date_of_birth"
+                                       value="{{ old('date_of_birth') }}"
+                                       max="{{ date('Y-m-d') }}"
                                        required>
                                 @error('date_of_birth')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -116,11 +116,11 @@
 
                             <div class="col-md-6">
                                 <label for="phone" class="form-label">Téléphone <span class="text-muted">(optionnel)</span></label>
-                                <input type="tel" 
-                                       class="form-control @error('phone') is-invalid @enderror" 
-                                       id="phone" 
-                                       name="phone" 
-                                       value="{{ old('phone') }}" 
+                                <input type="tel"
+                                       class="form-control @error('phone') is-invalid @enderror"
+                                       id="phone"
+                                       name="phone"
+                                       value="{{ old('phone') }}"
                                        placeholder="+221 77 123 45 67">
                                 @error('phone')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -136,7 +136,7 @@
 
                         <div class="text-center mt-3">
                             <p class="text-muted mb-0">
-                                Déjà un compte ? 
+                                Déjà un compte ?
                                 <a href="{{ route('login') }}">Se connecter</a>
                             </p>
                         </div>
