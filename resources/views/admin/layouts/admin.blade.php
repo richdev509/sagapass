@@ -440,6 +440,22 @@
             </li>
             @endcan
 
+            @can('manage-settings', 'admin')
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}" href="{{ route('admin.settings.index') }}">
+                    <i class="fas fa-cogs"></i>
+                    <span>Paramètres Système</span>
+                </a>
+            </li>
+            @endcan
+
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.two-factor.*') ? 'active' : '' }}" href="{{ route('admin.two-factor.index') }}">
+                    <i class="fas fa-lock"></i>
+                    <span>Authentification 2FA</span>
+                </a>
+            </li>
+
             <li class="nav-item mt-4">
                 <form method="POST" action="{{ route('admin.logout') }}">
                     @csrf
