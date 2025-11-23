@@ -123,6 +123,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'view-scope-requests', 'approve-scope-requests', 'reject-scope-requests', 'manage-scopes',
             'view-audit-logs', 'view-connection-logs',
             'view-statistics', 'view-reports',
+            'manage-settings', // ✅ Ajout permission gestion paramètres système
             'view-security-logs', 'view-blocked-ips', // Ajout permissions sécurité (lecture seule)
         ]);
 

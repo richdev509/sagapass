@@ -3,6 +3,9 @@
 @section('title', 'Tableau de Bord')
 
 @section('content')
+<!-- Beta Banner -->
+@include('components.beta-banner')
+
 <div class="mobile-app-container">
     <!-- En-tête de bienvenue -->
     <div class="row mb-4">
@@ -109,6 +112,22 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
+
+    <!-- Support Links -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="support-links">
+                <a href="{{ route('known-errors') }}" class="support-link">
+                    <i class="fas fa-book-open"></i>
+                    Erreurs Connues
+                </a>
+                <a href="{{ \App\Models\SystemSetting::getWhatsAppLink() }}" target="_blank" class="support-link">
+                    <i class="fab fa-whatsapp"></i>
+                    Signaler un Problème
+                </a>
+            </div>
+        </div>
+    </div>
 
     {{-- Alerte compte Pending : doit soumettre vidéo --}}
     @if($user->account_level === 'pending' && $user->video_status === 'none')
@@ -674,6 +693,37 @@
         .mb-3 {
             margin-bottom: 0.75rem !important;
         }
+    }
+
+    /* Support links */
+    .support-links {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .support-link {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        background: white;
+        border-radius: 50px;
+        text-decoration: none;
+        color: #667eea;
+        font-weight: 600;
+        transition: all 0.3s;
+        border: 2px solid #667eea;
+    }
+
+    .support-link:hover {
+        background: #667eea;
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .support-link i {
+        margin-right: 0.5rem;
     }
 </style>
 @endpush

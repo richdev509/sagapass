@@ -8,6 +8,8 @@ use App\Http\Controllers\Admin\CitizenController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\StatisticsController;
+use App\Http\Controllers\Admin\SystemSettingsController;
+use App\Http\Controllers\Admin\TwoFactorController;
 use App\Http\Controllers\Admin\Auth\LoginController;
 
 /*
@@ -25,10 +27,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [LoginController::class, 'login'])->name('login.submit');
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+    // Vérification 2FA (après login, avant dashboard)
+    Route::get('/two-factor/verify', [TwoFactorController::class, 'showVerify'])->name('two-factor.verify');
+    Route::post('/two-factor/verify', [TwoFactorController::class, 'verify'])->name('two-factor.verify.post');
 });
 
-// Routes protégées par le guard admin
-Route::middleware(['auth:admin'])->prefix('admin')->name('admin.')->group(function () {
+// Routes protégées par le guard admin + vérification 2FA obligatoire
+Route::middleware(['auth:admin', 'ensure.2fa'])->prefix('admin')->name('admin.')->group(function () {
 
     // Dashboard Admin
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -222,6 +228,22 @@ Route::middleware(['auth:admin'])->prefix('admin')->name('admin.')->group(functi
         Route::post('/clean-expired', [\App\Http\Controllers\Admin\SecurityController::class, 'cleanExpiredBlocks'])
             ->middleware('permission:manage-security,admin')
             ->name('clean-expired');
+    });
+
+    // Paramètres Système (Beta Launch Features - Super Admin uniquement)
+    Route::prefix('settings')->name('settings.')->middleware('permission:manage-settings,admin')->group(function () {
+        Route::get('/', [SystemSettingsController::class, 'index'])->name('index');
+        Route::post('/', [SystemSettingsController::class, 'update'])->name('update');
+    });
+
+    // Authentification à deux facteurs (2FA)
+    Route::prefix('two-factor')->name('two-factor.')->group(function () {
+        Route::get('/', [TwoFactorController::class, 'index'])->name('index');
+        Route::get('/enable', [TwoFactorController::class, 'enable'])->name('enable');
+        Route::post('/enable', [TwoFactorController::class, 'enable'])->name('enable.post');
+        Route::post('/confirm', [TwoFactorController::class, 'confirm'])->name('confirm');
+        Route::post('/disable', [TwoFactorController::class, 'disable'])->name('disable');
+        Route::post('/recovery-codes/regenerate', [TwoFactorController::class, 'regenerateRecoveryCodes'])->name('recovery-codes.regenerate');
     });
 });
 

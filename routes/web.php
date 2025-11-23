@@ -16,6 +16,11 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Known Errors Page (public)
+Route::get('/erreurs-connues', function () {
+    return view('known-errors');
+})->name('known-errors');
+
 Auth::routes();
 
 /*

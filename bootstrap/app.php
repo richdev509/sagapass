@@ -39,10 +39,17 @@ return Application::configure(basePath: dirname(__DIR__))
             'developer' => \App\Http\Middleware\EnsureUserIsDeveloper::class,
             'oauth.auth' => \App\Http\Middleware\EnsureAuthenticatedForOAuth::class,
             'security.check' => \App\Http\Middleware\SecurityCheck::class,
+            'maintenance' => \App\Http\Middleware\CheckMaintenanceMode::class,
+            'ensure.2fa' => \App\Http\Middleware\EnsureTwoFactorEnabled::class,
         ]);
 
         // Middleware global de sécurité
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+
+        // Middleware de maintenance (appliqué au groupe web)
+        $middleware->web(append: [
+            \App\Http\Middleware\CheckMaintenanceMode::class,
+        ]);
 
         // Middleware de détection d'attaques (facultatif - à activer avec précaution)
         // $middleware->append(\App\Http\Middleware\SecurityCheck::class);

@@ -36,6 +36,9 @@
     </style>
 </head>
 <body>
+    <!-- Beta Banner -->
+    @include('components.beta-banner')
+
     <nav class="navbar navbar-expand-lg navbar-light fixed-top">
         <div class="container">
             <a class="navbar-brand" href="/"><i class="fas fa-shield-alt me-2"></i>SAGAPASS</a>
@@ -79,7 +82,11 @@
                                 <a href="{{ route('developers.register') }}" class="btn btn-hero btn-hero-outline mb-2"><i class="fas fa-code me-2"></i>Compte Développeur</a>
                             </div>
                         @endif
-                        <a href="#features" class="btn btn-link text-white"><i class="fas fa-arrow-down me-2"></i>Découvrir plus</a>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a href="#features" class="btn btn-link text-white"><i class="fas fa-arrow-down me-2"></i>Découvrir plus</a>
+                            <a href="{{ route('known-errors') }}" class="btn btn-link text-white"><i class="fas fa-book-open me-2"></i>Erreurs Connues</a>
+                            <a href="{{ \App\Models\SystemSetting::getWhatsAppLink() }}" target="_blank" class="btn btn-link text-white"><i class="fab fa-whatsapp me-2"></i>Signaler un Problème</a>
+                        </div>
                     </div>
                 </div>
                 <div class="col-lg-6 text-center">
