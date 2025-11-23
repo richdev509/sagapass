@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('sagapass-logo.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('sagapass-logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('sagapass-logo.png') }}">
+
     <!-- Permissions Policy pour webcam et microphone -->
     <meta http-equiv="Permissions-Policy" content="camera=*, microphone=*, display-capture=*">
 

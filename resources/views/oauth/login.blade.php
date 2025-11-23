@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('sagapass-logo.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('sagapass-logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('sagapass-logo.png') }}">
+
     <title>Connexion OAuth - SAGAPASS</title>
 
     <!-- Font Awesome -->

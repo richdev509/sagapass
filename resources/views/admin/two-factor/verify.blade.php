@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('sagapass-logo.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('sagapass-logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('sagapass-logo.png') }}">
+
     <title>Vérification 2FA - SAGAPASS</title>
 
     <!-- Bootstrap 5 CSS -->
