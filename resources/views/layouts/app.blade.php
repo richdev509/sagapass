@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    <!-- Permissions Policy pour webcam et microphone -->
+    <meta http-equiv="Permissions-Policy" content="camera=*, microphone=*, display-capture=*">
+
     <title>{{ config('app.name', 'SAGAPASS') }} - @yield('title', 'Identité Numérique')</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">

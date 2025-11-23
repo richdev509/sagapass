@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\BadgeController;
 use App\Http\Controllers\Developer\DeveloperController;
 use App\Http\Controllers\Developer\DeveloperAuthController;
 use App\Http\Controllers\OAuth\OAuthController;
@@ -54,9 +55,14 @@ Route::middleware(['auth:web'])->group(function () {
 
     // Renvoyer l'email de vérification
     Route::post('/email/verification-notification', function (Request $request) {
-        $request->user()->sendEmailVerificationNotification();
-        return back()->with('resent', true);
-    })->middleware(['throttle:6,1'])->name('verification.resend');
+        try {
+            $request->user()->sendEmailVerificationNotification();
+            return back()->with('success', 'Email de vérification renvoyé avec succès !');
+        } catch (\Exception $e) {
+            \Log::error('Erreur envoi email vérification: ' . $e->getMessage());
+            return back()->with('error', 'Erreur lors de l\'envoi de l\'email. Veuillez réessayer.');
+        }
+    })->name('verification.resend');
 });
 
 // Routes protégées pour les citoyens (guard: web)
@@ -77,7 +83,21 @@ Route::middleware(['auth:web'])->group(function () {
     Route::get('/documents/{id}/image/{type}', [DocumentController::class, 'serveImage'])
         ->name('documents.image')
         ->where('type', 'front|back');
+
+    // Recapture de la vidéo de vérification
+    Route::get('/video/recapture', [DashboardController::class, 'recaptureVideo'])->name('video.recapture');
+    Route::post('/video/recapture', [DashboardController::class, 'submitRecaptureVideo'])->name('video.recapture.submit');
+
+    // Routes pour les badges numériques
+    Route::get('/badge', [BadgeController::class, 'generate'])->name('badge.generate');
+    Route::post('/badge/refresh', [BadgeController::class, 'refresh'])->name('badge.refresh');
+    Route::post('/badge/revoke', [BadgeController::class, 'revoke'])->name('badge.revoke');
 });
+
+// Route publique de validation de badge (accessible sans authentification)
+Route::get('/badge/validate/{token}', [BadgeController::class, 'validateBadge'])
+    ->middleware('throttle:10,1') // ✅ Max 10 tentatives par minute
+    ->name('badge.validate');
 
 // Redirection de /home vers /dashboard
 Route::get('/home', function () {

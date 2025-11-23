@@ -121,237 +121,263 @@
 
 @push('scripts')
 <script>
-let videoStream = null;
-let mediaRecorder = null;
-let recordedChunks = [];
-let recordingStartTime = null;
-let timerInterval = null;
-const MAX_DURATION = 15; // secondes
+// Attendre que le DOM soit complètement chargé
+document.addEventListener('DOMContentLoaded', function() {
+    let videoStream = null;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let recordingStartTime = null;
+    let timerInterval = null;
+    let videoBlob = null; // Stocker le blob vidéo
+    const MAX_DURATION = 15; // secondes
 
-const webcamVideo = document.getElementById('webcam-video');
-const previewVideo = document.getElementById('preview-video');
-const startRecordBtn = document.getElementById('start-record-btn');
-const stopRecordBtn = document.getElementById('stop-record-btn');
-const progressContainer = document.getElementById('progress-container');
-const progressBar = document.getElementById('progress-bar');
-const timerDisplay = document.getElementById('timer-display');
+    const webcamVideo = document.getElementById('webcam-video');
+    const previewVideo = document.getElementById('preview-video');
+    const startRecordBtn = document.getElementById('start-record-btn');
+    const stopRecordBtn = document.getElementById('stop-record-btn');
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
+    const timerDisplay = document.getElementById('timer-display');
 
-// Fonction pour demander accès média (appelée directement depuis onclick)
-async function requestMediaAccess() {
-    try {
-        videoStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                facingMode: 'user'
-            },
-            audio: true
-        });
-        webcamVideo.srcObject = videoStream;
+    // Fonction pour demander accès média (appelée directement depuis onclick) - GLOBALE
+    window.requestMediaAccess = async function() {
+        try {
+            videoStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'user'
+                },
+                audio: true
+            });
+            webcamVideo.srcObject = videoStream;
 
-        // Masquer le message de permission et afficher la webcam
-        document.getElementById('permission-request').style.display = 'none';
-        document.getElementById('recording-container').style.display = 'block';
-    } catch (error) {
-        console.error('Erreur:', error);
+            // Masquer le message de permission et afficher la webcam
+            document.getElementById('permission-request').style.display = 'none';
+            document.getElementById('recording-container').style.display = 'block';
+        } catch (error) {
+            console.error('Erreur:', error);
 
-        let errorMsg = 'Impossible d\'accéder à la webcam et au microphone.';
-        if (error.name === 'NotAllowedError') {
-            errorMsg = 'Vous avez refusé l\'accès. Veuillez autoriser l\'accès à la webcam et au microphone dans les paramètres de votre navigateur.';
-        } else if (error.name === 'NotFoundError') {
-            errorMsg = 'Aucune webcam ou microphone détecté sur votre appareil.';
-        } else if (error.name === 'NotReadableError') {
-            errorMsg = 'Votre webcam ou microphone est déjà utilisé par une autre application.';
-        }
+            let errorMsg = 'Impossible d\'accéder à la webcam et au microphone.';
+            if (error.name === 'NotAllowedError') {
+                errorMsg = 'Vous avez refusé l\'accès. Veuillez autoriser l\'accès à la webcam et au microphone dans les paramètres de votre navigateur.';
+            } else if (error.name === 'NotFoundError') {
+                errorMsg = 'Aucune webcam ou microphone détecté sur votre appareil.';
+            } else if (error.name === 'NotReadableError') {
+                errorMsg = 'Votre webcam ou microphone est déjà utilisé par une autre application.';
+            }
 
-        document.getElementById('permission-request').innerHTML = `
-            <div class="alert alert-danger">
-                <i class="fas fa-times-circle"></i>
-                <h5>Erreur d'accès aux médias</h5>
-                <p>${errorMsg}</p>
-                <button type="button" class="btn btn-primary" onclick="requestMediaAccess()">
-                    <i class="fas fa-redo"></i> Réessayer
-                </button>
-                <a href="{{ route('register.basic.step2') }}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Retour
-                </a>
-            </div>
-        `;
-    }
-}
-
-// (Code removed - DOMContentLoaded no longer needed)
-
-// Bouton manuel pour demander l'accès
-document.getElementById('request-media-btn')?.addEventListener('click', requestMediaAccess);
-
-// Démarrer l'enregistrement avec countdown
-startRecordBtn.addEventListener('click', () => {
-    startCountdown();
-});
-
-function startCountdown() {
-    let countdownElement = document.getElementById('countdown');
-    let countdownNumber = document.getElementById('countdown-number');
-    let count = 3;
-
-    countdownElement.style.display = 'block';
-    startRecordBtn.style.display = 'none';
-
-    let interval = setInterval(() => {
-        count--;
-        countdownNumber.textContent = count;
-
-        if (count === 0) {
-            clearInterval(interval);
-            countdownElement.style.display = 'none';
-            startRecording();
-        }
-    }, 1000);
-}
-
-function startRecording() {
-    recordedChunks = [];
-
-    // Créer le MediaRecorder
-    try {
-        mediaRecorder = new MediaRecorder(videoStream, {
-            mimeType: 'video/webm;codecs=vp8,opus'
-        });
-    } catch (e) {
-        // Fallback si le codec n'est pas supporté
-        mediaRecorder = new MediaRecorder(videoStream);
-    }
-
-    mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-            recordedChunks.push(event.data);
+            document.getElementById('permission-request').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-times-circle"></i>
+                    <h5>Erreur d'accès aux médias</h5>
+                    <p>${errorMsg}</p>
+                    <button type="button" class="btn btn-primary" onclick="requestMediaAccess()">
+                        <i class="fas fa-redo"></i> Réessayer
+                    </button>
+                    <a href="{{ route('register.basic.step2') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Retour
+                    </a>
+                </div>
+            `;
         }
     };
 
-    mediaRecorder.onstop = () => {
-        // Créer le blob vidéo
-        const blob = new Blob(recordedChunks, { type: 'video/webm' });
-        const videoURL = URL.createObjectURL(blob);
-        previewVideo.src = videoURL;
+    // Démarrer l'enregistrement avec countdown
+    startRecordBtn.addEventListener('click', () => {
+        startCountdown();
+    });
 
-        // Convertir en fichier pour le formulaire
-        const file = new File([blob], 'verification-video.webm', { type: 'video/webm' });
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        document.getElementById('video-file').files = dataTransfer.files;
+    function startCountdown() {
+        let countdownElement = document.getElementById('countdown');
+        let countdownNumber = document.getElementById('countdown-number');
+        let count = 3;
 
-        // Afficher le preview
-        showPreview();
-    };
+        countdownElement.style.display = 'block';
+        startRecordBtn.style.display = 'none';
 
-    // Démarrer l'enregistrement
-    mediaRecorder.start();
-    recordingStartTime = Date.now();
+        let interval = setInterval(() => {
+            count--;
+            countdownNumber.textContent = count;
 
-    // Afficher la barre de progression
-    progressContainer.style.display = 'block';
-    stopRecordBtn.style.display = 'inline-block';
+            if (count === 0) {
+                clearInterval(interval);
+                countdownElement.style.display = 'none';
+                startRecording();
+            }
+        }, 1000);
+    }
 
-    // Démarrer le timer
-    timerInterval = setInterval(updateProgress, 100);
+    function startRecording() {
+        recordedChunks = [];
 
-    // Arrêter automatiquement après 15 secondes
-    setTimeout(() => {
+        // Créer le MediaRecorder
+        try {
+            mediaRecorder = new MediaRecorder(videoStream, {
+                mimeType: 'video/webm;codecs=vp8,opus'
+            });
+        } catch (e) {
+            // Fallback si le codec n'est pas supporté
+            mediaRecorder = new MediaRecorder(videoStream);
+        }
+
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                recordedChunks.push(event.data);
+            }
+        };
+
+        mediaRecorder.onstop = () => {
+            // Créer le blob vidéo et le stocker
+            videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+            const videoURL = URL.createObjectURL(videoBlob);
+            previewVideo.src = videoURL;
+
+            console.log('Vidéo enregistrée:', videoBlob.size, 'bytes');
+
+            // Afficher le preview
+            showPreview();
+        };
+
+        // Démarrer l'enregistrement
+        mediaRecorder.start();
+        recordingStartTime = Date.now();
+
+        // Afficher la barre de progression
+        progressContainer.style.display = 'block';
+        stopRecordBtn.style.display = 'inline-block';
+
+        // Démarrer le timer
+        timerInterval = setInterval(updateProgress, 100);
+
+        // Arrêter automatiquement après 15 secondes
+        setTimeout(() => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                stopRecording();
+            }
+        }, MAX_DURATION * 1000);
+    }
+
+    function updateProgress() {
+        const elapsed = (Date.now() - recordingStartTime) / 1000;
+        const percentage = (elapsed / MAX_DURATION) * 100;
+
+        progressBar.style.width = percentage + '%';
+        timerDisplay.textContent = Math.floor(elapsed);
+
+        if (elapsed >= MAX_DURATION) {
+            clearInterval(timerInterval);
+        }
+    }
+
+    // Arrêter l'enregistrement
+    stopRecordBtn.addEventListener('click', () => {
+        stopRecording();
+    });
+
+    function stopRecording() {
         if (mediaRecorder && mediaRecorder.state === 'recording') {
-            stopRecording();
+            mediaRecorder.stop();
+            clearInterval(timerInterval);
+
+            // Arrêter la webcam
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+            }
         }
-    }, MAX_DURATION * 1000);
-}
-
-function updateProgress() {
-    const elapsed = (Date.now() - recordingStartTime) / 1000;
-    const percentage = (elapsed / MAX_DURATION) * 100;
-
-    progressBar.style.width = percentage + '%';
-    timerDisplay.textContent = Math.floor(elapsed);
-
-    if (elapsed >= MAX_DURATION) {
-        clearInterval(timerInterval);
     }
-}
 
-// Arrêter l'enregistrement
-stopRecordBtn.addEventListener('click', () => {
-    stopRecording();
-});
+    function showPreview() {
+        document.getElementById('recording-container').style.display = 'none';
+        document.getElementById('preview-container').style.display = 'block';
+        document.getElementById('consent-container').style.display = 'block';
+    }
 
-function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-        clearInterval(timerInterval);
+    // Valider la vidéo - ENVOYER VIA FORMDATA
+    document.getElementById('validate-video-btn').addEventListener('click', () => {
+        const consentCheckbox = document.getElementById('consent-checkbox');
 
-        // Arrêter la webcam
+        if (!consentCheckbox.checked) {
+            alert('Veuillez accepter le consentement pour continuer.');
+            return;
+        }
+
+        if (!videoBlob) {
+            alert('Aucune vidéo enregistrée. Veuillez réessayer.');
+            return;
+        }
+
+        // Créer FormData pour envoyer le fichier
+        const formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+        formData.append('video', videoBlob, 'verification-video.webm');
+        formData.append('consent', '1');
+
+        // Afficher un indicateur de chargement
+        document.getElementById('validate-video-btn').disabled = true;
+        document.getElementById('validate-video-btn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Envoi en cours...';
+
+        // Envoyer via fetch
+        fetch('{{ route("register.basic.step3.submit") }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.href = '{{ route("register.basic.complete") }}';
+            } else {
+                return response.json().then(data => {
+                    throw new Error(data.message || 'Erreur lors de l\'envoi');
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Erreur lors de l\'envoi de la vidéo. Veuillez réessayer.');
+            document.getElementById('validate-video-btn').disabled = false;
+            document.getElementById('validate-video-btn').innerHTML = '<i class="fas fa-check"></i> Valider et créer mon compte';
+        });
+    });
+
+    // Refaire la vidéo
+    document.getElementById('retake-video-btn').addEventListener('click', async () => {
+        // Réinitialiser
+        recordedChunks = [];
+        videoBlob = null;
+        progressBar.style.width = '0%';
+        timerDisplay.textContent = '0';
+        progressContainer.style.display = 'none';
+
+        // Réafficher l'interface d'enregistrement
+        document.getElementById('preview-container').style.display = 'none';
+        document.getElementById('consent-container').style.display = 'none';
+        document.getElementById('recording-container').style.display = 'block';
+        startRecordBtn.style.display = 'inline-block';
+        stopRecordBtn.style.display = 'none';
+
+        // Redémarrer la webcam
+        try {
+            videoStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'user'
+                },
+                audio: true
+            });
+            webcamVideo.srcObject = videoStream;
+        } catch (error) {
+            alert('Impossible de redémarrer la webcam.');
+            console.error('Erreur:', error);
+        }
+    });
+
+    // Nettoyer avant de quitter
+    window.addEventListener('beforeunload', () => {
         if (videoStream) {
             videoStream.getTracks().forEach(track => track.stop());
         }
-    }
-}
-
-function showPreview() {
-    document.getElementById('recording-container').style.display = 'none';
-    document.getElementById('preview-container').style.display = 'block';
-    document.getElementById('consent-container').style.display = 'block';
-}
-
-// Valider la vidéo
-document.getElementById('validate-video-btn').addEventListener('click', () => {
-    const consentCheckbox = document.getElementById('consent-checkbox');
-
-    if (!consentCheckbox.checked) {
-        alert('Veuillez accepter le consentement pour continuer.');
-        return;
-    }
-
-    // Copier le consentement
-    document.getElementById('consent-hidden').checked = true;
-
-    // Soumettre le formulaire
-    document.getElementById('video-form').submit();
-});
-
-// Refaire la vidéo
-document.getElementById('retake-video-btn').addEventListener('click', async () => {
-    // Réinitialiser
-    recordedChunks = [];
-    progressBar.style.width = '0%';
-    timerDisplay.textContent = '0';
-    progressContainer.style.display = 'none';
-
-    // Réafficher l'interface d'enregistrement
-    document.getElementById('preview-container').style.display = 'none';
-    document.getElementById('consent-container').style.display = 'none';
-    document.getElementById('recording-container').style.display = 'block';
-    startRecordBtn.style.display = 'inline-block';
-    stopRecordBtn.style.display = 'none';
-
-    // Redémarrer la webcam
-    try {
-        videoStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                facingMode: 'user'
-            },
-            audio: true
-        });
-        webcamVideo.srcObject = videoStream;
-    } catch (error) {
-        alert('Impossible de redémarrer la webcam.');
-        console.error('Erreur:', error);
-    }
-});
-
-// Nettoyer avant de quitter
-window.addEventListener('beforeunload', () => {
-    if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-    }
+    });
 });
 </script>
 @endpush

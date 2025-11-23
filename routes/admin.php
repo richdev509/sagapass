@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\VerificationController;
+use App\Http\Controllers\Admin\VideoVerificationController;
 use App\Http\Controllers\Admin\CitizenController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AuditLogController;
@@ -59,6 +60,37 @@ Route::middleware(['auth:admin'])->prefix('admin')->name('admin.')->group(functi
             ->name('approve');
 
         Route::post('/{document}/reject', [VerificationController::class, 'reject'])
+            ->middleware('permission:verify-documents,admin')
+            ->name('reject');
+    });
+
+    // Vérification des vidéos (comptes Basic)
+    Route::prefix('video-verification')->name('video-verification.')->group(function () {
+        Route::get('/', [VideoVerificationController::class, 'index'])
+            ->middleware('permission:verify-documents,admin')
+            ->name('index');
+
+        Route::get('/approved', [VideoVerificationController::class, 'approved'])
+            ->middleware('permission:verify-documents,admin')
+            ->name('approved');
+
+        Route::get('/rejected', [VideoVerificationController::class, 'rejected'])
+            ->middleware('permission:verify-documents,admin')
+            ->name('rejected');
+
+        Route::get('/{user}', [VideoVerificationController::class, 'show'])
+            ->middleware('permission:verify-documents,admin')
+            ->name('show');
+
+        Route::get('/{user}/video', [VideoVerificationController::class, 'serveVideo'])
+            ->middleware('permission:verify-documents,admin')
+            ->name('video');
+
+        Route::post('/{user}/approve', [VideoVerificationController::class, 'approve'])
+            ->middleware('permission:verify-documents,admin')
+            ->name('approve');
+
+        Route::post('/{user}/reject', [VideoVerificationController::class, 'reject'])
             ->middleware('permission:verify-documents,admin')
             ->name('reject');
     });

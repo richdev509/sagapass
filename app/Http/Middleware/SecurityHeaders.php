@@ -47,10 +47,11 @@ class SecurityHeaders
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
         // Permissions Policy (anciennement Feature-Policy)
+        // Autoriser camera et microphone pour l'inscription
         $response->headers->set('Permissions-Policy', implode(', ', [
             'geolocation=()',
-            'microphone=()',
-            'camera=()',
+            'microphone=*',  // Autoriser microphone
+            'camera=*',      // Autoriser caméra
             'payment=()',
         ]));
 

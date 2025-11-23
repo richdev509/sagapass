@@ -87,137 +87,140 @@
 
 @push('scripts')
 <script>
-let videoStream = null;
-let webcamVideo = document.getElementById('webcam-video');
-let photoCanvas = document.getElementById('photo-canvas');
-let photoData = '';
+// Attendre que le DOM soit complètement chargé
+document.addEventListener('DOMContentLoaded', function() {
+    let videoStream = null;
+    let webcamVideo = document.getElementById('webcam-video');
+    let photoCanvas = document.getElementById('photo-canvas');
+    let photoData = '';
 
-// Fonction pour démarrer la webcam (appelée directement depuis onclick)
-async function startCamera() {
-    try {
-        videoStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                facingMode: 'user'
+    // Fonction pour démarrer la webcam (appelée directement depuis onclick)
+    window.startCamera = async function() {
+        try {
+            videoStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'user'
+                }
+            });
+            webcamVideo.srcObject = videoStream;
+
+            // Afficher la vidéo et masquer le bouton de démarrage
+            webcamVideo.style.display = 'block';
+            document.getElementById('start-camera-btn-container').style.display = 'none';
+            document.getElementById('capture-buttons').style.display = 'block';
+        } catch (error) {
+            console.error('Erreur webcam:', error);
+
+            let errorMsg = 'Impossible d\'accéder à la webcam.';
+            if (error.name === 'NotAllowedError') {
+                errorMsg = 'Vous avez refusé l\'accès à la webcam. Veuillez autoriser l\'accès dans les paramètres de votre navigateur et actualiser la page.';
+            } else if (error.name === 'NotFoundError') {
+                errorMsg = 'Aucune webcam détectée sur votre appareil.';
+            } else if (error.name === 'NotReadableError') {
+                errorMsg = 'Votre webcam est déjà utilisée par une autre application.';
             }
-        });
-        webcamVideo.srcObject = videoStream;
 
-        // Afficher la vidéo et masquer le bouton de démarrage
-        webcamVideo.style.display = 'block';
-        document.getElementById('start-camera-btn-container').style.display = 'none';
+            alert(errorMsg);
+        }
+    };
+
+    // Fonction pour arrêter la webcam
+    window.stopWebcam = function() {
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            videoStream = null;
+        }
+        webcamVideo.style.display = 'none';
+        document.getElementById('capture-buttons').style.display = 'none';
+        document.getElementById('start-camera-btn-container').style.display = 'block';
+    };
+
+    // Bouton démarrer countdown
+    document.getElementById('start-countdown-btn').addEventListener('click', () => {
+        startCountdown();
+    });
+
+    // Countdown avant capture
+    function startCountdown() {
+        let countdownElement = document.getElementById('countdown');
+        let countdownNumber = document.getElementById('countdown-number');
+        let count = 3;
+
+        countdownElement.style.display = 'block';
+        document.getElementById('capture-buttons').style.display = 'none';
+
+        let interval = setInterval(() => {
+            count--;
+            countdownNumber.textContent = count;
+
+            if (count === 0) {
+                clearInterval(interval);
+                countdownElement.style.display = 'none';
+                capturePhoto();
+            }
+        }, 1000);
+    }
+
+    // Capturer la photo
+    function capturePhoto() {
+        // Configurer le canvas avec les dimensions de la vidéo
+        photoCanvas.width = webcamVideo.videoWidth;
+        photoCanvas.height = webcamVideo.videoHeight;
+
+        // Dessiner l'image de la vidéo sur le canvas
+        let context = photoCanvas.getContext('2d');
+        context.drawImage(webcamVideo, 0, 0, photoCanvas.width, photoCanvas.height);
+
+        // Convertir en base64
+        photoData = photoCanvas.toDataURL('image/jpeg', 0.9);
+
+        // Arrêter la webcam
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+        }
+
+        // Afficher le preview
+        document.getElementById('webcam-container').style.display = 'none';
+        document.getElementById('photo-preview-container').style.display = 'block';
+    }
+
+    // Bouton valider
+    document.getElementById('validate-photo-btn').addEventListener('click', () => {
+        document.getElementById('photo-data').value = photoData;
+        document.getElementById('photo-form').submit();
+    });
+
+    // Bouton reprendre
+    document.getElementById('retake-photo-btn').addEventListener('click', async () => {
+        // Réafficher la webcam
+        document.getElementById('photo-preview-container').style.display = 'none';
+        document.getElementById('webcam-container').style.display = 'block';
         document.getElementById('capture-buttons').style.display = 'block';
-    } catch (error) {
-        console.error('Erreur webcam:', error);
 
-        let errorMsg = 'Impossible d\'accéder à la webcam.';
-        if (error.name === 'NotAllowedError') {
-            errorMsg = 'Vous avez refusé l\'accès à la webcam. Veuillez autoriser l\'accès dans les paramètres de votre navigateur et actualiser la page.';
-        } else if (error.name === 'NotFoundError') {
-            errorMsg = 'Aucune webcam détectée sur votre appareil.';
-        } else if (error.name === 'NotReadableError') {
-            errorMsg = 'Votre webcam est déjà utilisée par une autre application.';
+        // Redémarrer la webcam
+        try {
+            videoStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'user'
+                }
+            });
+            webcamVideo.srcObject = videoStream;
+        } catch (error) {
+            alert('Impossible de redémarrer la webcam.');
+            console.error('Erreur webcam:', error);
         }
+    });
 
-        alert(errorMsg);
-    }
-}
-
-// Fonction pour arrêter la webcam
-function stopWebcam() {
-    if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-        videoStream = null;
-    }
-    webcamVideo.style.display = 'none';
-    document.getElementById('capture-buttons').style.display = 'none';
-    document.getElementById('start-camera-btn-container').style.display = 'block';
-}
-
-// Bouton démarrer countdown
-document.getElementById('start-countdown-btn').addEventListener('click', () => {
-    startCountdown();
-});
-
-// Countdown avant capture
-function startCountdown() {
-    let countdownElement = document.getElementById('countdown');
-    let countdownNumber = document.getElementById('countdown-number');
-    let count = 3;
-
-    countdownElement.style.display = 'block';
-    document.getElementById('capture-buttons').style.display = 'none';
-
-    let interval = setInterval(() => {
-        count--;
-        countdownNumber.textContent = count;
-
-        if (count === 0) {
-            clearInterval(interval);
-            countdownElement.style.display = 'none';
-            capturePhoto();
+    // Arrêter la webcam si l'utilisateur quitte la page
+    window.addEventListener('beforeunload', () => {
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
         }
-    }, 1000);
-}
-
-// Capturer la photo
-function capturePhoto() {
-    // Configurer le canvas avec les dimensions de la vidéo
-    photoCanvas.width = webcamVideo.videoWidth;
-    photoCanvas.height = webcamVideo.videoHeight;
-
-    // Dessiner l'image de la vidéo sur le canvas
-    let context = photoCanvas.getContext('2d');
-    context.drawImage(webcamVideo, 0, 0, photoCanvas.width, photoCanvas.height);
-
-    // Convertir en base64
-    photoData = photoCanvas.toDataURL('image/jpeg', 0.9);
-
-    // Arrêter la webcam
-    if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-    }
-
-    // Afficher le preview
-    document.getElementById('webcam-container').style.display = 'none';
-    document.getElementById('photo-preview-container').style.display = 'block';
-}
-
-// Bouton valider
-document.getElementById('validate-photo-btn').addEventListener('click', () => {
-    document.getElementById('photo-data').value = photoData;
-    document.getElementById('photo-form').submit();
-});
-
-// Bouton reprendre
-document.getElementById('retake-photo-btn').addEventListener('click', async () => {
-    // Réafficher la webcam
-    document.getElementById('photo-preview-container').style.display = 'none';
-    document.getElementById('webcam-container').style.display = 'block';
-    document.getElementById('capture-buttons').style.display = 'block';
-
-    // Redémarrer la webcam
-    try {
-        videoStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                facingMode: 'user'
-            }
-        });
-        webcamVideo.srcObject = videoStream;
-    } catch (error) {
-        alert('Impossible de redémarrer la webcam.');
-        console.error('Erreur webcam:', error);
-    }
-});
-
-// Arrêter la webcam si l'utilisateur quitte la page
-window.addEventListener('beforeunload', () => {
-    if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-    }
+    });
 });
 </script>
 @endpush

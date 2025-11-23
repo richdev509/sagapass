@@ -12,11 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            // Niveaux de compte (Basic / Vérifié)
-            $table->enum('account_level', ['basic', 'verified'])
-                  ->default('verified')
+            // Niveaux de compte (Inactif / Basic / Vérifié)
+            $table->enum('account_level', ['pending', 'basic', 'verified'])
+                  ->default('pending')
                   ->after('email_verified_at')
-                  ->comment('Niveau du compte: basic (avec photo/vidéo) ou verified (avec documents)');
+                  ->comment('Niveau du compte: pending (inscription), basic (vidéo approuvée) ou verified (document approuvé)');
 
             $table->enum('verification_level', ['none', 'email', 'video', 'document'])
                   ->default('email')

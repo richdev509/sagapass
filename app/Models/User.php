@@ -325,4 +325,21 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->developer && $this->developer->isActive();
     }
+
+    /**
+     * Override email verification to use same structure as DocumentRejectedMail
+     */
+    public function sendEmailVerificationNotification()
+    {
+        $verificationUrl = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $this->getKey(), 'hash' => sha1($this->getEmailForVerification())]
+        );
+
+        // Structure identique à DocumentRejectedMail
+        \Illuminate\Support\Facades\Mail::to($this->email)->send(
+            new \App\Mail\EmailVerificationMail($this, $verificationUrl)
+        );
+    }
 }

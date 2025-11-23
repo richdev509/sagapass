@@ -336,6 +336,39 @@
                     </ul>
                 </div>
             </li>
+
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.video-verification.*') ? 'active' : '' }}"
+                   href="#videoVerificationSubmenu"
+                   data-bs-toggle="collapse"
+                   aria-expanded="{{ request()->routeIs('admin.video-verification.*') ? 'true' : 'false' }}">
+                    <i class="fas fa-video"></i>
+                    <span>Vérification Vidéos</span>
+                    <i class="fas fa-chevron-down ms-auto" style="font-size: 12px;"></i>
+                </a>
+                <div class="collapse {{ request()->routeIs('admin.video-verification.*') ? 'show' : '' }}" id="videoVerificationSubmenu">
+                    <ul class="nav flex-column ms-3">
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.video-verification.index') ? 'active' : '' }}" href="{{ route('admin.video-verification.index') }}">
+                                <i class="fas fa-clock"></i>
+                                <span>En Attente</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.video-verification.approved') ? 'active' : '' }}" href="{{ route('admin.video-verification.approved') }}">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Approuvées</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.video-verification.rejected') ? 'active' : '' }}" href="{{ route('admin.video-verification.rejected') }}">
+                                <i class="fas fa-times-circle"></i>
+                                <span>Rejetées</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
             @endcan
 
             @can('view-users', 'admin')

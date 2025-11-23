@@ -25,9 +25,11 @@ class UserApiController extends Controller
         if ($token->can('profile')) {
             $data['first_name'] = $user->first_name;
             $data['last_name'] = $user->last_name;
+            $data['account_level'] = $user->account_level; // pending, basic, verified
+            $data['verification_level'] = $user->verification_level; // none, email, video, document
             $data['verification_status'] = $user->verification_status;
-            $data['verification_date'] = $user->verification_date?->toDateString();
-            $data['is_verified'] = $user->isVerified();
+            $data['verified_at'] = $user->verified_at?->toDateString();
+            $data['is_verified'] = $user->account_level === 'verified'; // Compte Verified
         }
 
         // Email scope
@@ -66,11 +68,12 @@ class UserApiController extends Controller
             return response()->json(['error' => 'Insufficient permissions'], 403);
         }
 
-        // Vérifier que l'utilisateur est vérifié
-        if (!$user->isVerified()) {
+        // Vérifier que l'utilisateur a un compte Verified
+        if ($user->account_level !== 'verified') {
             return response()->json([
                 'verified' => false,
-                'message' => 'L\'utilisateur n\'a pas de documents vérifiés.'
+                'account_level' => $user->account_level,
+                'message' => 'Compte ' . ucfirst($user->account_level) . ' - Documents non disponibles.'
             ]);
         }
 

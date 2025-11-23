@@ -209,7 +209,20 @@ class VerificationController extends Controller
     {
         $document->load(['user', 'verifiedBy', 'histories.admin']);
 
-        return view('admin.verification.show', compact('document'));
+        // Vérifier l'état de la vidéo de l'utilisateur
+        $user = $document->user;
+        $videoStatus = [
+            'has_video' => !empty($user->verification_video),
+            'video_status' => $user->video_status,
+            'is_approved' => $user->video_status === 'approved',
+            'is_pending' => $user->video_status === 'pending',
+            'is_rejected' => $user->video_status === 'rejected',
+            'is_none' => $user->video_status === 'none',
+            'can_approve_document' => $user->video_status === 'approved',
+            'rejection_reason' => $user->video_rejection_reason,
+        ];
+
+        return view('admin.verification.show', compact('document', 'videoStatus'));
     }
 
     /**
@@ -223,6 +236,24 @@ class VerificationController extends Controller
                 ->with('error', 'Ce document a déjà été traité.');
         }
 
+        // VÉRIFICATION CRITIQUE : La vidéo doit être approuvée avant d'approuver le document
+        $user = $document->user;
+        if ($user->video_status !== 'approved') {
+            $errorMessage = 'Impossible d\'approuver ce document. ';
+
+            if ($user->video_status === 'none' || empty($user->verification_video)) {
+                $errorMessage .= 'L\'utilisateur n\'a pas encore soumis de vidéo de vérification.';
+            } elseif ($user->video_status === 'pending') {
+                $errorMessage .= 'La vidéo de vérification est en attente de validation. Veuillez d\'abord vérifier et approuver la vidéo.';
+            } elseif ($user->video_status === 'rejected') {
+                $errorMessage .= 'La vidéo de vérification a été rejetée. L\'utilisateur doit soumettre une nouvelle vidéo.';
+            }
+
+            return redirect()
+                ->route('admin.verification.show', $document)
+                ->with('error', $errorMessage);
+        }
+
         $document->update([
             'verification_status' => 'verified',
             'verified_by' => Auth::guard('admin')->id(),
@@ -231,15 +262,17 @@ class VerificationController extends Controller
         ]);
 
         // Vérifier si l'utilisateur a tous ses documents vérifiés
-        $user = $document->user;
         $totalDocuments = $user->documents()->count();
         $verifiedDocuments = $user->documents()->where('verification_status', 'verified')->count();
 
-        // Si tous les documents sont vérifiés, marquer l'utilisateur comme vérifié
+        // Si tous les documents sont vérifiés, passer le compte en "verified"
         if ($totalDocuments > 0 && $totalDocuments === $verifiedDocuments) {
             $user->update([
                 'verification_status' => 'verified',
                 'account_status' => 'active',
+                'account_level' => 'verified', // ← Passage en compte Verified
+                'verification_level' => 'document', // ← Document validé
+                'verified_at' => now(),
             ]);
         }
 
@@ -273,8 +306,8 @@ class VerificationController extends Controller
         ]);
 
         $message = 'Document approuvé avec succès !';
-        if ($user->verification_status === 'verified') {
-            $message .= ' Le compte utilisateur est maintenant vérifié.';
+        if ($user->account_level === 'verified') {
+            $message .= ' Le compte utilisateur est maintenant Verified (niveau maximum).';
         }
 
         return redirect()

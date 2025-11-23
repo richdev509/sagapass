@@ -135,7 +135,7 @@ class RegisterBasicController extends Controller
             'password' => Hash::make($userData['password']),
             'date_of_birth' => $userData['date_of_birth'],
             'phone' => $userData['phone'] ?? null,
-            'account_level' => 'basic',
+            'account_level' => 'pending',  // ✅ Compte en attente de validation vidéo
             'verification_level' => 'none',
             'video_status' => 'pending',
             'video_consent_at' => now(),
@@ -149,8 +149,8 @@ class RegisterBasicController extends Controller
         );
         Storage::disk('local')->delete($photoPath);
 
-        // Sauvegarder la vidéo
-        $videoPath = $request->file('video')->store('verification_videos/' . $user->id, 'private');
+        // Sauvegarder la vidéo dans storage/app/verification_videos
+        $videoPath = $request->file('video')->store('verification_videos/' . $user->id, 'local');
 
         // Mettre à jour l'utilisateur
         $user->update([

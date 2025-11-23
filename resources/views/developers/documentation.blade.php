@@ -65,7 +65,7 @@
 
                         <h5 class="fw-bold mt-4 mb-3">3. Ajouter le bouton "Connect with SAGAPASS"</h5>
                         <div class="bg-light p-3 rounded">
-                            <pre class="mb-0"><code>&lt;a href="https://saga-id.sn/oauth/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=YOUR_REDIRECT_URI&response_type=code&scope=profile email&state=RANDOM_STRING" class="btn btn-primary"&gt;
+                            <pre class="mb-0"><code>&lt;a href="https://sagapass.com/oauth/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=YOUR_REDIRECT_URI&response_type=code&scope=profile email&state=RANDOM_STRING" class="btn btn-primary"&gt;
     &lt;img src="/saga-id-icon.png" width="20" /&gt;
     Se connecter avec SAGAPASS
 &lt;/a&gt;</code></pre>
@@ -76,7 +76,7 @@
 
                         <h5 class="fw-bold mt-4 mb-3">5. Échanger le code contre un token</h5>
                         <div class="bg-light p-3 rounded">
-                            <pre class="mb-0"><code>POST https://saga-id.sn/oauth/token
+                            <pre class="mb-0"><code>POST https://sagapass.com/oauth/token
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code
@@ -88,7 +88,7 @@ grant_type=authorization_code
 
                         <h5 class="fw-bold mt-4 mb-3">6. Utiliser le token</h5>
                         <div class="bg-light p-3 rounded">
-                            <pre class="mb-0"><code>GET https://saga-id.sn/api/v1/user
+                            <pre class="mb-0"><code>GET https://sagapass.com/api/v1/user
 Authorization: Bearer YOUR_ACCESS_TOKEN</code></pre>
                         </div>
                     </div>
@@ -117,7 +117,7 @@ Authorization: Bearer YOUR_ACCESS_TOKEN</code></pre>
 
                         <h5 class="fw-bold mt-4 mb-3">Étape 1: Redirection vers l'autorisation</h5>
                         <div class="bg-light p-3 rounded">
-                            <pre class="mb-0"><code>GET https://saga-id.sn/oauth/authorize?
+                            <pre class="mb-0"><code>GET https://sagapass.com/oauth/authorize?
   client_id=YOUR_CLIENT_ID&
   redirect_uri=https://yourapp.com/callback&
   response_type=code&
@@ -143,7 +143,7 @@ Authorization: Bearer YOUR_ACCESS_TOKEN</code></pre>
 
                         <h5 class="fw-bold mt-4 mb-3">Étape 3: Échange du code</h5>
                         <div class="bg-light p-3 rounded">
-                            <pre class="mb-0"><code>POST https://saga-id.sn/oauth/token
+                            <pre class="mb-0"><code>POST https://sagapass.com/oauth/token
 
 {
   "grant_type": "authorization_code",
@@ -238,7 +238,7 @@ Authorization: Bearer YOUR_ACCESS_TOKEN</code></pre>
                         <h5 class="fw-bold mb-3">GET /api/v1/user</h5>
                         <p>Récupère le profil de l'utilisateur authentifié.</p>
                         <div class="bg-light p-3 rounded mb-3">
-                            <pre class="mb-0"><code>GET https://saga-id.sn/api/v1/user
+                            <pre class="mb-0"><code>GET https://sagapass.com/api/v1/user
 Authorization: Bearer YOUR_ACCESS_TOKEN</code></pre>
                         </div>
                         <h6 class="fw-bold mb-2">Réponse (avec scopes: profile, email, phone):</h6>
@@ -258,7 +258,7 @@ Authorization: Bearer YOUR_ACCESS_TOKEN</code></pre>
                         <h5 class="fw-bold mt-4 mb-3">GET /api/v1/user/documents</h5>
                         <p>Vérification d'identité (nécessite scope <code>documents</code>).</p>
                         <div class="bg-light p-3 rounded mb-3">
-                            <pre class="mb-0"><code>GET https://saga-id.sn/api/v1/user/documents
+                            <pre class="mb-0"><code>GET https://sagapass.com/api/v1/user/documents
 Authorization: Bearer YOUR_ACCESS_TOKEN</code></pre>
                         </div>
                         <h6 class="fw-bold mb-2">Réponse:</h6>
@@ -276,7 +276,7 @@ Authorization: Bearer YOUR_ACCESS_TOKEN</code></pre>
                         <h5 class="fw-bold mt-4 mb-3">POST /oauth/revoke</h5>
                         <p>Révoquer un access token.</p>
                         <div class="bg-light p-3 rounded mb-3">
-                            <pre class="mb-0"><code>POST https://saga-id.sn/oauth/revoke
+                            <pre class="mb-0"><code>POST https://sagapass.com/oauth/revoke
 Authorization: Bearer YOUR_ACCESS_TOKEN
 
 {
@@ -322,11 +322,11 @@ Route::get('/auth/saga-id', function () {
         'state' => Str::random(40),
     ]);
 
-    return redirect('https://saga-id.sn/oauth/authorize?' . $query);
+    return redirect('https://sagapass.com/oauth/authorize?' . $query);
 });
 
 Route::get('/auth/saga-id/callback', function (Request $request) {
-    $response = Http::asForm()->post('https://saga-id.sn/oauth/token', [
+    $response = Http::asForm()->post('https://sagapass.com/oauth/token', [
         'grant_type' => 'authorization_code',
         'client_id' => config('services.saga_id.client_id'),
         'client_secret' => config('services.saga_id.client_secret'),
@@ -337,7 +337,7 @@ Route::get('/auth/saga-id/callback', function (Request $request) {
     $token = $response->json()['access_token'];
 
     $user = Http::withToken($token)
-        ->get('https://saga-id.sn/api/v1/user')
+        ->get('https://sagapass.com/api/v1/user')
         ->json();
 
     // Créer ou mettre à jour l'utilisateur dans votre base
@@ -370,13 +370,13 @@ app.get('/auth/saga-id', (req, res) => {
     state: generateRandomString(40)
   });
 
-  res.redirect(`https://saga-id.sn/oauth/authorize?${params}`);
+  res.redirect(`https://sagapass.com/oauth/authorize?${params}`);
 });
 
 app.get('/auth/callback', async (req, res) => {
   const { code } = req.query;
 
-  const tokenResponse = await axios.post('https://saga-id.sn/oauth/token', {
+  const tokenResponse = await axios.post('https://sagapass.com/oauth/token', {
     grant_type: 'authorization_code',
     client_id: process.env.SAGA_ID_CLIENT_ID,
     client_secret: process.env.SAGA_ID_CLIENT_SECRET,
@@ -386,7 +386,7 @@ app.get('/auth/callback', async (req, res) => {
 
   const { access_token } = tokenResponse.data;
 
-  const userResponse = await axios.get('https://saga-id.sn/api/v1/user', {
+  const userResponse = await axios.get('https://sagapass.com/api/v1/user', {
     headers: { Authorization: `Bearer ${access_token}` }
   });
 
@@ -411,14 +411,14 @@ def saga_id_login():
         'scope': 'profile email',
         'state': generate_random_string(40)
     }
-    url = f"https://saga-id.sn/oauth/authorize?{urlencode(params)}"
+    url = f"https://sagapass.com/oauth/authorize?{urlencode(params)}"
     return redirect(url)
 
 @app.route('/auth/callback')
 def saga_id_callback():
     code = request.args.get('code')
 
-    token_response = requests.post('https://saga-id.sn/oauth/token', data={
+    token_response = requests.post('https://sagapass.com/oauth/token', data={
         'grant_type': 'authorization_code',
         'client_id': os.getenv('SAGA_ID_CLIENT_ID'),
         'client_secret': os.getenv('SAGA_ID_CLIENT_SECRET'),
@@ -429,7 +429,7 @@ def saga_id_callback():
     access_token = token_response.json()['access_token']
 
     user_response = requests.get(
-        'https://saga-id.sn/api/v1/user',
+        'https://sagapass.com/api/v1/user',
         headers={'Authorization': f'Bearer {access_token}'}
     )
 
@@ -518,9 +518,9 @@ def saga_id_callback():
                     <p class="mb-3">
                         Contactez notre équipe de support pour toute question technique
                     </p>
-                    <a href="mailto:developers@saga-id.sn" class="btn btn-primary">
+                    <a href="mailto:developers@sagapass.com" class="btn btn-primary">
                         <i class="fas fa-envelope me-2"></i>
-                        developers@saga-id.sn
+                        developers@sagapass.com
                     </a>
                 </div>
             </div>
@@ -544,3 +544,4 @@ def saga_id_callback():
     }
 </style>
 @endsection
+

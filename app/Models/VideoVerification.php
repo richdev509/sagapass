@@ -85,10 +85,12 @@ class VideoVerification extends Model
             'notes' => $notes,
         ]);
 
-        // Mettre à jour l'utilisateur
+        // Mettre à jour l'utilisateur - Passer au niveau Basic
         $this->user->update([
+            'account_level' => 'basic',
             'video_status' => 'approved',
             'video_verified_at' => now(),
+            'video_rejection_reason' => null,
             'verification_level' => 'video',
         ]);
     }
