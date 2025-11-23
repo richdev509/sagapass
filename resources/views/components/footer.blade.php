@@ -55,9 +55,32 @@
             </div>
         </div>
 
-        <hr style="border-color: #333; margin-top: 2rem;">
-        <div class="text-center pt-3">
-            <p class="mb-0">&copy; {{ date('Y') }} {{ config('app.name', 'SAGAPASS') }}. Tous droits réservés.</p>
+        <hr style="border-color: rgba(255,255,255,0.2); margin-top: 2rem; margin-bottom: 2rem;">
+        
+        <div class="row">
+            <div class="col-md-6 text-center text-md-start mb-3 mb-md-0">
+                <p class="mb-1">
+                    <strong><i class="fas fa-building me-2"></i>Sagacetech</strong>
+                </p>
+                <p class="mb-0 small" style="opacity: 0.9;">
+                    &copy; {{ date('Y') }} {{ config('app.name', 'SAGAPASS') }}. Tous droits réservés.
+                </p>
+            </div>
+            
+            <div class="col-md-6 text-center text-md-end">
+                <p class="mb-1 small" style="opacity: 0.9;">
+                    <i class="fas fa-code me-2"></i>Développé par <strong>Richardson</strong>
+                </p>
+                <p class="mb-0 small" style="opacity: 0.85;">
+                    <i class="fas fa-user-tie me-1"></i>CEO & Ingénieur Informatique
+                </p>
+                <p class="mb-0 small mt-1" style="opacity: 0.85;">
+                    <i class="fas fa-envelope me-1"></i>
+                    <a href="mailto:sagapass@sagapass.com" style="color: #fff; text-decoration: none;">
+                        sagapass@sagapass.com
+                    </a>
+                </p>
+            </div>
         </div>
     </div>
 </footer>
