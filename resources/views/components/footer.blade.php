@@ -27,30 +27,30 @@
             <div class="col-md-2 mb-4">
                 <h4 class="footer-title">Entreprise</h4>
                 <ul class="footer-links">
-                    <li><a href="#">À propos</a></li>
-                    <li><a href="#">Blog</a></li>
-                    <li><a href="#">Carrières</a></li>
-                    <li><a href="#">Contact</a></li>
+                    <li><a href="{{ route('about') }}">À propos</a></li>
+                    <li><a href="{{ route('blog') }}">Blog</a></li>
+                    <li><a href="{{ route('careers') }}">Carrières</a></li>
+                    <li><a href="{{ route('contact') }}">Contact</a></li>
                 </ul>
             </div>
 
             <div class="col-md-2 mb-4">
                 <h4 class="footer-title">Ressources</h4>
                 <ul class="footer-links">
-                    <li><a href="#">Documentation</a></li>
-                    <li><a href="#">API</a></li>
-                    <li><a href="#">Support</a></li>
-                    <li><a href="#">Statut</a></li>
+                    <li><a href="{{ route('documentation') }}">Documentation</a></li>
+                    <li><a href="{{ route('api') }}">API</a></li>
+                    <li><a href="{{ route('support') }}">Support</a></li>
+                    <li><a href="{{ route('status') }}">Statut</a></li>
                 </ul>
             </div>
 
             <div class="col-md-2 mb-4">
                 <h4 class="footer-title">Légal</h4>
                 <ul class="footer-links">
-                    <li><a href="#">Confidentialité</a></li>
-                    <li><a href="#">CGU</a></li>
-                    <li><a href="#">Mentions légales</a></li>
-                    <li><a href="#">Cookies</a></li>
+                    <li><a href="{{ route('privacy') }}">Confidentialité</a></li>
+                    <li><a href="{{ route('terms') }}">CGU</a></li>
+                    <li><a href="{{ route('legal') }}">Mentions légales</a></li>
+                    <li><a href="{{ route('cookies') }}">Cookies</a></li>
                 </ul>
             </div>
         </div>

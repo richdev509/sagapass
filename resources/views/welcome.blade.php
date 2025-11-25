@@ -102,6 +102,94 @@
         </div>
     </section>
 
+    <!-- Section Pourquoi SAGAPASS -->
+    <section class="py-5 bg-white">
+        <div class="container py-5">
+            <div class="text-center mb-5">
+                <h2 class="section-title">Pourquoi SAGAPASS ?</h2>
+                <p class="text-muted fs-5">La solution à vos défis d'identité numérique</p>
+            </div>
+
+            <div class="row align-items-center mb-5">
+                <div class="col-lg-6 mb-4 mb-lg-0">
+                    <div class="p-4" style="background: #fff5f5; border-radius: 15px; border-left: 5px solid #dc3545;">
+                        <h3 class="h4 fw-bold mb-3 text-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Le Problème
+                        </h3>
+                        <ul class="list-unstyled">
+                            <li class="mb-3">
+                                <i class="fas fa-times-circle text-danger me-2"></i>
+                                <strong>Multiplication des mots de passe</strong> : Dizaines de comptes différents à gérer
+                            </li>
+                            <li class="mb-3">
+                                <i class="fas fa-times-circle text-danger me-2"></i>
+                                <strong>Sécurité compromise</strong> : Réutilisation des mêmes mots de passe faibles
+                            </li>
+                            <li class="mb-3">
+                                <i class="fas fa-times-circle text-danger me-2"></i>
+                                <strong>Vérifications répétitives</strong> : Fournir les mêmes documents encore et encore
+                            </li>
+                            <li class="mb-3">
+                                <i class="fas fa-times-circle text-danger me-2"></i>
+                                <strong>Temps perdu</strong> : Inscription longue et fastidieuse sur chaque plateforme
+                            </li>
+                            <li class="mb-3">
+                                <i class="fas fa-times-circle text-danger me-2"></i>
+                                <strong>Risques de fraude</strong> : Documents sensibles éparpillés sur plusieurs sites
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="p-4" style="background: linear-gradient(135deg, #e8f4ff 0%, #f0e8ff 100%); border-radius: 15px; border-left: 5px solid #667eea;">
+                        <h3 class="h4 fw-bold mb-3" style="color: #667eea;">
+                            <i class="fas fa-check-circle me-2"></i>La Solution SAGAPASS
+                        </h3>
+                        <ul class="list-unstyled">
+                            <li class="mb-3">
+                                <i class="fas fa-check text-success me-2"></i>
+                                <strong>Une seule identité</strong> : Un compte unique pour tous vos services en ligne
+                            </li>
+                            <li class="mb-3">
+                                <i class="fas fa-check text-success me-2"></i>
+                                <strong>Sécurité renforcée</strong> : Authentification OAuth2 + 2FA pour les admins
+                            </li>
+                            <li class="mb-3">
+                                <i class="fas fa-check text-success me-2"></i>
+                                <strong>Vérification unique</strong> : Documents validés une seule fois par nos experts
+                            </li>
+                            <li class="mb-3">
+                                <i class="fas fa-check text-success me-2"></i>
+                                <strong>Connexion instantanée</strong> : Un clic pour vous connecter partout
+                            </li>
+                            <li class="mb-3">
+                                <i class="fas fa-check text-success me-2"></i>
+                                <strong>Confidentialité garantie</strong> : Vos données restent sous votre contrôle
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-5">
+                <div class="p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; color: white;">
+                    <h3 class="h4 fw-bold mb-3">
+                        <i class="fas fa-rocket me-2"></i>Résultat : Simplifiez votre vie numérique !
+                    </h3>
+                    <p class="mb-4 fs-5">
+                        Plus besoin de gérer des dizaines de comptes. SAGAPASS devient votre passeport universel pour accéder à tous les services partenaires en toute sécurité.
+                    </p>
+                    @if (Route::has('register'))
+                        <a href="{{ route('register') }}" class="btn btn-light btn-lg" style="border-radius: 50px; font-weight: 600;">
+                            <i class="fas fa-user-plus me-2"></i>Créer mon compte gratuitement
+                        </a>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section class="py-5 gradient-bg text-white">
         <div class="container">
             <div class="row text-center">
@@ -213,6 +301,12 @@
                 <div class="col-md-4 mb-4">
                     <h3 class="footer-title"><i class="fas fa-shield-alt me-2"></i>SAGAPASS</h3>
                     <p>Votre passeport numérique sécurisé</p>
+                    <div class="mt-3">
+                        <a href="#" class="text-light me-3"><i class="fab fa-facebook fa-lg"></i></a>
+                        <a href="#" class="text-light me-3"><i class="fab fa-twitter fa-lg"></i></a>
+                        <a href="#" class="text-light me-3"><i class="fab fa-linkedin fa-lg"></i></a>
+                        <a href="#" class="text-light"><i class="fab fa-instagram fa-lg"></i></a>
+                    </div>
                 </div>
                 <div class="col-md-2 mb-4">
                     <h4 class="footer-title">Produit</h4>
@@ -224,15 +318,28 @@
                 <div class="col-md-2 mb-4">
                     <h4 class="footer-title">Entreprise</h4>
                     <ul class="footer-links">
-                        <li><a href="#">À propos</a></li>
-                        <li><a href="#">Contact</a></li>
+                        <li><a href="{{ route('about') }}">À propos</a></li>
+                        <li><a href="{{ route('blog') }}">Blog</a></li>
+                        <li><a href="{{ route('careers') }}">Carrières</a></li>
+                        <li><a href="{{ route('contact') }}">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-2 mb-4">
+                    <h4 class="footer-title">Ressources</h4>
+                    <ul class="footer-links">
+                        <li><a href="{{ route('documentation') }}">Documentation</a></li>
+                        <li><a href="{{ route('api') }}">API</a></li>
+                        <li><a href="{{ route('support') }}">Support</a></li>
+                        <li><a href="{{ route('status') }}">Statut</a></li>
                     </ul>
                 </div>
                 <div class="col-md-2 mb-4">
                     <h4 class="footer-title">Légal</h4>
                     <ul class="footer-links">
-                        <li><a href="#">Confidentialité</a></li>
-                        <li><a href="#">CGU</a></li>
+                        <li><a href="{{ route('privacy') }}">Confidentialité</a></li>
+                        <li><a href="{{ route('terms') }}">CGU</a></li>
+                        <li><a href="{{ route('legal') }}">Mentions légales</a></li>
+                        <li><a href="{{ route('cookies') }}">Cookies</a></li>
                     </ul>
                 </div>
             </div>

@@ -9,6 +9,7 @@ use App\Http\Controllers\Developer\DeveloperController;
 use App\Http\Controllers\Developer\DeveloperAuthController;
 use App\Http\Controllers\OAuth\OAuthController;
 use App\Http\Controllers\Auth\RegisterBasicController;
+use App\Http\Controllers\PageController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
 
@@ -20,6 +21,29 @@ Route::get('/', function () {
 Route::get('/erreurs-connues', function () {
     return view('known-errors');
 })->name('known-errors');
+
+/*
+|--------------------------------------------------------------------------
+| Pages Statiques
+|--------------------------------------------------------------------------
+*/
+// Entreprise
+Route::get('/about', [PageController::class, 'about'])->name('about');
+Route::get('/blog', [PageController::class, 'blog'])->name('blog');
+Route::get('/careers', [PageController::class, 'careers'])->name('careers');
+Route::get('/contact', [PageController::class, 'contact'])->name('contact');
+
+// Ressources
+Route::get('/documentation', [PageController::class, 'documentation'])->name('documentation');
+Route::get('/api', [PageController::class, 'api'])->name('api');
+Route::get('/support', [PageController::class, 'support'])->name('support');
+Route::get('/status', [PageController::class, 'status'])->name('status');
+
+// Légal
+Route::get('/privacy', [PageController::class, 'privacy'])->name('privacy');
+Route::get('/terms', [PageController::class, 'terms'])->name('terms');
+Route::get('/legal', [PageController::class, 'legal'])->name('legal');
+Route::get('/cookies', [PageController::class, 'cookies'])->name('cookies');
 
 Auth::routes();
 
