@@ -116,15 +116,33 @@
 
                             <div class="col-md-6">
                                 <label for="phone" class="form-label">Téléphone <span class="text-muted">(optionnel)</span></label>
-                                <input type="tel"
-                                       class="form-control @error('phone') is-invalid @enderror"
-                                       id="phone"
-                                       name="phone"
-                                       value="{{ old('phone') }}"
-                                       placeholder="+221 77 123 45 67">
-                                @error('phone')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
+                                <div class="input-group">
+                                    <select class="form-select @error('phone') is-invalid @enderror"
+                                            id="phone_country"
+                                            style="max-width: 140px;">
+                                        <option value="+509" data-length="8" data-format="XXXX-XXXX" {{ old('phone_country', '+509') == '+509' ? 'selected' : '' }}>
+                                            🇭🇹 +509 (Haïti)
+                                        </option>
+                                        <option value="+1" data-length="10" data-format="(XXX) XXX-XXXX" {{ old('phone_country') == '+1' ? 'selected' : '' }}>
+                                            🇺🇸 +1 (USA)
+                                        </option>
+                                        <option value="+1" data-length="10" data-format="(XXX) XXX-XXXX" {{ old('phone_country') == '+1809' ? 'selected' : '' }}>
+                                            🇩🇴 +1 (R.D.)
+                                        </option>
+                                    </select>
+                                    <input type="tel"
+                                           class="form-control @error('phone') is-invalid @enderror"
+                                           id="phone"
+                                           name="phone"
+                                           value="{{ old('phone') }}"
+                                           placeholder="3456-7890">
+                                    @error('phone')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <small class="form-text text-muted" id="phone_hint">
+                                    <i class="fas fa-info-circle"></i> Format: <span id="phone_format">XXXX-XXXX</span> (8 chiffres)
+                                </small>
                             </div>
                         </div>
 
@@ -147,3 +165,107 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const phoneCountry = document.getElementById('phone_country');
+    const phoneInput = document.getElementById('phone');
+    const phoneFormat = document.getElementById('phone_format');
+    const phoneHint = document.getElementById('phone_hint');
+
+    // Configuration des formats par pays
+    const phoneConfigs = {
+        '+509': { length: 8, format: 'XXXX-XXXX', placeholder: '3456-7890', hint: '8 chiffres' },
+        '+1': { length: 10, format: '(XXX) XXX-XXXX', placeholder: '(305) 123-4567', hint: '10 chiffres' }
+    };
+
+    function updatePhoneFormat() {
+        const selectedOption = phoneCountry.options[phoneCountry.selectedIndex];
+        const countryCode = selectedOption.value;
+        const config = phoneConfigs[countryCode];
+
+        phoneFormat.textContent = config.format;
+        phoneInput.placeholder = config.placeholder;
+        phoneHint.innerHTML = `<i class="fas fa-info-circle"></i> Format: ${config.format} (${config.hint})`;
+    }
+
+    function formatPhone(value, countryCode) {
+        // Enlever tout sauf les chiffres
+        const numbers = value.replace(/\D/g, '');
+        const config = phoneConfigs[countryCode];
+
+        if (countryCode === '+509') {
+            // Haïti: XXXX-XXXX
+            if (numbers.length <= 4) {
+                return numbers;
+            }
+            return numbers.slice(0, 4) + '-' + numbers.slice(4, 8);
+        } else if (countryCode === '+1') {
+            // USA/R.D.: (XXX) XXX-XXXX
+            if (numbers.length <= 3) {
+                return numbers;
+            } else if (numbers.length <= 6) {
+                return '(' + numbers.slice(0, 3) + ') ' + numbers.slice(3);
+            }
+            return '(' + numbers.slice(0, 3) + ') ' + numbers.slice(3, 6) + '-' + numbers.slice(6, 10);
+        }
+        return numbers;
+    }
+
+    function getFullPhoneNumber() {
+        const countryCode = phoneCountry.value;
+        const phoneValue = phoneInput.value.replace(/\D/g, ''); // Enlever la mise en forme
+
+        if (phoneValue) {
+            return countryCode + phoneValue;
+        }
+        return '';
+    }
+
+    function parseExistingPhone() {
+        const fullPhone = phoneInput.value;
+        if (!fullPhone) return;
+
+        // Détecter et séparer l'indicatif
+        if (fullPhone.startsWith('+509')) {
+            phoneCountry.value = '+509';
+            phoneInput.value = fullPhone.substring(4); // Enlever +509
+        } else if (fullPhone.startsWith('+1')) {
+            phoneCountry.value = '+1';
+            phoneInput.value = fullPhone.substring(2); // Enlever +1
+        }
+
+        updatePhoneFormat();
+    }
+
+    // Initialisation
+    parseExistingPhone();
+    updatePhoneFormat();
+
+    // Événements téléphone
+    phoneCountry.addEventListener('change', function() {
+        updatePhoneFormat();
+        // Reformater le numéro existant avec le nouveau format
+        const numbers = phoneInput.value.replace(/\D/g, '');
+        phoneInput.value = formatPhone(numbers, this.value);
+    });
+
+    phoneInput.addEventListener('input', function(e) {
+        const countryCode = phoneCountry.value;
+        const formatted = formatPhone(this.value, countryCode);
+        this.value = formatted;
+    });
+
+    // Avant soumission, combiner indicatif + numéro
+    const form = phoneInput.closest('form');
+    form.addEventListener('submit', function(e) {
+        // Créer un champ caché avec le numéro complet
+        const fullPhone = getFullPhoneNumber();
+        if (fullPhone) {
+            phoneInput.value = fullPhone;
+        }
+    });
+});
+</script>
+@endpush

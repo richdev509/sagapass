@@ -34,10 +34,11 @@ class RegisterBasicController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'date_of_birth' => ['required', 'date', 'before:today'],
-            'phone' => ['nullable', 'string', 'max:20', 'unique:users'],
+            'phone' => ['nullable', 'string', 'regex:/^\+\d{1,4}\d{8,10}$/', 'unique:users'],
         ], [
             'email.unique' => 'Cet email est déjà utilisé.',
             'phone.unique' => 'Ce numéro de téléphone est déjà utilisé.',
+            'phone.regex' => 'Le format du numéro de téléphone est invalide. Utilisez le format avec indicatif (ex: +50912345678).',
         ]);
 
         // Stocker les données en session
