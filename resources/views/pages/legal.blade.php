@@ -113,10 +113,10 @@
                 <div class="card-body p-4 text-center">
                     <h3 class="h4 mb-3">Contact légal</h3>
                     <p class="mb-3">
-                        Pour toute question d'ordre légal, contactez notre service juridique.
+                        Pour toute question d'ordre légal, contactez-nous.
                     </p>
-                    <a href="mailto:legal@sagapass.com" class="btn btn-light">
-                        <i class="fas fa-envelope me-2"></i>legal@sagapass.com
+                    <a href="mailto:sagapass@sagapass.com" class="btn btn-light">
+                        <i class="fas fa-envelope me-2"></i>sagapass@sagapass.com
                     </a>
                 </div>
             </div>

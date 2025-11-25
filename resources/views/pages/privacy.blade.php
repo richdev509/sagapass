@@ -114,7 +114,7 @@
                     </ul>
                     <p class="mt-3">
                         Pour exercer ces droits, contactez-nous à :
-                        <a href="mailto:privacy@sagapass.com">privacy@sagapass.com</a>
+                        <a href="mailto:sagapass@sagapass.com">sagapass@sagapass.com</a>
                     </p>
                 </div>
             </div>
