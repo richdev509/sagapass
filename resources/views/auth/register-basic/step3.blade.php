@@ -320,20 +320,34 @@ document.addEventListener('DOMContentLoaded', function() {
         // Envoyer via fetch
         fetch('{{ route("register.basic.step3.submit") }}', {
             method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
             body: formData
         })
         .then(response => {
-            if (response.ok) {
-                window.location.href = '{{ route("register.basic.complete") }}';
-            } else {
-                return response.json().then(data => {
-                    throw new Error(data.message || 'Erreur lors de l\'envoi');
-                });
-            }
+            // Lire le contenu de la réponse
+            return response.text().then(text => {
+                // Essayer de parser en JSON
+                try {
+                    const data = JSON.parse(text);
+                    if (response.ok) {
+                        // Rediriger vers la page de succès
+                        window.location.href = data.redirect || '{{ route("register.basic.complete") }}';
+                    } else {
+                        throw new Error(data.message || 'Erreur lors de l\'envoi');
+                    }
+                } catch (e) {
+                    // Si ce n'est pas du JSON, c'est probablement une erreur serveur
+                    console.error('Réponse non-JSON:', text.substring(0, 500));
+                    throw new Error('Erreur serveur. Vérifiez les logs.');
+                }
+            });
         })
         .catch(error => {
             console.error('Erreur:', error);
-            alert('Erreur lors de l\'envoi de la vidéo. Veuillez réessayer.');
+            alert('Erreur lors de l\'envoi de la vidéo. Veuillez réessayer.\n\n' + error.message);
             document.getElementById('validate-video-btn').disabled = false;
             document.getElementById('validate-video-btn').innerHTML = '<i class="fas fa-check"></i> Valider et créer mon compte';
         });

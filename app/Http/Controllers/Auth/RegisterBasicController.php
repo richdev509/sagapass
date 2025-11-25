@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
 
 class RegisterBasicController extends Controller
@@ -33,7 +34,10 @@ class RegisterBasicController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'date_of_birth' => ['required', 'date', 'before:today'],
-            'phone' => ['nullable', 'string', 'max:20'],
+            'phone' => ['nullable', 'string', 'max:20', 'unique:users'],
+        ], [
+            'email.unique' => 'Cet email est déjà utilisé.',
+            'phone.unique' => 'Ce numéro de téléphone est déjà utilisé.',
         ]);
 
         // Stocker les données en session
@@ -115,68 +119,109 @@ class RegisterBasicController extends Controller
      */
     public function postStep3(Request $request)
     {
-        if (!session()->has('register_basic_step1') || !session()->has('register_basic_photo')) {
-            return redirect()->route('register.basic.step1');
+        try {
+            if (!session()->has('register_basic_step1') || !session()->has('register_basic_photo')) {
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Session expirée. Veuillez recommencer.'
+                    ], 400);
+                }
+                return redirect()->route('register.basic.step1');
+            }
+
+            $request->validate([
+                'video' => ['required', 'file', 'mimetypes:video/mp4,video/webm,video/quicktime', 'max:10240'],
+                'consent' => ['required', 'accepted'],
+            ]);
+
+            $userData = session('register_basic_step1');
+            $photoPath = session('register_basic_photo');
+
+            // Créer l'utilisateur
+            $user = User::create([
+                'first_name' => $userData['first_name'],
+                'last_name' => $userData['last_name'],
+                'email' => $userData['email'],
+                'password' => Hash::make($userData['password']),
+                'date_of_birth' => $userData['date_of_birth'],
+                'phone' => $userData['phone'] ?? null,
+                'account_level' => 'pending',  // ✅ Compte en attente de validation vidéo
+                'verification_level' => 'none',
+                'video_status' => 'pending',
+                'video_consent_at' => now(),
+            ]);
+
+            // Déplacer la photo vers le dossier permanent
+            $finalPhotoPath = 'profile_pictures/' . $user->id . '_' . time() . '.jpg';
+            Storage::disk('public')->put(
+                $finalPhotoPath,
+                Storage::disk('local')->get($photoPath)
+            );
+            Storage::disk('local')->delete($photoPath);
+
+            // Sauvegarder la vidéo dans storage/app/verification_videos
+            $videoPath = $request->file('video')->store('verification_videos/' . $user->id, 'local');
+
+            // Mettre à jour l'utilisateur
+            $user->update([
+                'profile_picture' => $finalPhotoPath,
+                'verification_video' => $videoPath,
+            ]);
+
+            // Créer l'entrée de vérification vidéo
+            VideoVerification::create([
+                'user_id' => $user->id,
+                'video_path' => $videoPath,
+                'status' => 'pending',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
+            // Envoyer l'email de vérification
+            event(new Registered($user));
+
+            // Connecter l'utilisateur
+            Auth::login($user);
+
+            // Nettoyer la session
+            session()->forget(['register_basic_step1', 'register_basic_photo']);
+
+            // Retourner JSON pour le JavaScript
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Inscription réussie',
+                    'redirect' => route('register.basic.complete')
+                ]);
+            }
+
+            return redirect()->route('register.basic.complete');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erreur de validation',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Erreur inscription step3', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erreur serveur: ' . $e->getMessage()
+                ], 500);
+            }
+
+            return back()->with('error', 'Une erreur est survenue: ' . $e->getMessage());
         }
-
-        $request->validate([
-            'video' => ['required', 'file', 'mimetypes:video/mp4,video/webm,video/quicktime', 'max:10240'],
-            'consent' => ['required', 'accepted'],
-        ]);
-
-        $userData = session('register_basic_step1');
-        $photoPath = session('register_basic_photo');
-
-        // Créer l'utilisateur
-        $user = User::create([
-            'first_name' => $userData['first_name'],
-            'last_name' => $userData['last_name'],
-            'email' => $userData['email'],
-            'password' => Hash::make($userData['password']),
-            'date_of_birth' => $userData['date_of_birth'],
-            'phone' => $userData['phone'] ?? null,
-            'account_level' => 'pending',  // ✅ Compte en attente de validation vidéo
-            'verification_level' => 'none',
-            'video_status' => 'pending',
-            'video_consent_at' => now(),
-        ]);
-
-        // Déplacer la photo vers le dossier permanent
-        $finalPhotoPath = 'profile_pictures/' . $user->id . '_' . time() . '.jpg';
-        Storage::disk('public')->put(
-            $finalPhotoPath,
-            Storage::disk('local')->get($photoPath)
-        );
-        Storage::disk('local')->delete($photoPath);
-
-        // Sauvegarder la vidéo dans storage/app/verification_videos
-        $videoPath = $request->file('video')->store('verification_videos/' . $user->id, 'local');
-
-        // Mettre à jour l'utilisateur
-        $user->update([
-            'profile_picture' => $finalPhotoPath,
-            'verification_video' => $videoPath,
-        ]);
-
-        // Créer l'entrée de vérification vidéo
-        VideoVerification::create([
-            'user_id' => $user->id,
-            'video_path' => $videoPath,
-            'status' => 'pending',
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-        ]);
-
-        // Envoyer l'email de vérification
-        event(new Registered($user));
-
-        // Connecter l'utilisateur
-        Auth::login($user);
-
-        // Nettoyer la session
-        session()->forget(['register_basic_step1', 'register_basic_photo']);
-
-        return redirect()->route('register.basic.complete');
     }
 
     /**
