@@ -56,7 +56,7 @@
         </div>
 
         <hr style="border-color: rgba(255,255,255,0.2); margin-top: 2rem; margin-bottom: 2rem;">
-        
+
         <div class="row">
             <div class="col-md-6 text-center text-md-start mb-3 mb-md-0">
                 <p class="mb-1">
@@ -66,7 +66,7 @@
                     &copy; {{ date('Y') }} {{ config('app.name', 'SAGAPASS') }}. Tous droits réservés.
                 </p>
             </div>
-            
+
             <div class="col-md-6 text-center text-md-end">
                 <p class="mb-1 small" style="opacity: 0.9;">
                     <i class="fas fa-code me-2"></i>Développé par <strong>Richardson</strong>

@@ -237,7 +237,31 @@
                 </div>
             </div>
             <hr style="border-color: #333;">
-            <div class="text-center pt-3"><p>&copy; 2025 SAGAPASS. Tous droits réservés.</p></div>
+            <div class="row pt-3">
+                <div class="col-md-6 text-center text-md-start mb-3 mb-md-0">
+                    <p class="mb-1">
+                        <strong><i class="fas fa-building me-2"></i>Sagacetech</strong>
+                    </p>
+                    <p class="mb-0 small" style="opacity: 0.8;">
+                        &copy; {{ date('Y') }} SAGAPASS. Tous droits réservés.
+                    </p>
+                </div>
+
+                <div class="col-md-6 text-center text-md-end">
+                    <p class="mb-1 small" style="opacity: 0.9;">
+                        <i class="fas fa-code me-2"></i>Développé par <strong>Richardson</strong>
+                    </p>
+                    <p class="mb-0 small" style="opacity: 0.8;">
+                        <i class="fas fa-user-tie me-1"></i>CEO & Ingénieur Informatique
+                    </p>
+                    <p class="mb-0 small mt-1" style="opacity: 0.8;">
+                        <i class="fas fa-envelope me-1"></i>
+                        <a href="mailto:sagapass@sagapass.com" style="color: #cbd5e0; text-decoration: none;">
+                            sagapass@sagapass.com
+                        </a>
+                    </p>
+                </div>
+            </div>
         </div>
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
