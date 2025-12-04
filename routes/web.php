@@ -113,13 +113,15 @@ Route::middleware(['auth:web'])->group(function () {
     Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
     Route::post('/profile/photo', [ProfileController::class, 'uploadPhoto'])->name('profile.photo');
 
-    // Documents
-    Route::resource('documents', DocumentController::class);
+    // Documents - Protégé : email vérifié + vidéo approuvée
+    Route::middleware('video.approved')->group(function () {
+        Route::resource('documents', DocumentController::class);
 
-    // Route pour servir les images privées des documents
-    Route::get('/documents/{id}/image/{type}', [DocumentController::class, 'serveImage'])
-        ->name('documents.image')
-        ->where('type', 'front|back');
+        // Route pour servir les images privées des documents
+        Route::get('/documents/{id}/image/{type}', [DocumentController::class, 'serveImage'])
+            ->name('documents.image')
+            ->where('type', 'front|back');
+    });
 
     // Recapture de la vidéo de vérification
     Route::get('/video/recapture', [DashboardController::class, 'recaptureVideo'])->name('video.recapture');

@@ -42,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'maintenance' => \App\Http\Middleware\CheckMaintenanceMode::class,
             'ensure.2fa' => \App\Http\Middleware\EnsureTwoFactorEnabled::class,
             'verify.email.session' => \App\Http\Middleware\VerifyEmailInSession::class,
+            'video.approved' => \App\Http\Middleware\EnsureVideoApproved::class,
         ]);
 
         // Middleware global de sécurité
