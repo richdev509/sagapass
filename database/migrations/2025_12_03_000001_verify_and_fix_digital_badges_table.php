@@ -41,6 +41,35 @@ return new class extends Migration
 
         echo "🔍 Vérification de la structure de la table digital_badges...\n";
 
+        // SUPPRIMER D'ABORD les anciennes colonnes pour éviter les conflits
+        if (Schema::hasColumn('digital_badges', 'token')) {
+            Schema::table('digital_badges', function (Blueprint $table) {
+                echo "🗑️  Suppression de l'ancienne colonne 'token'...\n";
+                $table->dropColumn('token');
+            });
+        }
+
+        if (Schema::hasColumn('digital_badges', 'qr_code_path')) {
+            Schema::table('digital_badges', function (Blueprint $table) {
+                echo "🗑️  Suppression de l'ancienne colonne 'qr_code_path'...\n";
+                $table->dropColumn('qr_code_path');
+            });
+        }
+
+        if (Schema::hasColumn('digital_badges', 'last_validated_at')) {
+            Schema::table('digital_badges', function (Blueprint $table) {
+                echo "🗑️  Suppression de l'ancienne colonne 'last_validated_at'...\n";
+                $table->dropColumn('last_validated_at');
+            });
+        }
+
+        if (Schema::hasColumn('digital_badges', 'validated_from_ip')) {
+            Schema::table('digital_badges', function (Blueprint $table) {
+                echo "🗑️  Suppression de l'ancienne colonne 'validated_from_ip'...\n";
+                $table->dropColumn('validated_from_ip');
+            });
+        }
+
         // Vérifier et ajouter les colonnes manquantes
         Schema::table('digital_badges', function (Blueprint $table) {
 
@@ -49,9 +78,7 @@ return new class extends Migration
                 echo "➕ Ajout de la colonne 'badge_token'...\n";
                 $table->string('badge_token', 64)->unique()->after('user_id')->comment('Token crypté unique pour le QR code');
                 $table->index('badge_token');
-            }
-
-            // Vérifier qr_code_data
+            }            // Vérifier qr_code_data
             if (!Schema::hasColumn('digital_badges', 'qr_code_data')) {
                 echo "➕ Ajout de la colonne 'qr_code_data'...\n";
                 $table->text('qr_code_data')->after('badge_token')->comment('Données encodées dans le QR code');
@@ -94,49 +121,6 @@ return new class extends Migration
                 $table->integer('scan_count')->default(0)->after('last_scanned_at')->comment('Nombre de scans');
             }
         });
-
-        // Vérifier et créer les index s'ils n'existent pas
-        $sm = Schema::getConnection()->getDoctrineSchemaManager();
-        $indexes = $sm->listTableIndexes('digital_badges');
-
-        if (!isset($indexes['digital_badges_user_id_is_active_index'])) {
-            Schema::table('digital_badges', function (Blueprint $table) {
-                echo "➕ Ajout de l'index composite [user_id, is_active]...\n";
-                $table->index(['user_id', 'is_active']);
-            });
-        }
-
-        // Supprimer l'ancienne colonne 'token' si elle existe
-        if (Schema::hasColumn('digital_badges', 'token')) {
-            Schema::table('digital_badges', function (Blueprint $table) {
-                echo "🗑️  Suppression de l'ancienne colonne 'token'...\n";
-                $table->dropColumn('token');
-            });
-        }
-
-        // Supprimer l'ancienne colonne 'qr_code_path' si elle existe
-        if (Schema::hasColumn('digital_badges', 'qr_code_path')) {
-            Schema::table('digital_badges', function (Blueprint $table) {
-                echo "🗑️  Suppression de l'ancienne colonne 'qr_code_path'...\n";
-                $table->dropColumn('qr_code_path');
-            });
-        }
-
-        // Supprimer l'ancienne colonne 'last_validated_at' si elle existe
-        if (Schema::hasColumn('digital_badges', 'last_validated_at')) {
-            Schema::table('digital_badges', function (Blueprint $table) {
-                echo "🗑️  Suppression de l'ancienne colonne 'last_validated_at'...\n";
-                $table->dropColumn('last_validated_at');
-            });
-        }
-
-        // Supprimer l'ancienne colonne 'validated_from_ip' si elle existe
-        if (Schema::hasColumn('digital_badges', 'validated_from_ip')) {
-            Schema::table('digital_badges', function (Blueprint $table) {
-                echo "🗑️  Suppression de l'ancienne colonne 'validated_from_ip'...\n";
-                $table->dropColumn('validated_from_ip');
-            });
-        }
 
         echo "✅ Structure de la table digital_badges vérifiée et corrigée !\n";
     }
