@@ -240,11 +240,12 @@ class RegisterBasicController extends Controller
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'date_of_birth' => ['required', 'date', 'before:today'],
+            'date_of_birth' => ['required', 'date', 'before:today', 'before:-18 years'],
             'phone' => ['nullable', 'string', 'regex:/^\+\d{1,4}\d{8,10}$/', 'unique:users'],
         ], [
             'phone.unique' => 'Ce numéro de téléphone est déjà utilisé.',
             'phone.regex' => 'Le format du numéro de téléphone est invalide. Utilisez le format avec indicatif (ex: +50912345678).',
+            'date_of_birth.before' => 'Vous devez avoir au moins 18 ans pour créer un compte.',
         ]);
 
         // Ajouter les données à la session

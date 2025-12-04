@@ -108,11 +108,12 @@
                                        id="date_of_birth"
                                        name="date_of_birth"
                                        value="{{ old('date_of_birth') }}"
-                                       max="{{ date('Y-m-d') }}"
+                                       max="{{ date('Y-m-d', strtotime('-18 years')) }}"
                                        required>
                                 @error('date_of_birth')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
+                                <small class="text-muted">Vous devez avoir au moins 18 ans</small>
                             </div>
 
                             <div class="col-md-6">
