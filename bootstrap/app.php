@@ -41,6 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'security.check' => \App\Http\Middleware\SecurityCheck::class,
             'maintenance' => \App\Http\Middleware\CheckMaintenanceMode::class,
             'ensure.2fa' => \App\Http\Middleware\EnsureTwoFactorEnabled::class,
+            'verify.email.session' => \App\Http\Middleware\VerifyEmailInSession::class,
         ]);
 
         // Middleware global de sécurité

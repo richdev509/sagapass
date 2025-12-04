@@ -1,5 +1,5 @@
 @php
-    // Redirection automatique vers la nouvelle inscription Basic
-    header('Location: ' . route('register.basic.step1'));
+    // Redirection automatique vers la nouvelle inscription avec vérification email
+    header('Location: ' . route('register.basic.email-request'));
     exit;
 @endphp

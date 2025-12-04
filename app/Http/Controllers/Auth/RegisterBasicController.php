@@ -5,44 +5,253 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\VideoVerification;
+use App\Services\EmailValidator;
+use App\Mail\EmailVerificationCode;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rules;
+use Carbon\Carbon;
 
 class RegisterBasicController extends Controller
 {
     /**
-     * Afficher le formulaire d'inscription Basic - Étape 1
+     * Afficher le formulaire de demande d'email - Étape 1a
      */
-    public function showStep1()
+    public function showEmailRequest()
     {
-        return view('auth.register-basic.step1');
+        // Si une session d'inscription existe déjà et que l'email est vérifié, rediriger vers l'étape suivante
+        if (session()->has('registration.email_verified') && session('registration.email_verified') === true) {
+            return redirect()->route('register.basic.step1');
+        }
+
+        return view('auth.register-basic.email-request');
     }
 
     /**
-     * Traiter l'étape 1 - Informations de base
+     * Traiter la demande d'email et envoyer le code de vérification - Étape 1b
+     */
+    public function sendVerificationCode(Request $request)
+    {
+        // Rate limiting par IP : max 5 codes par heure
+        $ipKey = 'email-verification:ip:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($ipKey, 5)) {
+            $seconds = RateLimiter::availableIn($ipKey);
+            return back()->withErrors([
+                'email' => "Trop de tentatives. Réessayez dans " . ceil($seconds / 60) . " minutes."
+            ]);
+        }
+
+        $request->validate([
+            'email' => ['required', 'string', 'email', 'max:255'],
+        ]);
+
+        $email = strtolower(trim($request->email));
+
+        // Vérifier si l'email existe déjà
+        if (User::where('email', $email)->exists()) {
+            return back()->withErrors([
+                'email' => 'Cet email est déjà utilisé. Veuillez vous connecter ou utiliser un autre email.'
+            ])->withInput();
+        }
+
+        // Valider l'email avec notre système strict
+        $validation = EmailValidator::validate($email);
+        if (!$validation['valid']) {
+            return back()->withErrors([
+                'email' => $validation['reason']
+            ])->withInput();
+        }
+
+        // Rate limiting par email : max 3 codes par heure
+        $emailKey = 'email-verification:email:' . $email;
+        if (RateLimiter::tooManyAttempts($emailKey, 3)) {
+            $seconds = RateLimiter::availableIn($emailKey);
+            return back()->withErrors([
+                'email' => "Trop de codes envoyés à cette adresse. Réessayez dans " . ceil($seconds / 60) . " minutes."
+            ])->withInput();
+        }
+
+        // Générer un code de vérification à 6 chiffres
+        $code = str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+
+        // Stocker en session avec expiration de 15 minutes
+        session([
+            'registration' => [
+                'email' => $email,
+                'verification_code' => $code,
+                'code_expires_at' => Carbon::now()->addMinutes(15)->toDateTimeString(),
+                'email_verified' => false,
+                'attempts' => 0,
+                'expires_at' => Carbon::now()->addHours(24)->toDateTimeString(),
+                'ip_address' => $request->ip(),
+                'step' => 'verify_code',
+            ]
+        ]);
+
+        // Envoyer l'email avec le code
+        try {
+            Mail::to($email)->send(new EmailVerificationCode($code, 15));
+        } catch (\Exception $e) {
+            Log::error('Erreur envoi email vérification', [
+                'email' => $email,
+                'error' => $e->getMessage()
+            ]);
+
+            return back()->withErrors([
+                'email' => 'Impossible d\'envoyer l\'email. Vérifiez votre adresse et réessayez.'
+            ])->withInput();
+        }
+
+        // Incrémenter les compteurs de rate limiting
+        RateLimiter::hit($ipKey, 3600); // 1 heure
+        RateLimiter::hit($emailKey, 3600); // 1 heure
+
+        return redirect()->route('register.basic.verify-code');
+    }
+
+    /**
+     * Afficher le formulaire de vérification du code - Étape 1c
+     */
+    public function showVerifyCode()
+    {
+        if (!session()->has('registration.verification_code')) {
+            return redirect()->route('register.basic.email-request')
+                ->with('error', 'Veuillez d\'abord demander un code de vérification.');
+        }
+
+        $registration = session('registration');
+
+        // Vérifier si le code a expiré
+        $expiresAt = Carbon::parse($registration['code_expires_at']);
+        if ($expiresAt->isPast()) {
+            session()->forget('registration');
+            return redirect()->route('register.basic.email-request')
+                ->with('error', 'Le code a expiré. Veuillez recommencer.');
+        }
+
+        return view('auth.register-basic.verify-code', [
+            'email' => $registration['email'],
+            'expiresAt' => $expiresAt,
+        ]);
+    }
+
+    /**
+     * Vérifier le code saisi - Étape 1d
+     */
+    public function verifyCode(Request $request)
+    {
+        if (!session()->has('registration.verification_code')) {
+            return redirect()->route('register.basic.email-request');
+        }
+
+        $request->validate([
+            'code' => ['required', 'string', 'size:6', 'regex:/^[0-9]{6}$/'],
+        ], [
+            'code.size' => 'Le code doit contenir exactement 6 chiffres.',
+            'code.regex' => 'Le code doit contenir uniquement des chiffres.',
+        ]);
+
+        $registration = session('registration');
+
+        // Vérifier l'expiration
+        $expiresAt = Carbon::parse($registration['code_expires_at']);
+        if ($expiresAt->isPast()) {
+            session()->forget('registration');
+            return redirect()->route('register.basic.email-request')
+                ->with('error', 'Le code a expiré. Veuillez recommencer.');
+        }
+
+        // Limiter les tentatives (max 5)
+        $attempts = $registration['attempts'] ?? 0;
+        if ($attempts >= 5) {
+            session()->forget('registration');
+            return redirect()->route('register.basic.email-request')
+                ->with('error', 'Trop de tentatives incorrectes. Veuillez recommencer.');
+        }
+
+        // Vérifier le code
+        if ($request->code !== $registration['verification_code']) {
+            // Incrémenter les tentatives
+            $registration['attempts'] = $attempts + 1;
+            session(['registration' => $registration]);
+
+            return back()->withErrors([
+                'code' => 'Code incorrect. Tentative ' . $registration['attempts'] . '/5.'
+            ]);
+        }
+
+        // Code valide ! Marquer l'email comme vérifié
+        $registration['email_verified'] = true;
+        $registration['email_verified_at'] = Carbon::now()->toDateTimeString();
+        $registration['step'] = 'personal_info';
+
+        // Supprimer le code (plus besoin)
+        unset($registration['verification_code']);
+        unset($registration['code_expires_at']);
+        unset($registration['attempts']);
+
+        session(['registration' => $registration]);
+
+        // Log de succès
+        Log::info('Email vérifié avec succès', [
+            'email' => $registration['email'],
+            'ip' => $request->ip(),
+        ]);
+
+        return redirect()->route('register.basic.step1')
+            ->with('success', 'Email vérifié ! Complétez maintenant votre profil.');
+    }
+
+    /**
+     * Afficher le formulaire d'inscription Basic - Étape 1 (après vérification email)
+     */
+    public function showStep1()
+    {
+        // Vérifier que l'email a été vérifié
+        if (!session()->has('registration.email_verified') || session('registration.email_verified') !== true) {
+            return redirect()->route('register.basic.email-request')
+                ->with('error', 'Vous devez d\'abord vérifier votre email.');
+        }
+
+        $registration = session('registration');
+
+        return view('auth.register-basic.step1', [
+            'email' => $registration['email'],
+        ]);
+    }
+
+    /**
+     * Traiter l'étape 1 - Informations de base (après vérification email)
      */
     public function postStep1(Request $request)
     {
+        // Double vérification de la session
+        if (!session()->has('registration.email_verified') || session('registration.email_verified') !== true) {
+            return redirect()->route('register.basic.email-request');
+        }
+
         $validated = $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'date_of_birth' => ['required', 'date', 'before:today'],
             'phone' => ['nullable', 'string', 'regex:/^\+\d{1,4}\d{8,10}$/', 'unique:users'],
         ], [
-            'email.unique' => 'Cet email est déjà utilisé.',
             'phone.unique' => 'Ce numéro de téléphone est déjà utilisé.',
             'phone.regex' => 'Le format du numéro de téléphone est invalide. Utilisez le format avec indicatif (ex: +50912345678).',
         ]);
 
-        // Stocker les données en session
-        session(['register_basic_step1' => $validated]);
+        // Ajouter les données à la session
+        $registration = session('registration');
+        $registration['data'] = $validated;
+        $registration['step'] = 'photo';
+        session(['registration' => $registration]);
 
         return redirect()->route('register.basic.step2');
     }
@@ -52,7 +261,8 @@ class RegisterBasicController extends Controller
      */
     public function showStep2()
     {
-        if (!session()->has('register_basic_step1')) {
+        // Vérifier la session et l'email vérifié
+        if (!session()->has('registration.data')) {
             return redirect()->route('register.basic.step1')
                 ->with('error', 'Veuillez d\'abord remplir les informations de base.');
         }
@@ -65,7 +275,7 @@ class RegisterBasicController extends Controller
      */
     public function postStep2(Request $request)
     {
-        if (!session()->has('register_basic_step1')) {
+        if (!session()->has('registration.data')) {
             return redirect()->route('register.basic.step1');
         }
 
@@ -94,7 +304,10 @@ class RegisterBasicController extends Controller
         Storage::disk('local')->put('temp/photos/' . $filename, $imageData);
 
         // Stocker le chemin en session
-        session(['register_basic_photo' => 'temp/photos/' . $filename]);
+        $registration = session('registration');
+        $registration['temp_photo_path'] = 'temp/photos/' . $filename;
+        $registration['step'] = 'video';
+        session(['registration' => $registration]);
 
         return redirect()->route('register.basic.step3');
     }
@@ -104,12 +317,14 @@ class RegisterBasicController extends Controller
      */
     public function showStep3()
     {
-        if (!session()->has('register_basic_step1') || !session()->has('register_basic_photo')) {
+        if (!session()->has('registration.data') || !session()->has('registration.temp_photo_path')) {
             return redirect()->route('register.basic.step1')
                 ->with('error', 'Veuillez compléter toutes les étapes précédentes.');
         }
 
-        $data = session('register_basic_step1');
+        $registration = session('registration');
+        $data = $registration['data'];
+
         return view('auth.register-basic.step3', [
             'userName' => $data['first_name'] . ' ' . $data['last_name']
         ]);
@@ -121,7 +336,7 @@ class RegisterBasicController extends Controller
     public function postStep3(Request $request)
     {
         try {
-            if (!session()->has('register_basic_step1') || !session()->has('register_basic_photo')) {
+            if (!session()->has('registration.data') || !session()->has('registration.temp_photo_path')) {
                 if ($request->expectsJson()) {
                     return response()->json([
                         'success' => false,
@@ -136,19 +351,21 @@ class RegisterBasicController extends Controller
                 'consent' => ['required', 'accepted'],
             ]);
 
-            $userData = session('register_basic_step1');
-            $photoPath = session('register_basic_photo');
+            $registration = session('registration');
+            $userData = $registration['data'];
+            $photoPath = $registration['temp_photo_path'];
 
-            // Créer l'utilisateur
+            // Créer l'utilisateur avec email déjà vérifié
             $user = User::create([
                 'first_name' => $userData['first_name'],
                 'last_name' => $userData['last_name'],
-                'email' => $userData['email'],
+                'email' => $registration['email'],
+                'email_verified_at' => Carbon::parse($registration['email_verified_at']), // ✅ Email déjà vérifié
                 'password' => Hash::make($userData['password']),
                 'date_of_birth' => $userData['date_of_birth'],
                 'phone' => $userData['phone'] ?? null,
                 'account_level' => 'pending',  // ✅ Compte en attente de validation vidéo
-                'verification_level' => 'none',
+                'verification_level' => 'email', // ✅ Email vérifié
                 'video_status' => 'pending',
                 'video_consent_at' => now(),
             ]);
@@ -179,14 +396,18 @@ class RegisterBasicController extends Controller
                 'user_agent' => $request->userAgent(),
             ]);
 
-            // Envoyer l'email de vérification
-            event(new Registered($user));
+            // Log de succès
+            Log::info('Inscription complétée avec email pré-vérifié', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'ip' => $request->ip(),
+            ]);
 
             // Connecter l'utilisateur
             Auth::login($user);
 
             // Nettoyer la session
-            session()->forget(['register_basic_step1', 'register_basic_photo']);
+            session()->forget('registration');
 
             // Retourner JSON pour le JavaScript
             if ($request->expectsJson() || $request->ajax()) {
