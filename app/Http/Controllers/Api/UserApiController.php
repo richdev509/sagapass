@@ -28,6 +28,8 @@ class UserApiController extends Controller
             $data['account_level'] = $user->account_level; // pending, basic, verified
             $data['verification_level'] = $user->verification_level; // none, email, video, document
             $data['verification_status'] = $user->verification_status;
+            $data['video_status'] = $user->video_status; // none, pending, approved, rejected
+            $data['video_verified_at'] = $user->video_verified_at?->toDateString();
             $data['verified_at'] = $user->verified_at?->toDateString();
             $data['is_verified'] = $user->account_level === 'verified'; // Compte Verified
         }
@@ -68,35 +70,79 @@ class UserApiController extends Controller
             return response()->json(['error' => 'Insufficient permissions'], 403);
         }
 
-        // Vérifier que l'utilisateur a un compte Verified
+        // Contexte du compte (toujours présent)
+        $accountContext = [
+            'level' => $user->account_level,
+            'verification_level' => $user->verification_level,
+            'can_access_documents' => $user->account_level === 'verified',
+        ];
+
+        // Si compte non-Verified, retourner infos d'upgrade
         if ($user->account_level !== 'verified') {
             return response()->json([
-                'verified' => false,
-                'account_level' => $user->account_level,
-                'message' => 'Compte ' . ucfirst($user->account_level) . ' - Documents non disponibles.'
+                'account' => $accountContext,
+                'document' => null,
+                'upgrade_required' => [
+                    'next_level' => $user->account_level === 'basic' ? 'verified' : 'basic',
+                    'requirements' => $this->getUpgradeRequirements($user),
+                    'progress' => [
+                        'video_submitted' => !empty($user->verification_video),
+                        'video_approved' => $user->video_status === 'approved',
+                        'document_verified' => false,
+                    ],
+                ],
             ]);
         }
 
         // Récupérer le dernier document vérifié
-        $document = $user->documents()->where('status', 'approved')->latest()->first();
+        $document = $user->documents()->where('verification_status', 'verified')->latest()->first();
 
         if (!$document) {
             return response()->json([
-                'verified' => false,
-                'message' => 'Aucun document vérifié trouvé.'
+                'account' => $accountContext,
+                'document' => null,
+                'message' => 'Aucun document vérifié trouvé.',
             ]);
         }
 
-        // Masquer le numéro de document (afficher seulement les 4 derniers chiffres)
-        $maskedNumber = '****' . substr($document->document_number, -4);
+        // Masquer les numéros sensibles (4 derniers caractères visibles)
+        $maskedNiu = '****' . substr($document->document_number, -4);
+        $maskedCardNumber = $document->card_number
+            ? ('****' . substr($document->card_number, -4))
+            : null;
 
+        // Réponse structurée cohérente
         return response()->json([
-            'verified' => true,
-            'document_type' => $document->document_type,
-            'document_number' => $maskedNumber,
-            'issue_date' => $document->issue_date?->toDateString(),
-            'expiry_date' => $document->expiry_date?->toDateString(),
-            'verified_at' => $document->verified_at?->toDateTimeString(),
+            'account' => $accountContext,
+            'document' => [
+                'verified' => true,
+                'type' => $document->document_type,
+                'numbers' => [
+                    'niu' => $maskedNiu,
+                    'card_number' => $maskedCardNumber,
+                ],
+                'dates' => [
+                    'issue' => $document->issue_date?->toDateString(),
+                    'expiry' => $document->expiry_date?->toDateString(),
+                    'verified_at' => $document->verified_at?->toIso8601String(),
+                ],
+            ],
         ]);
+    }
+
+    /**
+     * Déterminer les exigences pour passer au niveau supérieur
+     */
+    private function getUpgradeRequirements($user): array
+    {
+        if ($user->account_level === 'pending') {
+            return ['Soumettre une vidéo de vérification faciale'];
+        }
+
+        if ($user->account_level === 'basic') {
+            return ['Soumettre et faire vérifier un document d\'identité (CNI ou Passeport)'];
+        }
+
+        return [];
     }
 }

@@ -23,12 +23,22 @@
 
 SAGAPASS est un service d'identité numérique sécurisé qui permet aux citoyens de s'authentifier et de partager leurs informations vérifiées avec des applications tierces.
 
+### Niveaux de compte
+
+SAGAPASS utilise un système de vérification progressive en 3 niveaux :
+
+| Niveau | État | Description |
+|--------|------|-------------|
+| **Pending** | `account_level = "pending"` | Inscription initiale, email vérifié |
+| **Basic** | `account_level = "basic"` | Vidéo de vérification faciale approuvée |
+| **Verified** | `account_level = "verified"` | Document d'identité (CNI/Passeport) vérifié |
+
 ### Cas d'usage
 
 - **Authentification unique (SSO)** : Permettre aux utilisateurs de se connecter avec leur compte SAGAPASS
 - **Vérification d'identité** : Confirmer l'identité d'un utilisateur avec des documents officiels vérifiés
 - **Partage de données** : Accéder aux informations de profil avec le consentement de l'utilisateur
-- **KYC (Know Your Customer)** : Récupérer des informations de documents vérifiés
+- **KYC (Know Your Customer)** : Récupérer des informations de documents vérifiés (compte Verified uniquement)
 
 ### Technologies
 
@@ -167,11 +177,11 @@ Les scopes définissent les données auxquelles votre application peut accéder.
 
 | Scope | Description | Données retournées |
 |-------|-------------|-------------------|
-| `profile` | Informations de profil de base | `first_name`, `last_name`, `verification_status`, `is_verified` |
+| `profile` | Informations de profil de base | `first_name`, `last_name`, `account_level`, `verification_level`, `video_status`, `is_verified` |
 | `email` | Adresse email | `email`, `email_verified_at` |
 | `phone` | Numéro de téléphone | `phone` |
 | `address` | Adresse postale | `address` |
-| `documents` | Documents d'identité vérifiés | `document_type`, `document_number` (masqué), dates, statut de vérification |
+| `documents` | Documents d'identité vérifiés (Verified uniquement) | `document_type`, `niu`, `card_number` (masqués), dates, statut de vérification |
 
 **Notes importantes** :
 - Demandez uniquement les scopes dont vous avez besoin
@@ -210,12 +220,17 @@ Accept: application/json
 {
   "first_name": "Jean",
   "last_name": "Dupont",
+  "account_level": "verified",
+  "verification_level": "document",
+  "verification_status": "verified",
+  "video_status": "approved",
+  "video_verified_at": "2025-10-18",
+  "verified_at": "2025-10-20",
+  "is_verified": true,
   "email": "jean.dupont@example.com",
   "email_verified_at": "2025-10-15",
   "phone": "+33612345678",
-  "address": "123 Rue de la Paix, 75001 Paris",
-  "verification_status": "verified",
-  "is_verified": true
+  "address": "123 Rue de la Paix, 75001 Paris"
 }
 ```
 
@@ -225,8 +240,13 @@ Accept: application/json
 |-------|--------------|------|-------------|
 | `first_name` | `profile` | string | Prénom |
 | `last_name` | `profile` | string | Nom de famille |
-| `verification_status` | `profile` | string | Statut : `pending`, `verified`, `rejected` |
-| `is_verified` | `profile` | boolean | `true` si identité vérifiée |
+| `account_level` | `profile` | string | Niveau : `pending`, `basic`, `verified` |
+| `verification_level` | `profile` | string | Progression : `none`, `email`, `video`, `document` |
+| `verification_status` | `profile` | string | Statut général : `pending`, `verified`, `rejected` |
+| `video_status` | `profile` | string | Statut vidéo : `none`, `pending`, `approved`, `rejected` |
+| `video_verified_at` | `profile` | date | Date d'approbation de la vidéo (null si non approuvée) |
+| `verified_at` | `profile` | date | Date de passage en compte Verified (null si non vérifié) |
+| `is_verified` | `profile` | boolean | `true` si `account_level === "verified"` |
 | `email` | `email` | string | Adresse email |
 | `email_verified_at` | `email` | date | Date de vérification email |
 | `phone` | `phone` | string | Numéro de téléphone |
@@ -240,7 +260,7 @@ Accept: application/json
 
 ### 2. Obtenir les documents vérifiés
 
-Récupère les informations sur les documents d'identité vérifiés de l'utilisateur.
+Récupère les informations sur les documents d'identité vérifiés de l'utilisateur. La réponse varie selon le niveau de compte.
 
 **Endpoint** : `GET /api/v1/user/documents`
 
@@ -256,44 +276,141 @@ Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 Accept: application/json
 ```
 
-**Réponse (200 OK) - Utilisateur vérifié** :
+#### Réponse selon le niveau de compte
+
+**Réponse (200 OK) - Compte Verified** :
 ```json
 {
-  "verified": true,
-  "document_type": "cni",
-  "card_number": "****3DEF",
-  "document_number": "****567890",
-  "issue_date": "2020-01-15",
-  "expiry_date": "2030-01-15",
-  "verified_at": "2025-10-20 14:30:00"
+  "account": {
+    "level": "verified",
+    "verification_level": "document",
+    "can_access_documents": true
+  },
+  "document": {
+    "verified": true,
+    "type": "cni",
+    "numbers": {
+      "niu": "****567890",
+      "card_number": "****3DEF"
+    },
+    "dates": {
+      "issue": "2020-01-15",
+      "expiry": "2030-01-15",
+      "verified_at": "2025-10-20T14:30:00+00:00"
+    }
+  }
 }
 ```
 
-**Réponse (200 OK) - Utilisateur non vérifié** :
+**Réponse (200 OK) - Compte Basic** :
 ```json
 {
-  "verified": false,
-  "message": "L'utilisateur n'a pas de documents vérifiés."
+  "account": {
+    "level": "basic",
+    "verification_level": "video",
+    "can_access_documents": false
+  },
+  "document": null,
+  "upgrade_required": {
+    "next_level": "verified",
+    "requirements": [
+      "Soumettre et faire vérifier un document d'identité (CNI ou Passeport)"
+    ],
+    "progress": {
+      "video_submitted": true,
+      "video_approved": true,
+      "document_verified": false
+    }
+  }
 }
 ```
 
-**Champs retournés** :
+**Réponse (200 OK) - Compte Pending** :
+```json
+{
+  "account": {
+    "level": "pending",
+    "verification_level": "email",
+    "can_access_documents": false
+  },
+  "document": null,
+  "upgrade_required": {
+    "next_level": "basic",
+    "requirements": [
+      "Soumettre une vidéo de vérification faciale"
+    ],
+    "progress": {
+      "video_submitted": false,
+      "video_approved": false,
+      "document_verified": false
+    }
+  }
+}
+```
+
+**Réponse (200 OK) - Compte Verified sans document** :
+```json
+{
+  "account": {
+    "level": "verified",
+    "verification_level": "document",
+    "can_access_documents": true
+  },
+  "document": null,
+  "message": "Aucun document vérifié trouvé."
+}
+```
+
+#### Structure de la réponse
+
+**Section `account` (toujours présente)** :
 
 | Champ | Type | Description |
 |-------|------|-------------|
-| `verified` | boolean | `true` si l'utilisateur a un document vérifié |
-| `document_type` | string | Type : `cni` (Carte Nationale) ou `passport` |
-| `card_number` | string | Numéro de carte (masqué, 4 derniers caractères) |
-| `document_number` | string | Numéro du document (masqué, 4 derniers chiffres) |
-| `issue_date` | date | Date de délivrance du document |
-| `expiry_date` | date | Date d'expiration du document |
-| `verified_at` | datetime | Date et heure de vérification par l'administrateur |
-| `message` | string | Message informatif si non vérifié |
+| `level` | string | Niveau du compte : `pending`, `basic`, `verified` |
+| `verification_level` | string | Progression : `email`, `video`, `document` |
+| `can_access_documents` | boolean | `true` uniquement si `level === "verified"` |
 
-**Notes de sécurité** :
-- Les numéros de documents sont toujours masqués (seuls les 4 derniers caractères sont visibles)
-- Seul le dernier document vérifié est retourné
-- Les photos des documents ne sont jamais accessibles via l'API
+**Section `document` (null si pas de document ou compte non-Verified)** :
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `verified` | boolean | Toujours `true` si présent |
+| `type` | string | Type : `cni` (Carte Nationale) ou `passport` |
+| `numbers.niu` | string | NIU masqué (10 chiffres, 4 derniers visibles) |
+| `numbers.card_number` | string\|null | Numéro de carte masqué (9 caractères, 4 derniers visibles). Uniquement pour CNI |
+| `dates.issue` | date | Date de délivrance du document (ISO 8601) |
+| `dates.expiry` | date | Date d'expiration du document (ISO 8601) |
+| `dates.verified_at` | datetime | Date et heure de vérification (ISO 8601) |
+
+**Section `upgrade_required` (présente si compte non-Verified)** :
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `next_level` | string | Prochain niveau à atteindre |
+| `requirements` | array | Liste des exigences pour passer au niveau supérieur |
+| `progress.video_submitted` | boolean | Vidéo soumise ? |
+| `progress.video_approved` | boolean | Vidéo approuvée ? |
+| `progress.document_verified` | boolean | Document vérifié ? |
+
+#### Notes importantes
+
+**Sécurité** :
+- ✅ Les numéros de documents sont **toujours masqués** (4 derniers caractères visibles)
+- ✅ Seul le **dernier document vérifié** est retourné
+- ✅ Les **photos des documents** ne sont jamais accessibles via l'API
+- ✅ Accès restreint aux comptes **Verified uniquement**
+
+**Champ `card_number`** :
+- Présent uniquement pour les **Cartes Nationales d'Identité (CNI)**
+- `null` pour les passeports
+- Format : 9 caractères alphanumériques (ex: `ABC123DEF`)
+- Masqué : `****3DEF`
+
+**Champ `niu` (NIU = Numéro d'Identification Unique)** :
+- Présent pour **tous les documents** (CNI et passeports)
+- Format : 10 chiffres
+- Masqué : `****567890`
 
 **Erreurs** :
 - `401 Unauthorized` : Token manquant ou invalide
@@ -783,6 +900,32 @@ X-RateLimit-Reset: 1700000000
 ---
 
 ## 🔄 Changelog
+
+### Version 1.1 (3 décembre 2025)
+
+**Mises à jour API** :
+- ✅ **Endpoint `/api/v1/user`** : Ajout de `video_status` et `video_verified_at`
+- ✅ **Endpoint `/api/v1/user/documents`** : Restructuration complète avec schéma unifié
+  - Nouvelle structure `account` / `document` / `upgrade_required`
+  - Support du champ `card_number` pour les CNI
+  - Format ISO 8601 pour les dates (`verified_at`)
+  - Réponses cohérentes pour tous les niveaux de compte (pending/basic/verified)
+- ✅ Amélioration de la guidance avec `upgrade_required` pour les comptes non-Verified
+
+**Nouveaux champs** :
+- `video_status` : Statut de la vidéo de vérification (none/pending/approved/rejected)
+- `video_verified_at` : Date d'approbation de la vidéo
+- `account.level` : Niveau du compte (pending/basic/verified)
+- `account.verification_level` : Progression de vérification (email/video/document)
+- `account.can_access_documents` : Booléen indiquant l'accès aux documents
+- `document.numbers.card_number` : Numéro de carte masqué (CNI uniquement)
+
+**Améliorations structurelles** :
+- Schéma de réponse unifié pour tous les niveaux de compte
+- Section `upgrade_required` guidant les utilisateurs vers le niveau supérieur
+- Distinction claire entre NIU (`numbers.niu`) et numéro de carte (`numbers.card_number`)
+
+---
 
 ### Version 1.0 (20 novembre 2025)
 
