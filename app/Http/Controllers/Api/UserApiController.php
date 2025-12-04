@@ -50,6 +50,19 @@ class UserApiController extends Controller
             $data['address'] = $user->address;
         }
 
+        // Birthdate scope
+        if ($token->can('birthdate')) {
+            $data['date_of_birth'] = $user->date_of_birth?->toDateString();
+        }
+
+        // Photo scope
+        if ($token->can('photo')) {
+            $data['profile_photo_path'] = $user->profile_photo;
+            $data['profile_photo_url'] = $user->profile_photo
+                ? asset('storage/' . $user->profile_photo)
+                : null;
+        }
+
         if (empty($data)) {
             return response()->json(['error' => 'No permissions granted'], 403);
         }

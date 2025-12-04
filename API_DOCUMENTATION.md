@@ -181,6 +181,8 @@ Les scopes définissent les données auxquelles votre application peut accéder.
 | `email` | Adresse email | `email`, `email_verified_at` |
 | `phone` | Numéro de téléphone | `phone` |
 | `address` | Adresse postale | `address` |
+| `birthdate` | Date de naissance | `date_of_birth` |
+| `photo` | Photo de profil | `profile_photo_path`, `profile_photo_url` |
 | `documents` | Documents d'identité vérifiés (Verified uniquement) | `document_type`, `niu`, `card_number` (masqués), dates, statut de vérification |
 
 **Notes importantes** :
@@ -205,7 +207,7 @@ Récupère les informations de profil de l'utilisateur authentifié selon les sc
 
 **Authentification** : Bearer Token (OAuth 2.0)
 
-**Scopes requis** : Au moins un parmi `profile`, `email`, `phone`, `address`
+**Scopes requis** : Au moins un parmi `profile`, `email`, `phone`, `address`, `birthdate`, `photo`
 
 **Exemple de requête** :
 ```http
@@ -230,7 +232,10 @@ Accept: application/json
   "email": "jean.dupont@example.com",
   "email_verified_at": "2025-10-15",
   "phone": "+33612345678",
-  "address": "123 Rue de la Paix, 75001 Paris"
+  "address": "123 Rue de la Paix, 75001 Paris",
+  "date_of_birth": "1990-05-15",
+  "profile_photo_path": "profile-photos/abc123.jpg",
+  "profile_photo_url": "https://sagapass.com/storage/profile-photos/abc123.jpg"
 }
 ```
 
@@ -251,6 +256,9 @@ Accept: application/json
 | `email_verified_at` | `email` | date | Date de vérification email |
 | `phone` | `phone` | string | Numéro de téléphone |
 | `address` | `address` | string | Adresse postale complète |
+| `date_of_birth` | `birthdate` | date | Date de naissance (format: YYYY-MM-DD) |
+| `profile_photo_path` | `photo` | string | Chemin relatif de la photo de profil |
+| `profile_photo_url` | `photo` | string | URL complète de la photo de profil |
 
 **Erreurs** :
 - `401 Unauthorized` : Token manquant ou invalide

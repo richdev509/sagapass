@@ -188,7 +188,7 @@ Authorization: Bearer YOUR_ACCESS_TOKEN</code></pre>
                                 <tbody>
                                     <tr>
                                         <td><code>profile</code></td>
-                                        <td>first_name, last_name, verification_status</td>
+                                        <td>first_name, last_name, verification_status, account_level, video_status</td>
                                         <td>Informations de profil de base</td>
                                     </tr>
                                     <tr>
@@ -207,9 +207,19 @@ Authorization: Bearer YOUR_ACCESS_TOKEN</code></pre>
                                         <td>Adresse postale</td>
                                     </tr>
                                     <tr>
+                                        <td><code>birthdate</code></td>
+                                        <td>date_of_birth</td>
+                                        <td>Date de naissance</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>photo</code></td>
+                                        <td>profile_photo_path, profile_photo_url</td>
+                                        <td>Photo de profil</td>
+                                    </tr>
+                                    <tr>
                                         <td><code>documents</code></td>
-                                        <td>document_type, verified_at</td>
-                                        <td>Statut de vérification d'identité (sans documents)</td>
+                                        <td>document_type, card_number, verified_at</td>
+                                        <td>Documents d'identité vérifiés (uniquement pour comptes Verified)</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -251,27 +261,36 @@ Authorization: Bearer YOUR_ACCESS_TOKEN</code></pre>
                             </ul>
                         </div>
 
-                        <h6 class="fw-bold mb-2">Réponse (avec scopes: profile, email, phone):</h6>
+                        <h6 class="fw-bold mb-2">Réponse (avec scopes: profile, email, phone, address, birthdate, photo):</h6>
                         <div class="bg-light p-3 rounded mb-4">
                             <pre class="mb-0"><code>{
   "first_name": "Jean",
   "last_name": "Dupont",
+  "account_level": "verified",
+  "verification_level": "document",
   "verification_status": "verified",
-  "verification_date": "2025-01-15",
-  "is_verified": true,
   "video_status": "approved",
-  "video_verified_at": "2025-01-12T10:30:00.000000Z",
+  "video_verified_at": "2025-01-12",
+  "verified_at": "2025-01-15",
+  "is_verified": true,
   "email": "jean@example.com",
   "email_verified_at": "2025-01-10",
-  "phone": "221771234567"
+  "phone": "221771234567",
+  "address": "123 Rue de la Paix, 75001 Paris",
+  "date_of_birth": "1990-05-15",
+  "profile_photo_path": "profile-photos/abc123.jpg",
+  "profile_photo_url": "https://sagapass.com/storage/profile-photos/abc123.jpg"
 }</code></pre>
                         </div>
 
-                        <h6 class="fw-bold mb-2">Champs additionnels:</h6>
+                        <h6 class="fw-bold mb-2">Champs disponibles selon les scopes:</h6>
                         <ul class="small">
-                            <li><code>video_status</code> - Statut de la vidéo: null, pending, approved, rejected</li>
-                            <li><code>video_verified_at</code> - Date d'approbation de la vidéo (ISO 8601)</li>
-                            <li><code>verification_status</code> - Niveau du compte: pending, basic, verified</li>
+                            <li><code>profile</code> - first_name, last_name, account_level, verification_level, verification_status, video_status, is_verified</li>
+                            <li><code>email</code> - email, email_verified_at</li>
+                            <li><code>phone</code> - phone</li>
+                            <li><code>address</code> - address</li>
+                            <li><code>birthdate</code> - date_of_birth</li>
+                            <li><code>photo</code> - profile_photo_path, profile_photo_url</li>
                         </ul>
 
                         <h5 class="fw-bold mt-4 mb-3">GET /api/v1/user/documents</h5>
