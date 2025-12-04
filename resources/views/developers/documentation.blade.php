@@ -241,6 +241,16 @@ Authorization: Bearer YOUR_ACCESS_TOKEN</code></pre>
                             <pre class="mb-0"><code>GET https://sagapass.com/api/v1/user
 Authorization: Bearer YOUR_ACCESS_TOKEN</code></pre>
                         </div>
+
+                        <div class="alert alert-info mb-3">
+                            <strong><i class="fas fa-info-circle me-2"></i>Niveaux de compte SAGAPASS</strong>
+                            <ul class="mb-0 small">
+                                <li><strong>pending</strong> - Compte de base (email seulement)</li>
+                                <li><strong>basic</strong> - Vidéo de vérification approuvée</li>
+                                <li><strong>verified</strong> - Document d'identité approuvé (accès complet)</li>
+                            </ul>
+                        </div>
+
                         <h6 class="fw-bold mb-2">Réponse (avec scopes: profile, email, phone):</h6>
                         <div class="bg-light p-3 rounded mb-4">
                             <pre class="mb-0"><code>{
@@ -249,29 +259,102 @@ Authorization: Bearer YOUR_ACCESS_TOKEN</code></pre>
   "verification_status": "verified",
   "verification_date": "2025-01-15",
   "is_verified": true,
+  "video_status": "approved",
+  "video_verified_at": "2025-01-12T10:30:00.000000Z",
   "email": "jean@example.com",
   "email_verified_at": "2025-01-10",
   "phone": "221771234567"
 }</code></pre>
                         </div>
 
+                        <h6 class="fw-bold mb-2">Champs additionnels:</h6>
+                        <ul class="small">
+                            <li><code>video_status</code> - Statut de la vidéo: null, pending, approved, rejected</li>
+                            <li><code>video_verified_at</code> - Date d'approbation de la vidéo (ISO 8601)</li>
+                            <li><code>verification_status</code> - Niveau du compte: pending, basic, verified</li>
+                        </ul>
+
                         <h5 class="fw-bold mt-4 mb-3">GET /api/v1/user/documents</h5>
-                        <p>Vérification d'identité (nécessite scope <code>documents</code>).</p>
+                        <p>Informations de vérification d'identité (nécessite scope <code>documents</code>).</p>
                         <div class="bg-light p-3 rounded mb-3">
                             <pre class="mb-0"><code>GET https://sagapass.com/api/v1/user/documents
 Authorization: Bearer YOUR_ACCESS_TOKEN</code></pre>
                         </div>
-                        <h6 class="fw-bold mb-2">Réponse:</h6>
+
+                        <div class="alert alert-warning mb-3">
+                            <strong><i class="fas fa-lock me-2"></i>Accès progressif</strong>
+                            <p class="mb-0 small">
+                                La réponse varie selon le niveau du compte. Les comptes "pending" et "basic"
+                                reçoivent un message <code>upgrade_required</code> avec les étapes à suivre.
+                            </p>
+                        </div>
+
+                        <h6 class="fw-bold mb-2">Réponse - Compte "pending" (email seulement):</h6>
                         <div class="bg-light p-3 rounded mb-4">
                             <pre class="mb-0"><code>{
-  "verified": true,
-  "document_type": "passport",
-  "document_number": "****5678",
-  "issue_date": "2020-01-15",
-  "expiry_date": "2030-01-15",
-  "verified_at": "2025-01-15 14:30:00"
+  "account": {
+    "level": "pending",
+    "has_video": false,
+    "has_document": false
+  },
+  "upgrade_required": {
+    "message": "Votre compte nécessite une mise à niveau pour accéder à vos documents.",
+    "next_step": "video_verification",
+    "requirements": [
+      "Enregistrez une vidéo selfie pour obtenir un badge de base",
+      "Soumettez un document d'identité pour la vérification complète"
+    ]
+  }
 }</code></pre>
                         </div>
+
+                        <h6 class="fw-bold mb-2">Réponse - Compte "basic" (vidéo approuvée):</h6>
+                        <div class="bg-light p-3 rounded mb-4">
+                            <pre class="mb-0"><code>{
+  "account": {
+    "level": "basic",
+    "has_video": true,
+    "has_document": false,
+    "video_verified_at": "2025-01-12T10:30:00.000000Z"
+  },
+  "upgrade_required": {
+    "message": "Soumettez un document d'identité pour débloquer toutes les fonctionnalités.",
+    "next_step": "document_verification",
+    "requirements": [
+      "Téléchargez une pièce d'identité officielle (CNI, Passeport, etc.)",
+      "Le document sera vérifié par notre équipe sous 24-48h"
+    ]
+  }
+}</code></pre>
+                        </div>
+
+                        <h6 class="fw-bold mb-2">Réponse - Compte "verified" (document approuvé):</h6>
+                        <div class="bg-light p-3 rounded mb-4">
+                            <pre class="mb-0"><code>{
+  "account": {
+    "level": "verified",
+    "has_video": true,
+    "has_document": true,
+    "video_verified_at": "2025-01-12T10:30:00.000000Z"
+  },
+  "document": {
+    "verified": true,
+    "document_type": "passport",
+    "card_number": "****5678",
+    "issue_date": "2020-01-15",
+    "expiry_date": "2030-01-15",
+    "verified_at": "2025-01-15 14:30:00"
+  }
+}</code></pre>
+                        </div>
+
+                        <h6 class="fw-bold mb-2">Notes importantes:</h6>
+                        <ul class="small">
+                            <li><code>card_number</code> - Numéro du document masqué (NUI pour CNI, numéro de passeport)</li>
+                            <li><code>level</code> - pending (email), basic (vidéo), verified (document)</li>
+                            <li><code>upgrade_required</code> - Présent uniquement si le niveau est insuffisant</li>
+                            <li><code>document</code> - Présent uniquement pour les comptes "verified"</li>
+                        </ul>
 
                         <h5 class="fw-bold mt-4 mb-3">POST /oauth/revoke</h5>
                         <p>Révoquer un access token.</p>
