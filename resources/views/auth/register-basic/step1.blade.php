@@ -64,14 +64,15 @@
                         <div class="mb-3">
                             <label for="email" class="form-label">Adresse Email *</label>
                             <input type="email"
-                                   class="form-control @error('email') is-invalid @enderror"
+                                   class="form-control bg-light"
                                    id="email"
                                    name="email"
-                                   value="{{ old('email') }}"
+                                   value="{{ session('registration.email') }}"
+                                   readonly
                                    required>
-                            @error('email')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                            <small class="text-success">
+                                <i class="fas fa-check-circle"></i> Email vérifié
+                            </small>
                         </div>
 
                         <div class="row mb-3">
