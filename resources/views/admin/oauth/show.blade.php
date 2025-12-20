@@ -511,17 +511,9 @@
                     <p>Sélectionnez un scope à ajouter à l'application <strong>{{ $application->name }}</strong></p>
 
                     @php
-                        $availableScopes = [
-                            'profile' => 'Profil de base',
-                            'email' => 'Adresse email',
-                            'phone' => 'Numéro de téléphone',
-                            'address' => 'Adresse postale',
-                            'birthdate' => 'Date de naissance',
-                            'photo' => 'Photo de profil',
-                            'documents' => 'Documents d\'identité',
-                        ];
+                        $allScopes = \App\Services\OAuthScopeService::AVAILABLE_SCOPES;
                         $currentScopes = $application->allowed_scopes ?? [];
-                        $notGranted = array_diff_key($availableScopes, array_flip($currentScopes));
+                        $notGranted = array_diff_key($allScopes, array_flip($currentScopes));
                     @endphp
 
                     @if(empty($notGranted))
@@ -534,9 +526,28 @@
                             <label for="scope" class="form-label">Scope <span class="text-danger">*</span></label>
                             <select name="scope" id="scope" class="form-select" required>
                                 <option value="">-- Sélectionnez un scope --</option>
-                                @foreach($notGranted as $key => $label)
-                                    <option value="{{ $key }}">{{ $label }}</option>
-                                @endforeach
+
+                                @if(count(array_filter($notGranted, fn($s) => $s['category'] === 'standard')) > 0)
+                                    <optgroup label="📋 Scopes Standard">
+                                        @foreach($notGranted as $key => $data)
+                                            @if($data['category'] === 'standard')
+                                                <option value="{{ $key }}">{{ $data['name'] }} - {{ $data['description'] }}</option>
+                                            @endif
+                                        @endforeach
+                                    </optgroup>
+                                @endif
+
+                                @if(count(array_filter($notGranted, fn($s) => $s['category'] === 'partner')) > 0)
+                                    <optgroup label="🔐 Scopes Partenaire (Réservés)">
+                                        @foreach($notGranted as $key => $data)
+                                            @if($data['category'] === 'partner')
+                                                <option value="{{ $key }}" style="background: #fff3cd;">
+                                                    🔒 {{ $data['name'] }} - {{ $data['description'] }}
+                                                </option>
+                                            @endif
+                                        @endforeach
+                                    </optgroup>
+                                @endif
                             </select>
                         </div>
 
@@ -544,6 +555,12 @@
                             <i class="fas fa-info-circle me-2"></i>
                             <strong>Note :</strong> Les utilisateurs ayant déjà autorisé cette application ne seront pas affectés.
                             Les nouveaux scopes ne seront demandés qu'aux nouveaux utilisateurs.
+                        </div>
+
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Scopes Partenaire :</strong> Les scopes préfixés par "partner:" sont réservés aux partenaires officiels approuvés.
+                            Ils donnent des privilèges élevés et doivent être attribués avec prudence.
                         </div>
                     @endif
                 </div>

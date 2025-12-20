@@ -58,6 +58,33 @@
     @include('components.footer')
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Debug et initialisation des dropdowns
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Bootstrap version:', typeof bootstrap !== 'undefined' ? 'loaded' : 'not loaded');
+
+            // Initialiser tous les dropdowns
+            const dropdownTriggers = document.querySelectorAll('[data-bs-toggle="dropdown"]');
+            console.log('Dropdowns trouvés:', dropdownTriggers.length);
+
+            dropdownTriggers.forEach(function(trigger) {
+                // Vérifier si le dropdown est déjà initialisé
+                if (!bootstrap.Dropdown.getInstance(trigger)) {
+                    new bootstrap.Dropdown(trigger);
+                    console.log('Dropdown initialisé pour:', trigger.id || trigger.textContent.trim());
+                }
+            });
+
+            // Alternative: Event listener direct au cas où
+            dropdownTriggers.forEach(function(trigger) {
+                trigger.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const dropdown = bootstrap.Dropdown.getOrCreateInstance(trigger);
+                    dropdown.toggle();
+                });
+            });
+        });
+    </script>
     @stack('scripts')
 </body>
 </html>

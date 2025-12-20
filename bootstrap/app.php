@@ -14,6 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             Route::middleware('web')
                 ->group(base_path('routes/admin.php'));
+
+            // Routes Partner (API + Widget)
+            // Le fichier partner.php gère ses propres middlewares
+            Route::group([], base_path('routes/partner.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -28,8 +32,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // Configuration du rate limiting
         $middleware->throttleApi('60,1'); // 60 requêtes par minute pour l'API
 
-        // Définir des limites personnalisées
-        $middleware->throttleWithRedis(); // Utiliser Redis si disponible
+        // Redis désactivé - utiliser le rate limiting sans Redis
+        // $middleware->throttleWithRedis(); // Utiliser Redis si disponible
 
         // Alias de middleware Spatie Permission
         $middleware->alias([
@@ -43,6 +47,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'ensure.2fa' => \App\Http\Middleware\EnsureTwoFactorEnabled::class,
             'verify.email.session' => \App\Http\Middleware\VerifyEmailInSession::class,
             'video.approved' => \App\Http\Middleware\EnsureVideoApproved::class,
+            'partner.auth' => \App\Http\Middleware\AuthenticatePartner::class,
         ]);
 
         // Middleware global de sécurité

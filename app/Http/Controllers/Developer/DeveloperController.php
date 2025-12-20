@@ -66,18 +66,12 @@ class DeveloperController extends Controller
     }
 
     /**
-     * Formulaire de création d'application
+     * Afficher le formulaire de création d'application
      */
     public function create()
     {
-        // Liste des scopes disponibles
-        $availableScopes = [
-            'profile' => 'Profil de base (nom, prénom, statut de vérification)',
-            'email' => 'Adresse email',
-            'phone' => 'Numéro de téléphone',
-            'address' => 'Adresse postale',
-            'documents' => 'Informations sur les documents vérifiés (sans images)'
-        ];
+        // Liste des scopes disponibles (standard uniquement)
+        $availableScopes = \App\Services\OAuthScopeService::getScopesForForm(false);
 
         return view('developers.applications.create', compact('availableScopes'));
     }
@@ -165,13 +159,8 @@ class DeveloperController extends Controller
     {
         $this->authorize('update', $application);
 
-        $availableScopes = [
-            'profile' => 'Profil de base (nom, prénom, statut de vérification)',
-            'email' => 'Adresse email',
-            'phone' => 'Numéro de téléphone',
-            'address' => 'Adresse postale',
-            'documents' => 'Informations sur les documents vérifiés (sans images)'
-        ];
+        // Liste des scopes disponibles (standard uniquement)
+        $availableScopes = \App\Services\OAuthScopeService::getScopesForForm(false);
 
         return view('developers.applications.edit', compact('application', 'availableScopes'));
     }

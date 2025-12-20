@@ -183,12 +183,13 @@ class OAuthController extends Controller
     public function issueToken(Request $request)
     {
         $request->validate([
-            'grant_type' => ['required', 'in:authorization_code'],
+            'grant_type' => ['required', 'in:authorization_code,client_credentials'],
             'client_id' => ['required', 'exists:developer_applications,client_id'],
             'client_secret' => ['required', 'string'],
-            'code' => ['required', 'string'],
-            'redirect_uri' => ['required', 'url'],
+            'code' => ['required_if:grant_type,authorization_code', 'string'],
+            'redirect_uri' => ['required_if:grant_type,authorization_code', 'url'],
             'code_verifier' => ['nullable', 'string'],
+            'scope' => ['nullable', 'string'],
         ]);
 
         // Charger l'application
@@ -201,6 +202,47 @@ class OAuthController extends Controller
                 'error_description' => 'Les identifiants du client sont invalides.',
             ], 401);
         }
+
+        // GRANT TYPE: CLIENT_CREDENTIALS (pour Partner API)
+        if ($request->grant_type === 'client_credentials') {
+            // Vérifier que l'application est approuvée
+            if (!$application->isApproved()) {
+                return response()->json([
+                    'error' => 'unauthorized_client',
+                    'error_description' => 'L\'application n\'est pas approuvée.',
+                ], 403);
+            }
+
+            // Parser les scopes demandés
+            $requestedScopes = $request->scope ? explode(' ', $request->scope) : [];
+
+            // Vérifier que tous les scopes sont autorisés
+            foreach ($requestedScopes as $scope) {
+                if (!$application->hasScope($scope)) {
+                    return response()->json([
+                        'error' => 'invalid_scope',
+                        'error_description' => "Le scope '{$scope}' n'est pas autorisé.",
+                    ], 400);
+                }
+            }
+
+            // Créer un token Sanctum via l'utilisateur propriétaire de l'application
+            $tokenName = "client_credentials:{$application->client_id}:" . now()->timestamp;
+            $token = $application->user->createToken($tokenName, $requestedScopes);
+
+            return response()->json([
+                'access_token' => $token->plainTextToken,
+                'token_type' => 'Bearer',
+                'expires_in' => 3600,
+                'scope' => implode(' ', $requestedScopes),
+            ]);
+        }
+
+        // GRANT TYPE: AUTHORIZATION_CODE (pour OAuth classique)
+        $request->validate([
+            'code' => ['required', 'string'],
+            'redirect_uri' => ['required', 'url'],
+        ]);
 
         // Charger le code d'autorisation
         $authCode = OAuthAuthorizationCode::where('code', $request->code)

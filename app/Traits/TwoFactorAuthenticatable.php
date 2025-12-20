@@ -155,8 +155,23 @@ trait TwoFactorAuthenticatable
         }
 
         try {
-            return decrypt($this->two_factor_secret);
+            $secret = decrypt($this->two_factor_secret);
+            
+            // Valider que le secret a au moins 16 caractères (requis par Google2FA)
+            if (empty($secret) || strlen($secret) < 16) {
+                \Log::warning('2FA secret too short for user', [
+                    'user_id' => $this->id,
+                    'secret_length' => strlen($secret ?? '')
+                ]);
+                return null;
+            }
+            
+            return $secret;
         } catch (\Exception $e) {
+            \Log::error('Failed to decrypt 2FA secret', [
+                'user_id' => $this->id,
+                'error' => $e->getMessage()
+            ]);
             return null;
         }
     }

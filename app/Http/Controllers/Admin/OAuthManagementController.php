@@ -304,8 +304,10 @@ class OAuthManagementController extends Controller
      */
     public function addScope(Request $request, DeveloperApplication $application)
     {
+        $availableScopes = \App\Services\OAuthScopeService::getAllScopes();
+
         $request->validate([
-            'scope' => ['required', 'string', 'in:profile,email,phone,address,birthdate,photo,documents'],
+            'scope' => ['required', 'string', 'in:' . implode(',', $availableScopes)],
         ]);
 
         $currentScopes = $application->allowed_scopes ?? [];

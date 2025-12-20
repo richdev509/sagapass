@@ -124,4 +124,20 @@ class DeveloperApplication extends Model
     {
         return password_verify($secret, $this->client_secret);
     }
+
+    /**
+     * Create a Personal Access Token for this application (client_credentials grant)
+     */
+    public function createToken(string $name, array $abilities = ['*'])
+    {
+        // Utiliser le propriétaire de l'application comme contexte
+        // ou créer un token "system" si besoin
+        if ($this->user_id) {
+            return $this->user->createToken($name, $abilities);
+        }
+
+        // Si pas d'utilisateur, utiliser un compte système (à créer)
+        // Pour l'instant, retourner une erreur
+        throw new \Exception('Cannot create token for application without user_id');
+    }
 }
