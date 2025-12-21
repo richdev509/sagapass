@@ -239,7 +239,13 @@
                     </div>
 
                     <div class="d-grid gap-2 mb-4">
-                        <button type="button" class="btn btn-primary" id="captureDocFrontBtn" onclick="startDocFrontCapture()">
+                        <button type="button" class="btn btn-primary" id="startDocFrontBtn" onclick="startDocFrontCapture()">
+                            <i class="fas fa-camera me-2"></i>Démarrer la caméra RECTO
+                        </button>
+                        <button type="button" class="btn btn-warning" id="switchDocFrontBtn" style="display:none;" onclick="switchDocFrontCamera()">
+                            <i class="fas fa-sync-alt me-2"></i>Changer de caméra
+                        </button>
+                        <button type="button" class="btn btn-success" id="captureDocFrontBtn" style="display:none;" onclick="captureDocFront()">
                             <i class="fas fa-camera me-2"></i>Capturer le RECTO
                         </button>
                         <button type="button" class="btn btn-secondary" id="retakeDocFrontBtn" style="display:none;" onclick="retakeDocFront()">
@@ -261,7 +267,13 @@
                     </div>
 
                     <div class="d-grid gap-2 mb-3">
-                        <button type="button" class="btn btn-primary" id="captureDocBackBtn" onclick="startDocBackCapture()">
+                        <button type="button" class="btn btn-primary" id="startDocBackBtn" onclick="startDocBackCapture()">
+                            <i class="fas fa-camera me-2"></i>Démarrer la caméra VERSO
+                        </button>
+                        <button type="button" class="btn btn-warning" id="switchDocBackBtn" style="display:none;" onclick="switchDocBackCamera()">
+                            <i class="fas fa-sync-alt me-2"></i>Changer de caméra
+                        </button>
+                        <button type="button" class="btn btn-success" id="captureDocBackBtn" style="display:none;" onclick="captureDocBack()">
                             <i class="fas fa-camera me-2"></i>Capturer le VERSO
                         </button>
                         <button type="button" class="btn btn-secondary" id="retakeDocBackBtn" style="display:none;" onclick="retakeDocBack()">
@@ -349,6 +361,8 @@
         let docBackStream = null;
         let mediaRecorder = null;
         let recordedChunks = [];
+        let currentDocFrontFacingMode = 'environment';
+        let currentDocBackFacingMode = 'environment';
 
         // Données capturées
         let capturedPhoto = null;
@@ -479,20 +493,29 @@
 
         async function startDocFrontCapture() {
             try {
-                // Utiliser la caméra arrière pour mobile (meilleure qualité pour documents)
+                if (docFrontStream) {
+                    docFrontStream.getTracks().forEach(track => track.stop());
+                }
+
                 docFrontStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' }
+                    video: { facingMode: { ideal: currentDocFrontFacingMode } }
                 });
                 const video = document.getElementById('docFrontVideo');
                 video.srcObject = docFrontStream;
                 video.style.display = 'block';
                 document.getElementById('docFrontPlaceholder').style.display = 'none';
 
-                // Attendre et capturer automatiquement après 3 secondes
-                setTimeout(() => captureDocFront(), 3000);
+                document.getElementById('startDocFrontBtn').style.display = 'none';
+                document.getElementById('switchDocFrontBtn').style.display = 'block';
+                document.getElementById('captureDocFrontBtn').style.display = 'block';
             } catch (error) {
                 alert('Impossible d\'accéder à la caméra.');
             }
+        }
+
+        function switchDocFrontCamera() {
+            currentDocFrontFacingMode = currentDocFrontFacingMode === 'environment' ? 'user' : 'environment';
+            startDocFrontCapture();
         }
 
         function captureDocFront() {
@@ -510,6 +533,8 @@
             video.style.display = 'none';
             preview.style.display = 'block';
 
+            document.getElementById('startDocFrontBtn').style.display = 'none';
+            document.getElementById('switchDocFrontBtn').style.display = 'none';
             document.getElementById('captureDocFrontBtn').style.display = 'none';
             document.getElementById('retakeDocFrontBtn').style.display = 'block';
 
@@ -522,7 +547,9 @@
             document.getElementById('docFrontVideo').style.display = 'none';
             document.getElementById('docFrontPreview').style.display = 'none';
             document.getElementById('docFrontPlaceholder').style.display = 'block';
-            document.getElementById('captureDocFrontBtn').style.display = 'block';
+            document.getElementById('startDocFrontBtn').style.display = 'block';
+            document.getElementById('switchDocFrontBtn').style.display = 'none';
+            document.getElementById('captureDocFrontBtn').style.display = 'none';
             document.getElementById('retakeDocFrontBtn').style.display = 'none';
         }
 
@@ -533,8 +560,18 @@
             const issueDate = document.getElementById('issueDate').value;
             const expiryDate = document.getElementById('expiryDate').value;
 
-            if (!docType || !docNum || !issueDate || !expiryDate || !capturedDocFront) {
-                alert('Veuillez remplir tous les champs et capturer le recto du document');
+            if (!docType || !docNum || !issueDate || !expiryDate) {
+                alert('Veuillez remplir tous les champs obligatoires');
+                return;
+            }
+
+            if (!capturedDocFront) {
+                alert('Veuillez capturer le recto du document');
+                return;
+            }
+
+            if (!capturedDocBack) {
+                alert('Veuillez capturer le verso du document');
                 return;
             }
 
@@ -570,20 +607,29 @@
         // === ÉTAPE 4: DOCUMENT VERSO (CNI uniquement) ===
         async function startDocBackCapture() {
             try {
-                // Utiliser la caméra arrière pour mobile (meilleure qualité pour documents)
+                if (docBackStream) {
+                    docBackStream.getTracks().forEach(track => track.stop());
+                }
+
                 docBackStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' }
+                    video: { facingMode: { ideal: currentDocBackFacingMode } }
                 });
                 const video = document.getElementById('docBackVideo');
                 video.srcObject = docBackStream;
                 video.style.display = 'block';
                 document.getElementById('docBackPlaceholder').style.display = 'none';
 
-                // Attendre et capturer automatiquement après 3 secondes
-                setTimeout(() => captureDocBack(), 3000);
+                document.getElementById('startDocBackBtn').style.display = 'none';
+                document.getElementById('switchDocBackBtn').style.display = 'block';
+                document.getElementById('captureDocBackBtn').style.display = 'block';
             } catch (error) {
                 alert('Impossible d\'accéder à la caméra.');
             }
+        }
+
+        function switchDocBackCamera() {
+            currentDocBackFacingMode = currentDocBackFacingMode === 'environment' ? 'user' : 'environment';
+            startDocBackCapture();
         }
 
         function captureDocBack() {
@@ -601,9 +647,10 @@
             video.style.display = 'none';
             preview.style.display = 'block';
 
+            document.getElementById('startDocBackBtn').style.display = 'none';
+            document.getElementById('switchDocBackBtn').style.display = 'none';
             document.getElementById('captureDocBackBtn').style.display = 'none';
             document.getElementById('retakeDocBackBtn').style.display = 'block';
-            document.getElementById('confirmDocBackBtn').style.display = 'block';
 
             if (docBackStream) {
                 docBackStream.getTracks().forEach(track => track.stop());
@@ -614,9 +661,10 @@
             document.getElementById('docBackVideo').style.display = 'none';
             document.getElementById('docBackPreview').style.display = 'none';
             document.getElementById('docBackPlaceholder').style.display = 'block';
-            document.getElementById('captureDocBackBtn').style.display = 'block';
+            document.getElementById('startDocBackBtn').style.display = 'block';
+            document.getElementById('switchDocBackBtn').style.display = 'none';
+            document.getElementById('captureDocBackBtn').style.display = 'none';
             document.getElementById('retakeDocBackBtn').style.display = 'none';
-            document.getElementById('confirmDocBackBtn').style.display = 'none';
         }
 
         // === VIDEO CAPTURE ===
