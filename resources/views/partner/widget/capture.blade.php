@@ -479,13 +479,16 @@
 
         async function startDocFrontCapture() {
             try {
-                docFrontStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                // Utiliser la caméra arrière pour mobile (meilleure qualité pour documents)
+                docFrontStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
                 const video = document.getElementById('docFrontVideo');
                 video.srcObject = docFrontStream;
                 video.style.display = 'block';
                 document.getElementById('docFrontPlaceholder').style.display = 'none';
 
-                // Attendre et capturer
+                // Attendre et capturer automatiquement après 3 secondes
                 setTimeout(() => captureDocFront(), 3000);
             } catch (error) {
                 alert('Impossible d\'accéder à la caméra.');
@@ -567,12 +570,16 @@
         // === ÉTAPE 4: DOCUMENT VERSO (CNI uniquement) ===
         async function startDocBackCapture() {
             try {
-                docBackStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                // Utiliser la caméra arrière pour mobile (meilleure qualité pour documents)
+                docBackStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
                 const video = document.getElementById('docBackVideo');
                 video.srcObject = docBackStream;
                 video.style.display = 'block';
                 document.getElementById('docBackPlaceholder').style.display = 'none';
 
+                // Attendre et capturer automatiquement après 3 secondes
                 setTimeout(() => captureDocBack(), 3000);
             } catch (error) {
                 alert('Impossible d\'accéder à la caméra.');
