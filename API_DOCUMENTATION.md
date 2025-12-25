@@ -14,8 +14,9 @@
 4. [Endpoints API](#endpoints-api)
 5. [Codes d'erreur](#codes-derreur)
 6. [Exemples d'intégration](#exemples-dintégration)
-7. [Limites et quotas](#limites-et-quotas)
-8. [Changelog](#changelog)
+7. [Widget d'Intégration - Vérification d'Identité](#-widget-dintégration---vérification-didentité)
+8. [Limites et quotas](#limites-et-quotas)
+9. [Changelog](#changelog)
 
 ---
 
@@ -875,6 +876,415 @@ def profile():
 if __name__ == '__main__':
     app.run(debug=True)
 ```
+
+---
+
+## 🎨 Widget d'Intégration - Vérification d'Identité
+
+SAGAPASS propose un **widget JavaScript** prêt à l'emploi qui permet d'intégrer facilement un processus de vérification d'identité complet dans votre application. Le widget s'ouvre dans une popup et guide l'utilisateur à travers toutes les étapes de vérification.
+
+> **🔒 SÉCURITÉ - PRÉREQUIS OBLIGATOIRE**
+> 
+> Avant d'utiliser le widget, vous DEVEZ :
+> 1. **Créer un endpoint backend** pour générer le token OAuth
+> 2. **Obtenir un token** via le flux **client_credentials** avec le scope **partner:create-citizen**
+> 3. **JAMAIS exposer** votre `client_secret` dans le code JavaScript frontend
+> 4. Le token doit être récupéré **à chaque nouvelle vérification** (durée de vie : 1 heure)
+
+### 🎯 Fonctionnalités du Widget
+
+- ✅ **Capture de photo de profil** avec caméra
+- ✅ **Capture de document d'identité** (recto et verso)
+- ✅ **Vidéo de vérification** faciale (15 secondes)
+- ✅ **Switch caméra** (avant/arrière) pour mobile
+- ✅ **Interface responsive** et mobile-friendly
+- ✅ **Validation en temps réel** des données
+- ✅ **Notifications via postMessage** pour synchronisation
+- ✅ **Sécurisé** : Connexion via OAuth client_credentials
+
+### 🚀 Intégration rapide
+
+#### Étape 1 : Obtenir vos identifiants
+
+1. Créez une application dans le dashboard développeur SAGAPASS
+2. Notez votre `client_id` et `client_secret`
+3. Assurez-vous que votre application dispose du scope `partner:create-citizen`
+
+#### Étape 2 : Inclure le script Widget
+
+Ajoutez le script dans votre page HTML :
+
+> **⚠️ IMPORTANT :** Le widget nécessite un **token OAuth valide** avec le flux **client_credentials** et le scope **partner:create-citizen**. Vous devez obtenir ce token depuis votre backend AVANT d'ouvrir le widget.
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mon Application</title>
+</head>
+<body>
+    <h1>Vérification d'identité SAGAPASS</h1>
+    
+    <button onclick="startVerification()">
+        Vérifier mon identité
+    </button>
+
+    <!-- Inclure le widget SAGAPASS -->
+    <script src="https://votre-domaine.com/js/widget.js"></script>
+    
+    <script>
+        async function startVerification() {
+            try {
+                // Obtenir un token OAuth client_credentials
+                const tokenResponse = await fetch('https://votre-domaine.com/oauth/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        grant_type: 'client_credentials',
+                        client_id: 'VOTRE_CLIENT_ID',
+                        client_secret: 'VOTRE_CLIENT_SECRET',
+                        scope: 'partner:create-citizen'
+                    })
+                });
+                
+                const { access_token } = await tokenResponse.json();
+                
+                // Ouvrir le widget
+                SagaPass.verify({
+                    token: access_token,
+                    email: 'utilisateur@example.com',
+                    firstName: 'Jean',
+                    lastName: 'Dupont',
+                    callbackUrl: 'https://votre-site.com/verification-success',
+                    
+                    // Callbacks
+                    onSuccess: function(data) {
+                        console.log('Vérification réussie !', data);
+                        alert('Votre identité a été vérifiée avec succès !');
+                    },
+                    
+                    onError: function(error) {
+                        console.error('Erreur de vérification:', error);
+                        alert('Une erreur est survenue lors de la vérification.');
+                    },
+                    
+                    onCancel: function() {
+                        console.log('Vérification annulée par l\'utilisateur');
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Erreur lors de l\'obtention du token:', error);
+            }
+        }
+    </script>
+</body>
+</html>
+```
+
+### 📋 Paramètres du Widget
+
+| Paramètre | Type | Requis | Description |
+|-----------|------|--------|-------------|
+| `token` | string | ✅ | Access token OAuth (client_credentials) |
+| `email` | string | ✅ | Email de l'utilisateur à vérifier |
+| `firstName` | string | ✅ | Prénom de l'utilisateur |
+| `lastName` | string | ✅ | Nom de famille de l'utilisateur |
+| `callbackUrl` | string | ❌ | URL de redirection après succès |
+| `onSuccess` | function | ❌ | Callback appelé en cas de succès |
+| `onError` | function | ❌ | Callback appelé en cas d'erreur |
+| `onCancel` | function | ❌ | Callback appelé si l'utilisateur annule |
+
+### 🔄 Flux de Vérification
+
+Le widget guide l'utilisateur à travers **4 étapes** :
+
+#### **Étape 1 : Informations personnelles**
+- Date de naissance (18 ans minimum)
+- Téléphone (optionnel)
+- Adresse (optionnel)
+
+#### **Étape 2 : Photo de profil**
+- Capture via webcam/caméra mobile
+- Possibilité de reprendre la photo
+
+#### **Étape 3 : Document d'identité**
+- Type de document : **CNI** (Carte Nationale d'Identité)
+- **NINU** : 10 chiffres obligatoires
+- **Numéro de carte** : 9 caractères alphanumériques
+- Dates d'émission et d'expiration
+- **Photo RECTO** : Caméra arrière par défaut sur mobile
+- **Photo VERSO** : Caméra arrière par défaut sur mobile
+- Bouton **Switch Caméra** pour alterner entre caméra avant/arrière
+
+#### **Étape 4 : Vidéo de vérification**
+- Enregistrement vidéo de 15 secondes
+- Compte à rebours de 3 secondes avant le début
+- Visualisation avant envoi
+
+### 📱 Support Mobile
+
+Le widget est optimisé pour mobile avec :
+
+- ✅ **Caméra arrière par défaut** pour les photos de documents
+- ✅ **Bouton Switch Caméra** pour basculer entre caméra avant/arrière
+- ✅ **Capture manuelle** : L'utilisateur contrôle quand prendre la photo
+- ✅ **Interface tactile** responsive
+- ✅ **Validation des permissions** caméra/micro
+
+#### Configuration WebView (Applications mobiles)
+
+Si votre application utilise un **WebView**, configurez les permissions :
+
+**Android :**
+```java
+WebView webView = findViewById(R.id.webview);
+WebSettings webSettings = webView.getSettings();
+webSettings.setJavaScriptEnabled(true);
+webSettings.setMediaPlaybackRequiresUserGesture(false);
+
+webView.setWebChromeClient(new WebChromeClient() {
+    @Override
+    public void onPermissionRequest(PermissionRequest request) {
+        request.grant(request.getResources());
+    }
+});
+```
+
+**AndroidManifest.xml :**
+```xml
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+<uses-feature android:name="android.hardware.camera" />
+```
+
+**iOS (WKWebView) :**
+```swift
+let configuration = WKWebViewConfiguration()
+configuration.allowsInlineMediaPlayback = true
+```
+
+**Info.plist :**
+```xml
+<key>NSCameraUsageDescription</key>
+<string>Cette application nécessite l'accès à la caméra pour vérifier votre identité</string>
+<key>NSMicrophoneUsageDescription</key>
+<string>Cette application nécessite l'accès au microphone</string>
+```
+
+### 🔔 Notifications (postMessage)
+
+Le widget communique avec votre page via **postMessage** :
+
+```javascript
+// Écouter les événements du widget
+window.addEventListener('message', function(event) {
+    if (event.data.type === 'SAGAPASS_VERIFICATION_SUCCESS') {
+        console.log('Citoyen créé avec ID:', event.data.citizenId);
+        console.log('Email:', event.data.email);
+        
+        // Rediriger vers votre page de succès
+        window.location.href = '/verification-complete';
+    }
+    
+    if (event.data.type === 'SAGAPASS_VERIFICATION_ERROR') {
+        console.error('Erreur:', event.data.error);
+        alert('Erreur lors de la vérification: ' + event.data.error);
+    }
+});
+```
+
+### 🔐 Authentification Backend (Client Credentials)
+
+Le widget utilise le flux **OAuth Client Credentials** pour authentifier votre application.
+
+> **📌 NOTE IMPORTANTE :** 
+> - Le token doit être généré **côté serveur** (backend) pour protéger votre `client_secret`
+> - **JAMAIS** exposer votre `client_secret` dans le code JavaScript frontend
+> - Le token a une durée de vie de **1 heure**
+> - Créez un endpoint API dans votre backend pour générer et fournir le token au frontend
+
+**Exemple Node.js :**
+```javascript
+const axios = require('axios');
+
+async function getPartnerToken() {
+    const response = await axios.post('https://votre-domaine.com/oauth/token', 
+        new URLSearchParams({
+            grant_type: 'client_credentials',
+            client_id: process.env.SAGAPASS_CLIENT_ID,
+            client_secret: process.env.SAGAPASS_CLIENT_SECRET,
+            scope: 'partner:create-citizen'
+        }),
+        {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        }
+    );
+    
+    return response.data.access_token;
+}
+
+// Utilisation
+app.get('/get-widget-token', async (req, res) => {
+    try {
+        const token = await getPartnerToken();
+        res.json({ token });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to get token' });
+    }
+});
+```
+
+**Exemple PHP (Laravel) :**
+```php
+use Illuminate\Support\Facades\Http;
+
+public function getWidgetToken()
+{
+    $response = Http::asForm()->post(config('sagapass.url') . '/oauth/token', [
+        'grant_type' => 'client_credentials',
+        'client_id' => config('sagapass.client_id'),
+        'client_secret' => config('sagapass.client_secret'),
+        'scope' => 'partner:create-citizen'
+    ]);
+    
+    if ($response->failed()) {
+        return response()->json(['error' => 'Token generation failed'], 500);
+    }
+    
+    return response()->json([
+        'token' => $response->json('access_token')
+    ]);
+}
+```
+
+### ✅ Vérifier le Statut de Vérification
+
+Après la vérification, vous pouvez interroger l'API pour obtenir le statut :
+
+```javascript
+// Vérifier le statut
+async function checkVerificationStatus(email, token) {
+    const response = await fetch(
+        `https://votre-domaine.com/api/partner/v1/check-verification?email=${email}`,
+        {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            }
+        }
+    );
+    
+    const data = await response.json();
+    console.log('Statut:', data.status);
+    // Statuts possibles: pending, approved, rejected
+}
+```
+
+### 🎨 Personnalisation
+
+Le widget utilise les couleurs de SAGAPASS, mais vous pouvez adapter votre interface autour du widget.
+
+**Exemple d'intégration stylisée :**
+```html
+<style>
+    .verification-container {
+        max-width: 800px;
+        margin: 50px auto;
+        padding: 30px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .verify-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 15px 40px;
+        border-radius: 50px;
+        font-size: 18px;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .verify-btn:hover {
+        transform: scale(1.05);
+    }
+</style>
+
+<div class="verification-container">
+    <h2>Vérifiez votre identité avec SAGAPASS</h2>
+    <p>Pour accéder à nos services premium, nous devons vérifier votre identité.</p>
+    <button class="verify-btn" onclick="startVerification()">
+        <i class="fas fa-shield-check"></i> Commencer la vérification
+    </button>
+</div>
+```
+
+### 🐛 Gestion des Erreurs
+
+```javascript
+SagaPass.verify({
+    token: accessToken,
+    email: 'user@example.com',
+    firstName: 'Jean',
+    lastName: 'Dupont',
+    
+    onError: function(error) {
+        // Gérer les différents types d'erreurs
+        switch(error.code) {
+            case 'DUPLICATE_EMAIL':
+                alert('Cet email est déjà enregistré.');
+                break;
+            case 'DUPLICATE_DOCUMENT':
+                alert('Ce document a déjà été utilisé.');
+                break;
+            case 'INVALID_TOKEN':
+                alert('Session expirée. Veuillez réessayer.');
+                // Obtenir un nouveau token
+                refreshTokenAndRetry();
+                break;
+            case 'CAMERA_PERMISSION_DENIED':
+                alert('Veuillez autoriser l\'accès à la caméra.');
+                break;
+            default:
+                alert('Une erreur est survenue: ' + error.message);
+        }
+    }
+});
+```
+
+### 📊 Validation des Données
+
+Le widget valide automatiquement :
+
+| Champ | Validation |
+|-------|-----------|
+| **Email** | Format email valide + unicité |
+| **Date de naissance** | 18 ans minimum |
+| **NINU** | Exactement 10 chiffres + unicité |
+| **Numéro de carte** | 9 caractères alphanumériques + unicité |
+| **Photos** | Recto ET verso obligatoires pour CNI |
+| **Vidéo** | 15 secondes exactement |
+
+### 🔒 Sécurité
+
+- ✅ **HTTPS obligatoire** en production
+- ✅ **Tokens à courte durée de vie** (1 heure)
+- ✅ **Validation côté serveur** de toutes les données
+- ✅ **Protection anti-duplication** (email, NINU, numéro de carte)
+- ✅ **CSP (Content Security Policy)** configuré
+- ✅ **Permissions caméra/micro** gérées
+
+### 📞 Support Widget
+
+Pour toute question sur le widget :
+- **Documentation** : Cette section
+- **Email** : support@sagapass.com
+- **Exemples de code** : Disponibles dans le dashboard développeur
 
 ---
 

@@ -35,6 +35,9 @@
                         <a class="nav-link" href="#endpoints">
                             <i class="fas fa-server me-2"></i>Endpoints API
                         </a>
+                        <a class="nav-link" href="#widget">
+                            <i class="fas fa-puzzle-piece me-2"></i>Widget d'Intégration
+                        </a>
                         <a class="nav-link" href="#examples">
                             <i class="fas fa-code me-2"></i>Exemples de code
                         </a>
@@ -539,6 +542,240 @@ def saga_id_callback():
     return redirect('/dashboard')</code></pre>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {{-- Widget d'Intégration --}}
+            <section id="widget" class="mb-5">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <h2 class="fw-bold mb-4">
+                            <i class="fas fa-puzzle-piece me-2"></i>
+                            Widget d'Intégration - Vérification d'Identité
+                        </h2>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Nouveau !</strong> Intégrez facilement un processus complet de vérification d'identité dans votre application.
+                        </div>
+
+                        <div class="alert alert-danger">
+                            <h6 class="fw-bold"><i class="fas fa-lock me-2"></i>SÉCURITÉ - PRÉREQUIS OBLIGATOIRE</h6>
+                            <p class="mb-2">Avant d'utiliser le widget, vous DEVEZ :</p>
+                            <ol class="mb-0">
+                                <li><strong>Créer un endpoint backend</strong> pour générer le token OAuth</li>
+                                <li><strong>Obtenir un token</strong> via le flux <code>client_credentials</code> avec le scope <code>partner:create-citizen</code></li>
+                                <li><strong>JAMAIS exposer</strong> votre <code>client_secret</code> dans le code JavaScript frontend</li>
+                                <li>Le token doit être récupéré <strong>à chaque nouvelle vérification</strong> (durée de vie : 1 heure)</li>
+                            </ol>
+                        </div>
+
+                        <h5 class="fw-bold mt-4 mb-3">Fonctionnalités</h5>
+                        <ul>
+                            <li><i class="fas fa-check text-success me-2"></i>Capture de photo de profil</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Capture de document d'identité (recto et verso)</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Vidéo de vérification faciale (15 secondes)</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Switch caméra (avant/arrière) pour mobile</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Interface responsive et mobile-friendly</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Validation en temps réel des données</li>
+                        </ul>
+
+                        <h5 class="fw-bold mt-4 mb-3">Intégration rapide</h5>
+                        <p>Incluez le script Widget dans votre page HTML :</p>
+
+                        <div class="bg-light p-3 rounded mb-3">
+                            <pre class="mb-0"><code>&lt;!-- Inclure le widget SAGAPASS --&gt;
+&lt;script src="{{ url('/js/widget.js') }}"&gt;&lt;/script&gt;
+
+&lt;button onclick="startVerification()"&gt;
+    Vérifier mon identité
+&lt;/button&gt;
+
+&lt;script&gt;
+async function startVerification() {
+    // ⚠️ ATTENTION : NE JAMAIS mettre client_secret dans le code frontend !
+    // Ce code est à titre d'exemple uniquement.
+    // En production, créez un endpoint backend pour obtenir le token.
+
+    // 1. Obtenir un token OAuth client_credentials
+    const tokenResponse = await fetch('{{ url('/oauth/token') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            grant_type: 'client_credentials',
+            client_id: 'VOTRE_CLIENT_ID',
+            client_secret: 'VOTRE_CLIENT_SECRET',
+            scope: 'partner:create-citizen'
+        })
+    });
+
+    const { access_token } = await tokenResponse.json();
+
+    // 2. Ouvrir le widget
+    SagaPass.verify({
+        token: access_token,
+        email: 'utilisateur@example.com',
+        firstName: 'Jean',
+        lastName: 'Dupont',
+        callbackUrl: 'https://votre-site.com/success',
+
+        onSuccess: function(data) {
+            console.log('Vérification réussie !', data);
+            alert('Identité vérifiée avec succès !');
+        },
+
+        onError: function(error) {
+            console.error('Erreur:', error);
+        }
+    });
+}
+&lt;/script&gt;</code></pre>
+                        </div>
+
+                        <h5 class="fw-bold mt-4 mb-3">Paramètres du Widget</h5>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Paramètre</th>
+                                        <th>Type</th>
+                                        <th>Requis</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>token</code></td>
+                                        <td>string</td>
+                                        <td><span class="badge bg-danger">Oui</span></td>
+                                        <td>Access token OAuth (client_credentials)</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>email</code></td>
+                                        <td>string</td>
+                                        <td><span class="badge bg-danger">Oui</span></td>
+                                        <td>Email de l'utilisateur</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>firstName</code></td>
+                                        <td>string</td>
+                                        <td><span class="badge bg-danger">Oui</span></td>
+                                        <td>Prénom de l'utilisateur</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>lastName</code></td>
+                                        <td>string</td>
+                                        <td><span class="badge bg-danger">Oui</span></td>
+                                        <td>Nom de famille</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>callbackUrl</code></td>
+                                        <td>string</td>
+                                        <td><span class="badge bg-secondary">Non</span></td>
+                                        <td>URL de redirection après succès</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>onSuccess</code></td>
+                                        <td>function</td>
+                                        <td><span class="badge bg-secondary">Non</span></td>
+                                        <td>Callback en cas de succès</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>onError</code></td>
+                                        <td>function</td>
+                                        <td><span class="badge bg-secondary">Non</span></td>
+                                        <td>Callback en cas d'erreur</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h5 class="fw-bold mt-4 mb-3">Flux de vérification (4 étapes)</h5>
+                        <ol class="list-group list-group-numbered">
+                            <li class="list-group-item">
+                                <strong>Informations personnelles</strong> - Date de naissance (18+ requis), téléphone, adresse
+                            </li>
+                            <li class="list-group-item">
+                                <strong>Photo de profil</strong> - Capture via webcam/caméra mobile
+                            </li>
+                            <li class="list-group-item">
+                                <strong>Document d'identité (CNI)</strong>
+                                <ul class="mt-2">
+                                    <li>NINU (10 chiffres)</li>
+                                    <li>Numéro de carte (9 caractères)</li>
+                                    <li>Photo RECTO (caméra arrière par défaut)</li>
+                                    <li>Photo VERSO (caméra arrière par défaut)</li>
+                                    <li>Bouton Switch Caméra disponible</li>
+                                </ul>
+                            </li>
+                            <li class="list-group-item">
+                                <strong>Vidéo de vérification</strong> - 15 secondes d'enregistrement
+                            </li>
+                        </ol>
+
+                        <h5 class="fw-bold mt-4 mb-3">Support Mobile (WebView)</h5>
+                        <div class="alert alert-warning">
+                            <i class="fas fa-mobile-alt me-2"></i>
+                            <strong>Important pour les applications mobiles :</strong> Si vous intégrez le widget dans un WebView, vous devez configurer les permissions caméra/micro.
+                        </div>
+
+                        <h6 class="fw-bold mb-2">Android (WebView)</h6>
+                        <div class="bg-light p-3 rounded mb-3">
+                            <pre class="mb-0"><code>// Dans votre Activity
+WebView webView = findViewById(R.id.webview);
+webSettings.setJavaScriptEnabled(true);
+webSettings.setMediaPlaybackRequiresUserGesture(false);
+
+webView.setWebChromeClient(new WebChromeClient() {
+    @Override
+    public void onPermissionRequest(PermissionRequest request) {
+        request.grant(request.getResources());
+    }
+});
+
+// AndroidManifest.xml
+&lt;uses-permission android:name="android.permission.CAMERA" /&gt;
+&lt;uses-permission android:name="android.permission.RECORD_AUDIO" /&gt;</code></pre>
+                        </div>
+
+                        <h6 class="fw-bold mb-2">iOS (WKWebView)</h6>
+                        <div class="bg-light p-3 rounded mb-3">
+                            <pre class="mb-0"><code>// Configuration WKWebView
+let configuration = WKWebViewConfiguration()
+configuration.allowsInlineMediaPlayback = true
+
+// Info.plist
+&lt;key&gt;NSCameraUsageDescription&lt;/key&gt;
+&lt;string&gt;Accès caméra pour vérification d'identité&lt;/string&gt;
+&lt;key&gt;NSMicrophoneUsageDescription&lt;/key&gt;
+&lt;string&gt;Accès microphone pour vidéo&lt;/string&gt;</code></pre>
+                        </div>
+
+                        <h5 class="fw-bold mt-4 mb-3">Vérifier le statut</h5>
+                        <p>Après la vérification, interrogez l'API pour obtenir le statut :</p>
+                        <div class="bg-light p-3 rounded">
+                            <pre class="mb-0"><code>GET {{ url('/api/partner/v1/check-verification') }}?email=user@example.com
+Authorization: Bearer YOUR_ACCESS_TOKEN
+
+// Réponse
+{
+    "success": true,
+    "status": "pending",  // pending, approved, rejected
+    "citizen": {
+        "id": 123,
+        "email": "user@example.com",
+        "account_level": "pending"
+    }
+}</code></pre>
+                        </div>
+
+                        <div class="alert alert-success mt-4">
+                            <i class="fas fa-book me-2"></i>
+                            <strong>Documentation complète :</strong> Consultez le fichier <code>API_DOCUMENTATION.md</code> pour plus de détails et exemples avancés.
                         </div>
                     </div>
                 </div>
