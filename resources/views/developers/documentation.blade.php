@@ -582,50 +582,71 @@ def saga_id_callback():
                             <li><i class="fas fa-check text-success me-2"></i>Validation en temps réel des données</li>
                         </ul>
 
-                        <h5 class="fw-bold mt-4 mb-3">Intégration rapide</h5>
-                        <p>Incluez le script Widget dans votre page HTML :</p>
+                        <h5 class="fw-bold mt-4 mb-3">🔐 Authentification Backend (Exemples complets)</h5>
 
-                        <div class="bg-light p-3 rounded mb-3">
-                            <pre class="mb-0"><code>&lt;!-- Inclure le widget SAGAPASS --&gt;
-&lt;script src="{{ url('/js/widget.js') }}"&gt;&lt;/script&gt;
+                        <ul class="nav nav-tabs mb-3" id="backendTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#nodejs" type="button">Node.js</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#laravel" type="button">Laravel</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#django" type="button">Django</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#flutter" type="button">Flutter</button>
+                            </li>
+                        </ul>
 
-&lt;button onclick="startVerification()"&gt;
-    Vérifier mon identité
-&lt;/button&gt;
+                        <div class="tab-content" id="backendTabsContent">
+                            {{-- Node.js --}}
+                            <div class="tab-pane fade show active" id="nodejs">
+                                <h6 class="fw-bold mb-2">Backend (Express)</h6>
+                                <div class="bg-light p-3 rounded mb-3">
+                                    <pre class="mb-0"><code>const express = require('express');
+const axios = require('axios');
+const app = express();
+
+app.get('/api/get-sagapass-token', async (req, res) => {
+    try {
+        const response = await axios.post('{{ url('/oauth/token') }}',
+            new URLSearchParams({
+                grant_type: 'client_credentials',
+                client_id: process.env.SAGAPASS_CLIENT_ID,
+                client_secret: process.env.SAGAPASS_CLIENT_SECRET,
+                scope: 'partner:create-citizen'
+            }),
+            { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+        );
+
+        res.json({ success: true, token: response.data.access_token });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Failed to get token' });
+    }
+});
+
+app.listen(3000);</code></pre>
+                                </div>
+
+                                <h6 class="fw-bold mb-2">Frontend (HTML/JavaScript)</h6>
+                                <div class="bg-light p-3 rounded">
+                                    <pre class="mb-0"><code>&lt;script src="{{ url('/js/widget.js') }}"&gt;&lt;/script&gt;
+&lt;button onclick="startVerification()"&gt;Vérifier mon identité&lt;/button&gt;
 
 &lt;script&gt;
 async function startVerification() {
-    // ⚠️ ATTENTION : NE JAMAIS mettre client_secret dans le code frontend !
-    // Ce code est à titre d'exemple uniquement.
-    // En production, créez un endpoint backend pour obtenir le token.
+    const response = await fetch('/api/get-sagapass-token');
+    const { token } = await response.json();
 
-    // 1. Obtenir un token OAuth client_credentials
-    const tokenResponse = await fetch('{{ url('/oauth/token') }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-            grant_type: 'client_credentials',
-            client_id: 'VOTRE_CLIENT_ID',
-            client_secret: 'VOTRE_CLIENT_SECRET',
-            scope: 'partner:create-citizen'
-        })
-    });
-
-    const { access_token } = await tokenResponse.json();
-
-    // 2. Ouvrir le widget
     SagaPass.verify({
-        token: access_token,
-        email: 'utilisateur@example.com',
+        token: token,
+        email: 'user@example.com',
         firstName: 'Jean',
         lastName: 'Dupont',
-        callbackUrl: 'https://votre-site.com/success',
 
         onSuccess: function(data) {
-            console.log('Vérification réussie !', data);
-            alert('Identité vérifiée avec succès !');
+            console.log('Succès:', data);
         },
 
         onError: function(error) {
@@ -634,6 +655,166 @@ async function startVerification() {
     });
 }
 &lt;/script&gt;</code></pre>
+                                </div>
+                            </div>
+
+                            {{-- Laravel --}}
+                            <div class="tab-pane fade" id="laravel">
+                                <h6 class="fw-bold mb-2">Controller</h6>
+                                <div class="bg-light p-3 rounded mb-3">
+                                    <pre class="mb-0"><code>namespace App\Http\Controllers;
+
+use Illuminate\Support\Facades\Http;
+
+class SagaPassController extends Controller
+{
+    public function getToken()
+    {
+        $response = Http::asForm()->post(config('sagapass.url') . '/oauth/token', [
+            'grant_type' => 'client_credentials',
+            'client_id' => config('sagapass.client_id'),
+            'client_secret' => config('sagapass.client_secret'),
+            'scope' => 'partner:create-citizen'
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'token' => $response->json('access_token')
+        ]);
+    }
+}</code></pre>
+                                </div>
+
+                                <h6 class="fw-bold mb-2">Routes (web.php)</h6>
+                                <div class="bg-light p-3 rounded mb-3">
+                                    <pre class="mb-0"><code>Route::get('/api/get-sagapass-token', [SagaPassController::class, 'getToken']);</code></pre>
+                                </div>
+
+                                <h6 class="fw-bold mb-2">Blade View</h6>
+                                <div class="bg-light p-3 rounded">
+                                    <pre class="mb-0"><code>&lt;script src="{{ url('/js/widget.js') }}"&gt;&lt;/script&gt;
+&lt;button onclick="startVerification()"&gt;Vérifier mon identité&lt;/button&gt;
+
+&lt;script&gt;
+async function startVerification() {
+    const response = await fetch('/api/get-sagapass-token');
+    const { token } = await response.json();
+
+    SagaPass.verify({
+        token: token,
+        email: '{{ $user->email }}',
+        firstName: '{{ $user->first_name }}',
+        lastName: '{{ $user->last_name }}'
+    });
+}
+&lt;/script&gt;</code></pre>
+                                </div>
+                            </div>
+
+                            {{-- Django --}}
+                            <div class="tab-pane fade" id="django">
+                                <h6 class="fw-bold mb-2">views.py</h6>
+                                <div class="bg-light p-3 rounded mb-3">
+                                    <pre class="mb-0"><code>import requests
+from django.http import JsonResponse
+from django.conf import settings
+
+def get_sagapass_token(request):
+    response = requests.post(
+        f"{settings.SAGAPASS_URL}/oauth/token",
+        data={
+            'grant_type': 'client_credentials',
+            'client_id': settings.SAGAPASS_CLIENT_ID,
+            'client_secret': settings.SAGAPASS_CLIENT_SECRET,
+            'scope': 'partner:create-citizen'
+        }
+    )
+
+    return JsonResponse({
+        'success': True,
+        'token': response.json()['access_token']
+    })</code></pre>
+                                </div>
+
+                                <h6 class="fw-bold mb-2">Template</h6>
+                                <div class="bg-light p-3 rounded">
+                                    <pre class="mb-0"><code>&lt;script src="{{ url('/js/widget.js') }}"&gt;&lt;/script&gt;
+&lt;button onclick="startVerification()"&gt;Vérifier mon identité&lt;/button&gt;
+
+&lt;script&gt;
+async function startVerification() {
+    const response = await fetch('/api/get-sagapass-token');
+    const data = await response.json();
+
+    SagaPass.verify({
+        token: data.token,
+        email: '{{ user.email }}',
+        firstName: '{{ user.first_name }}',
+        lastName: '{{ user.last_name }}'
+    });
+}
+&lt;/script&gt;</code></pre>
+                                </div>
+                            </div>
+
+                            {{-- Flutter --}}
+                            <div class="tab-pane fade" id="flutter">
+                                <h6 class="fw-bold mb-2">Service Backend</h6>
+                                <div class="bg-light p-3 rounded mb-3">
+                                    <pre class="mb-0"><code>import 'package:http/http.dart' as http;
+
+class SagaPassService {
+  Future&lt;String&gt; getToken() async {
+    final response = await http.post(
+      Uri.parse('{{ url('/oauth/token') }}'),
+      body: {
+        'grant_type': 'client_credentials',
+        'client_id': clientId,
+        'client_secret': clientSecret,
+        'scope': 'partner:create-citizen',
+      },
+    );
+
+    return jsonDecode(response.body)['access_token'];
+  }
+}</code></pre>
+                                </div>
+
+                                <h6 class="fw-bold mb-2">WebView Widget</h6>
+                                <div class="bg-light p-3 rounded">
+                                    <pre class="mb-0"><code>import 'package:webview_flutter/webview_flutter.dart';
+
+class VerificationPage extends StatefulWidget {
+  @override
+  State&lt;VerificationPage&gt; createState() => _VerificationPageState();
+}
+
+class _VerificationPageState extends State&lt;VerificationPage&gt; {
+  late WebViewController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeWebView();
+  }
+
+  Future&lt;void&gt; _initializeWebView() async {
+    final token = await SagaPassService().getToken();
+
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..runJavaScript('''
+        SagaPass.verify({
+          token: '$token',
+          email: 'user@example.com',
+          firstName: 'Jean',
+          lastName: 'Dupont'
+        });
+      ''');
+  }
+}</code></pre>
+                                </div>
+                            </div>
                         </div>
 
                         <h5 class="fw-bold mt-4 mb-3">Paramètres du Widget</h5>

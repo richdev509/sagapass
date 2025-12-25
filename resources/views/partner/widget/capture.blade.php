@@ -803,26 +803,49 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    nextStep(6);
+                    // Passer à l'étape de succès
+                    nextStep(5);
 
-                    // Notifier le parent (site partenaire)
+                    // Notifier le parent (site partenaire) avec toutes les données
                     if (window.opener) {
                         window.opener.postMessage({
                             type: 'SAGAPASS_VERIFICATION_SUCCESS',
                             citizenId: result.citizen_id,
-                            email: widgetData.email
+                            email: widgetData.email,
+                            firstName: widgetData.firstName,
+                            lastName: widgetData.lastName,
+                            status: 'pending',
+                            message: 'Vérification soumise avec succès'
                         }, '*');
                     }
                 } else {
                     alert('Erreur : ' + result.error);
                     document.getElementById('confirmVideoBtn').disabled = false;
                     document.getElementById('loadingSubmit').style.display = 'none';
+
+                    // Notifier le parent de l'erreur
+                    if (window.opener) {
+                        window.opener.postMessage({
+                            type: 'SAGAPASS_VERIFICATION_ERROR',
+                            error: result.error,
+                            email: widgetData.email
+                        }, '*');
+                    }
                 }
             } catch (error) {
                 console.error('Erreur:', error);
                 alert('Erreur de connexion. Veuillez réessayer.');
                 document.getElementById('confirmVideoBtn').disabled = false;
                 document.getElementById('loadingSubmit').style.display = 'none';
+
+                // Notifier le parent de l'erreur
+                if (window.opener) {
+                    window.opener.postMessage({
+                        type: 'SAGAPASS_VERIFICATION_ERROR',
+                        error: error.message || 'Erreur de connexion',
+                        email: widgetData.email
+                    }, '*');
+                }
             }
         }        // Redirection automatique
         function autoRedirect() {

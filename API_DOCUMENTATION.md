@@ -1106,59 +1106,639 @@ Le widget utilise le flux **OAuth Client Credentials** pour authentifier votre a
 > - Le token a une durée de vie de **1 heure**
 > - Créez un endpoint API dans votre backend pour générer et fournir le token au frontend
 
-**Exemple Node.js :**
+---
+
+#### 🟢 Node.js / Express (Backend)
+
 ```javascript
+const express = require('express');
 const axios = require('axios');
+const app = express();
 
-async function getPartnerToken() {
-    const response = await axios.post('https://votre-domaine.com/oauth/token', 
-        new URLSearchParams({
-            grant_type: 'client_credentials',
-            client_id: process.env.SAGAPASS_CLIENT_ID,
-            client_secret: process.env.SAGAPASS_CLIENT_SECRET,
-            scope: 'partner:create-citizen'
-        }),
-        {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        }
-    );
-    
-    return response.data.access_token;
-}
-
-// Utilisation
-app.get('/get-widget-token', async (req, res) => {
+// Endpoint pour obtenir le token
+app.get('/api/get-sagapass-token', async (req, res) => {
     try {
-        const token = await getPartnerToken();
-        res.json({ token });
+        const response = await axios.post('https://sagapass.com/oauth/token', 
+            new URLSearchParams({
+                grant_type: 'client_credentials',
+                client_id: process.env.SAGAPASS_CLIENT_ID,
+                client_secret: process.env.SAGAPASS_CLIENT_SECRET,
+                scope: 'partner:create-citizen'
+            }),
+            {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            }
+        );
+        
+        res.json({ 
+            success: true,
+            token: response.data.access_token 
+        });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to get token' });
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to get token' 
+        });
     }
 });
+
+app.listen(3000);
 ```
 
-**Exemple PHP (Laravel) :**
+**Frontend (JavaScript/HTML) :**
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vérification SAGAPASS</title>
+    <script src="https://sagapass.com/js/widget.js"></script>
+</head>
+<body>
+    <button onclick="startVerification()">Vérifier mon identité</button>
+
+    <script>
+        async function startVerification() {
+            try {
+                // 1. Obtenir le token depuis votre backend
+                const response = await fetch('/api/get-sagapass-token');
+                const { token } = await response.json();
+                
+                // 2. Ouvrir le widget avec le token
+                SagaPass.verify({
+                    token: token,
+                    email: 'user@example.com',
+                    firstName: 'Jean',
+                    lastName: 'Dupont',
+                    
+                    onSuccess: function(data) {
+                        console.log('Succès:', data);
+                        alert('Vérification réussie !');
+                    },
+                    
+                    onError: function(error) {
+                        console.error('Erreur:', error);
+                    }
+                });
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+        
+        // Écouter les messages du widget
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'SAGAPASS_VERIFICATION_SUCCESS') {
+                console.log('Citoyen ID:', event.data.citizenId);
+                console.log('Email:', event.data.email);
+                console.log('Nom:', event.data.firstName, event.data.lastName);
+            }
+        });
+    </script>
+</body>
+</html>
+```
+
+---
+
+#### 🔵 PHP / Laravel (Backend)
+
+**Controller :**
 ```php
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
-public function getWidgetToken()
+class SagaPassController extends Controller
 {
-    $response = Http::asForm()->post(config('sagapass.url') . '/oauth/token', [
-        'grant_type' => 'client_credentials',
-        'client_id' => config('sagapass.client_id'),
-        'client_secret' => config('sagapass.client_secret'),
-        'scope' => 'partner:create-citizen'
-    ]);
-    
-    if ($response->failed()) {
-        return response()->json(['error' => 'Token generation failed'], 500);
+    // Endpoint pour obtenir le token
+    public function getToken()
+    {
+        try {
+            $response = Http::asForm()->post(config('sagapass.url') . '/oauth/token', [
+                'grant_type' => 'client_credentials',
+                'client_id' => config('sagapass.client_id'),
+                'client_secret' => config('sagapass.client_secret'),
+                'scope' => 'partner:create-citizen'
+            ]);
+            
+            if ($response->failed()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Token generation failed'
+                ], 500);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'token' => $response->json('access_token')
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
     
-    return response()->json([
-        'token' => $response->json('access_token')
-    ]);
+    // Vérifier le statut
+    public function checkStatus(Request $request)
+    {
+        $email = $request->query('email');
+        $token = $this->getPartnerToken();
+        
+        $response = Http::withToken($token)
+            ->get(config('sagapass.url') . '/api/partner/v1/check-verification', [
+                'email' => $email
+            ]);
+        
+        return response()->json($response->json());
+    }
+    
+    private function getPartnerToken()
+    {
+        $response = Http::asForm()->post(config('sagapass.url') . '/oauth/token', [
+            'grant_type' => 'client_credentials',
+            'client_id' => config('sagapass.client_id'),
+            'client_secret' => config('sagapass.client_secret'),
+            'scope' => 'partner:create-citizen'
+        ]);
+        
+        return $response->json('access_token');
+    }
 }
 ```
+
+**Routes (routes/web.php) :**
+```php
+Route::get('/api/get-sagapass-token', [SagaPassController::class, 'getToken']);
+Route::get('/api/check-verification', [SagaPassController::class, 'checkStatus']);
+```
+
+**Config (config/sagapass.php) :**
+```php
+<?php
+
+return [
+    'url' => env('SAGAPASS_URL', 'https://sagapass.com'),
+    'client_id' => env('SAGAPASS_CLIENT_ID'),
+    'client_secret' => env('SAGAPASS_CLIENT_SECRET'),
+];
+```
+
+**.env :**
+```env
+SAGAPASS_URL=https://sagapass.com
+SAGAPASS_CLIENT_ID=votre_client_id
+SAGAPASS_CLIENT_SECRET=votre_client_secret
+```
+
+**Frontend (Blade) :**
+```blade
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vérification SAGAPASS</title>
+    <script src="https://sagapass.com/js/widget.js"></script>
+</head>
+<body>
+    <button onclick="startVerification()">Vérifier mon identité</button>
+
+    <script>
+        async function startVerification() {
+            try {
+                const response = await fetch('/api/get-sagapass-token');
+                const { token } = await response.json();
+                
+                SagaPass.verify({
+                    token: token,
+                    email: '{{ $user->email }}',
+                    firstName: '{{ $user->first_name }}',
+                    lastName: '{{ $user->last_name }}',
+                    
+                    onSuccess: function(data) {
+                        window.location.href = '/verification-success';
+                    }
+                });
+            } catch (error) {
+                alert('Erreur: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
+```
+
+---
+
+#### 🐍 Python / Django (Backend)
+
+**views.py :**
+```python
+import requests
+from django.http import JsonResponse
+from django.conf import settings
+from django.views.decorators.http import require_http_methods
+
+@require_http_methods(["GET"])
+def get_sagapass_token(request):
+    try:
+        response = requests.post(
+            f"{settings.SAGAPASS_URL}/oauth/token",
+            data={
+                'grant_type': 'client_credentials',
+                'client_id': settings.SAGAPASS_CLIENT_ID,
+                'client_secret': settings.SAGAPASS_CLIENT_SECRET,
+                'scope': 'partner:create-citizen'
+            },
+            headers={'Content-Type': 'application/x-www-form-urlencoded'}
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            return JsonResponse({
+                'success': True,
+                'token': data['access_token']
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Failed to get token'
+            }, status=500)
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@require_http_methods(["GET"])
+def check_verification_status(request):
+    email = request.GET.get('email')
+    
+    # Obtenir le token
+    token_response = requests.post(
+        f"{settings.SAGAPASS_URL}/oauth/token",
+        data={
+            'grant_type': 'client_credentials',
+            'client_id': settings.SAGAPASS_CLIENT_ID,
+            'client_secret': settings.SAGAPASS_CLIENT_SECRET,
+            'scope': 'partner:create-citizen'
+        }
+    )
+    
+    token = token_response.json()['access_token']
+    
+    # Vérifier le statut
+    response = requests.get(
+        f"{settings.SAGAPASS_URL}/api/partner/v1/check-verification",
+        params={'email': email},
+        headers={'Authorization': f'Bearer {token}'}
+    )
+    
+    return JsonResponse(response.json())
+```
+
+**urls.py :**
+```python
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('api/get-sagapass-token', views.get_sagapass_token, name='get_sagapass_token'),
+    path('api/check-verification', views.check_verification_status, name='check_verification'),
+]
+```
+
+**settings.py :**
+```python
+# SAGAPASS Configuration
+SAGAPASS_URL = os.getenv('SAGAPASS_URL', 'https://sagapass.com')
+SAGAPASS_CLIENT_ID = os.getenv('SAGAPASS_CLIENT_ID')
+SAGAPASS_CLIENT_SECRET = os.getenv('SAGAPASS_CLIENT_SECRET')
+```
+
+**Template (HTML) :**
+```html
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vérification SAGAPASS</title>
+    <script src="https://sagapass.com/js/widget.js"></script>
+</head>
+<body>
+    <button onclick="startVerification()">Vérifier mon identité</button>
+
+    <script>
+        async function startVerification() {
+            try {
+                const response = await fetch('/api/get-sagapass-token');
+                const data = await response.json();
+                
+                if (data.success) {
+                    SagaPass.verify({
+                        token: data.token,
+                        email: '{{ user.email }}',
+                        firstName: '{{ user.first_name }}',
+                        lastName: '{{ user.last_name }}',
+                        
+                        onSuccess: function(result) {
+                            window.location.href = '/verification-success/';
+                        },
+                        
+                        onError: function(error) {
+                            alert('Erreur: ' + error.error);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+    </script>
+</body>
+</html>
+```
+
+---
+
+#### 📱 Flutter / Dart (Mobile App)
+
+**Backend Service (Dart) :**
+```dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class SagaPassService {
+  final String baseUrl = 'https://sagapass.com';
+  final String clientId;
+  final String clientSecret;
+  
+  SagaPassService({
+    required this.clientId,
+    required this.clientSecret,
+  });
+  
+  // Obtenir le token OAuth
+  Future<String> getToken() async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/oauth/token'),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {
+          'grant_type': 'client_credentials',
+          'client_id': clientId,
+          'client_secret': clientSecret,
+          'scope': 'partner:create-citizen',
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['access_token'];
+      } else {
+        throw Exception('Failed to get token');
+      }
+    } catch (e) {
+      throw Exception('Error: $e');
+    }
+  }
+  
+  // Vérifier le statut
+  Future<Map<String, dynamic>> checkVerificationStatus(String email) async {
+    final token = await getToken();
+    
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/partner/v1/check-verification?email=$email'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+    
+    return json.decode(response.body);
+  }
+}
+```
+
+**WebView Widget :**
+```dart
+import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+
+class SagaPassVerificationPage extends StatefulWidget {
+  final String email;
+  final String firstName;
+  final String lastName;
+  
+  const SagaPassVerificationPage({
+    Key? key,
+    required this.email,
+    required this.firstName,
+    required this.lastName,
+  }) : super(key: key);
+
+  @override
+  State<SagaPassVerificationPage> createState() => _SagaPassVerificationPageState();
+}
+
+class _SagaPassVerificationPageState extends State<SagaPassVerificationPage> {
+  late WebViewController _controller;
+  final SagaPassService _sagaPassService = SagaPassService(
+    clientId: 'VOTRE_CLIENT_ID',
+    clientSecret: 'VOTRE_CLIENT_SECRET',
+  );
+  
+  @override
+  void initState() {
+    super.initState();
+    _initializeWebView();
+  }
+  
+  Future<void> _initializeWebView() async {
+    final token = await _sagaPassService.getToken();
+    
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (String url) {
+            // Injecter le script widget
+            _controller.runJavaScript('''
+              var script = document.createElement('script');
+              script.src = 'https://sagapass.com/js/widget.js';
+              document.head.appendChild(script);
+              
+              script.onload = function() {
+                SagaPass.verify({
+                  token: '$token',
+                  email: '${widget.email}',
+                  firstName: '${widget.firstName}',
+                  lastName: '${widget.lastName}',
+                  
+                  onSuccess: function(data) {
+                    window.flutter_inappwebview.callHandler('verificationSuccess', data);
+                  },
+                  
+                  onError: function(error) {
+                    window.flutter_inappwebview.callHandler('verificationError', error);
+                  }
+                });
+              };
+            ''');
+          },
+        ),
+      )
+      ..addJavaScriptChannel(
+        'flutter_inappwebview',
+        onMessageReceived: (JavaScriptMessage message) {
+          // Gérer les callbacks
+          final data = json.decode(message.message);
+          if (data['handler'] == 'verificationSuccess') {
+            _onVerificationSuccess(data);
+          } else if (data['handler'] == 'verificationError') {
+            _onVerificationError(data);
+          }
+        },
+      )
+      ..loadRequest(Uri.parse('about:blank'));
+  }
+  
+  void _onVerificationSuccess(Map<String, dynamic> data) {
+    Navigator.pop(context, data);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Vérification réussie !')),
+    );
+  }
+  
+  void _onVerificationError(Map<String, dynamic> error) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Erreur: ${error['error']}')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Vérification SAGAPASS'),
+      ),
+      body: WebViewWidget(controller: _controller),
+    );
+  }
+}
+```
+
+**pubspec.yaml :**
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  webview_flutter: ^4.0.0
+  http: ^1.0.0
+```
+
+---
+
+#### 📱 Android (Java/Kotlin - WebView)
+
+**AndroidManifest.xml :**
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+<uses-feature android:name="android.hardware.camera" />
+```
+
+**MainActivity.java :**
+```java
+import android.webkit.WebView;
+import android.webkit.WebSettings;
+import android.webkit.WebChromeClient;
+import android.webkit.PermissionRequest;
+import android.os.Bundle;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+    private WebView webView;
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        
+        webView = findViewById(R.id.webview);
+        WebSettings webSettings = webView.getSettings();
+        webSettings.setJavaScriptEnabled(true);
+        webSettings.setMediaPlaybackRequiresUserGesture(false);
+        webSettings.setDomStorageEnabled(true);
+        
+        // Autoriser les permissions caméra/micro
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onPermissionRequest(PermissionRequest request) {
+                request.grant(request.getResources());
+            }
+        });
+        
+        // Charger la page avec le widget
+        webView.loadUrl("https://votre-site.com/verification");
+    }
+}
+```
+
+---
+
+#### 📱 iOS (Swift - WKWebView)
+
+**Info.plist :**
+```xml
+<key>NSCameraUsageDescription</key>
+<string>Accès caméra pour vérification d'identité SAGAPASS</string>
+<key>NSMicrophoneUsageDescription</key>
+<string>Accès microphone pour vidéo de vérification</string>
+```
+
+**ViewController.swift :**
+```swift
+import UIKit
+import WebKit
+
+class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
+    var webView: WKWebView!
+    
+    override func loadView() {
+        let configuration = WKWebViewConfiguration()
+        configuration.allowsInlineMediaPlayback = true
+        configuration.mediaTypesRequiringUserActionForPlayback = []
+        
+        webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = self
+        webView.uiDelegate = self
+        view = webView
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        // Charger la page avec le widget
+        let url = URL(string: "https://votre-site.com/verification")!
+        webView.load(URLRequest(url: url))
+    }
+    
+    // Gérer les permissions caméra/micro
+    func webView(_ webView: WKWebView, 
+                 decideMediaCapturePermissionsFor origin: WKSecurityOrigin,
+                 initiatedBy frame: WKFrameInfo,
+                 type: WKMediaCaptureType) async -> WKPermissionDecision {
+        return .grant
+    }
+}
+```
+
+---
 
 ### ✅ Vérifier le Statut de Vérification
 
@@ -1419,4 +1999,4 @@ En utilisant l'API SAGAPASS, vous acceptez :
 
 **© 2025 SAGAPASS - Tous droits réservés**
 
-*Cette documentation est mise à jour régulièrement. Consultez le changelog pour les dernières modifications.*
+
