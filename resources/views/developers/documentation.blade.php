@@ -702,9 +702,9 @@ async function startVerification() {
 
     SagaPass.verify({
         token: token,
-        email: '{{ $user->email }}',
-        firstName: '{{ $user->first_name }}',
-        lastName: '{{ $user->last_name }}'
+        email: 'user@example.com',
+        firstName: 'Jean',
+        lastName: 'Dupont'
     });
 }
 &lt;/script&gt;</code></pre>
