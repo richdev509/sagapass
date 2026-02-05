@@ -21,6 +21,9 @@ return [
     // Nom d'utilisateur du bot (sans @)
     'bot_username' => env('TELEGRAM_BOT_USERNAME'),
 
+    // URL du webhook Telegram
+    'webhook_url' => env('TELEGRAM_WEBHOOK_URL'),
+
     /*
     |--------------------------------------------------------------------------
     | Sécurité
