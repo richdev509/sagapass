@@ -34,19 +34,30 @@ class WebhookController extends Controller
      */
     public function verify(Request $request)
     {
-        $mode = $request->query('hub.mode');
-        $token = $request->query('hub.verify_token');
-        $challenge = $request->query('hub.challenge');
+        // PHP convertit les points en underscores dans les query params
+        // hub.mode devient hub_mode
+        $mode = $request->query('hub_mode') ?? $request->query('hub.mode');
+        $token = $request->query('hub_verify_token') ?? $request->query('hub.verify_token');
+        $challenge = $request->query('hub_challenge') ?? $request->query('hub.challenge');
+
+        // Log pour debug
+        Log::info('WhatsApp webhook verify attempt', [
+            'mode' => $mode,
+            'token_received' => $token ? 'yes' : 'no',
+            'challenge' => $challenge,
+            'all_params' => $request->query(),
+        ]);
 
         // Vérifier que le mode est 'subscribe' et que le token correspond
         if ($mode === 'subscribe' && $token === config('whatsapp.verify_token')) {
             Log::info('WhatsApp webhook verified successfully');
-            return response($challenge, 200);
+            return response($challenge, 200)->header('Content-Type', 'text/plain');
         }
 
         Log::warning('WhatsApp webhook verification failed', [
             'mode' => $mode,
             'token' => $token,
+            'expected_token' => config('whatsapp.verify_token'),
         ]);
 
         return response('Verification failed', 403);

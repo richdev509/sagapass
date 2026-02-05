@@ -24,6 +24,16 @@ Route::post('/webhook', [WebhookController::class, 'handle'])
 // Routes de test (à retirer en production)
 if (config('app.env') !== 'production') {
 
+    // Debug: voir les paramètres reçus
+    Route::get('/test/debug', function () {
+        return response()->json([
+            'query_params' => request()->query(),
+            'all_params' => request()->all(),
+            'url' => request()->fullUrl(),
+            'method' => request()->method(),
+        ]);
+    })->name('whatsapp.test.debug');
+
     // Test d'envoi de message
     Route::get('/test/send', function () {
         $whatsapp = app(\App\Services\WhatsApp\WhatsAppService::class);
