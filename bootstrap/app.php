@@ -23,6 +23,11 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::prefix('api/whatsapp')
                 ->name('whatsapp.')
                 ->group(base_path('routes/whatsapp.php'));
+
+            // Routes Telegram Bot (API Webhook)
+            Route::prefix('api/telegram')
+                ->name('telegram.')
+                ->group(base_path('routes/telegram.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
