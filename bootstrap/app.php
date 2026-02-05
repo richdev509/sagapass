@@ -18,6 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
             // Routes Partner (API + Widget)
             // Le fichier partner.php gère ses propres middlewares
             Route::group([], base_path('routes/partner.php'));
+
+            // Routes WhatsApp (API Webhook)
+            Route::prefix('api/whatsapp')
+                ->name('whatsapp.')
+                ->group(base_path('routes/whatsapp.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
