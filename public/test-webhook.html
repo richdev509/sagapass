@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test WhatsApp Webhook</title>
+</head>
+<body>
+    <h1>Test WhatsApp Webhook Verification</h1>
+
+    <button onclick="testWebhook()">Tester le Webhook</button>
+
+    <div id="result" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;"></div>
+
+    <script>
+        async function testWebhook() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Test en cours...';
+
+            const url = '/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=SaGa_SecUre_T0k3n_2026_WhatsApp_Pr0d_xyz789&hub.challenge=test123';
+
+            try {
+                const response = await fetch(url);
+                const text = await response.text();
+
+                resultDiv.innerHTML = `
+                    <strong>Status:</strong> ${response.status}<br>
+                    <strong>Réponse:</strong> ${text}<br>
+                    <strong>Résultat:</strong> ${text === 'test123' ? '✅ SUCCESS' : '❌ FAILED'}
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `❌ Erreur: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
