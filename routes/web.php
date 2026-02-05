@@ -22,6 +22,16 @@ Route::get('/erreurs-connues', function () {
     return view('known-errors');
 })->name('known-errors');
 
+// Privacy Policy Page (required by Meta/WhatsApp)
+Route::get('/privacy-policy', function () {
+    return view('privacy-policy');
+})->name('privacy-policy');
+
+// Alias en français
+Route::get('/politique-de-confidentialite', function () {
+    return view('privacy-policy');
+})->name('politique-confidentialite');
+
 /*
 |--------------------------------------------------------------------------
 | Pages Statiques
