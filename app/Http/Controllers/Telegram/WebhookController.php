@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Telegram;
 use App\Http\Controllers\Controller;
 use App\Services\Telegram\TelegramService;
 use App\Services\Telegram\TelegramMenuService;
-use App\Services\WhatsApp\SessionService;
+use App\Services\Telegram\TelegramSessionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Carbon\Carbon;
+use Carbon\Carbon;
 
 class WebhookController extends Controller
 {
@@ -19,7 +21,7 @@ class WebhookController extends Controller
     public function __construct(
         TelegramService $telegramService,
         TelegramMenuService $menuService,
-        SessionService $sessionService
+        TelegramSessionService $sessionService
     ) {
         $this->telegramService = $telegramService;
         $this->menuService = $menuService;
@@ -82,9 +84,24 @@ class WebhookController extends Controller
         $chatId = $message['chat']['id'] ?? null;
         $userId = $message['from']['id'] ?? null;
         $text = $message['text'] ?? null;
+        $messageDate = $message['date'] ?? null;
 
         if (!$chatId || !$userId) {
             return;
+        }
+
+        // Ignorer les messages de plus de 5 minutes (éviter le retraitement)
+        if ($messageDate) {
+            $messageTime = Carbon::createFromTimestamp($messageDate);
+            $ageInSeconds = Carbon::now()->diffInSeconds($messageTime);
+            if ($ageInSeconds > 300) { // 5 minutes
+                Log::info('Telegram: Ignoring old message', [
+                    'user_id' => $userId,
+                    'age_seconds' => $ageInSeconds,
+                    'message_date' => $messageTime->toIso8601String()
+                ]);
+                return;
+            }
         }
 
         // Vérifier si l'utilisateur est autorisé
@@ -135,6 +152,23 @@ class WebhookController extends Controller
         if (!$chatId || !$userId || !$data) {
             return;
         }
+
+        // Déduplication: vérifier si ce callback a déjà été traité
+        $cacheKey = 'telegram_callback_processed:' . $callbackQueryId;
+        if (Cache::has($cacheKey)) {
+            Log::info('Telegram: Ignoring duplicate callback query', [
+                'callback_id' => $callbackQueryId,
+                'user_id' => $userId
+            ]);
+            // Répondre quand même pour éviter le timeout Telegram
+            if ($callbackQueryId) {
+                $this->telegramService->answerCallbackQuery($callbackQueryId);
+            }
+            return;
+        }
+
+        // Marquer comme traité (expire après 5 minutes)
+        Cache::put($cacheKey, true, 300);
 
         // Vérifier si l'utilisateur est autorisé
         if (!$this->isAuthorized($userId)) {
