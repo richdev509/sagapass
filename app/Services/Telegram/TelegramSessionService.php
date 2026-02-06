@@ -74,7 +74,7 @@ class TelegramSessionService
             'context' => $context,
             'created_at' => $now->toIso8601String(),
             'last_activity' => $now->toIso8601String(),
-            'expires_at' => $now->addMinutes($this->sessionLifetime)->toIso8601String(),
+            'expires_at' => $now->copy()->addMinutes($this->sessionLifetime)->toIso8601String(),
         ];
 
         $this->saveSession($userId, $session);
@@ -108,7 +108,7 @@ class TelegramSessionService
         }
 
         $session['last_activity'] = $now->toIso8601String();
-        $session['expires_at'] = $now->addMinutes($this->sessionLifetime)->toIso8601String();
+        $session['expires_at'] = $now->copy()->addMinutes($this->sessionLifetime)->toIso8601String();
 
         $this->saveSession($userId, $session);
 

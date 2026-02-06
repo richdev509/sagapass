@@ -268,10 +268,39 @@ class WebhookController extends Controller
             return;
         }
 
-        // Navigation vers sous-menus
+        // Navigation vers menus principaux
         if (in_array($action, ['rapports', 'ventes', 'tirages'])) {
             $this->menuService->sendMenu($chatId, $action, $messageId);
             $this->sessionService->updateSession((string)$userId, $action);
+            return;
+        }
+
+        // Navigation vers sous-menus tirages (périodes)
+        if (in_array($action, ['tirage_matin', 'tirage_apres_midi', 'tirage_soir'])) {
+            $this->menuService->sendMenu($chatId, $action, $messageId);
+            $this->sessionService->updateSession((string)$userId, $action);
+            return;
+        }
+
+        // Sélection type de rapport -> demander période
+        if (in_array($action, ['rapport_type_jour', 'rapport_type_semaine', 'rapport_type_mois'])) {
+            $reportType = str_replace('rapport_type_', '', $action);
+            $this->sessionService->updateContext((string)$userId, ['report_type' => $reportType]);
+            $this->menuService->sendMenu($chatId, 'rapport_periode', $messageId);
+            return;
+        }
+
+        // Sélection période -> afficher rapport
+        if (strpos($action, 'periode_') === 0) {
+            $session = $this->sessionService->getSession((string)$userId);
+            $reportType = $session['context']['report_type'] ?? 'jour';
+            $periode = str_replace('periode_', '', $action);
+
+            $response = $this->menuService->getMockResponse("rapport_{$reportType}_{$periode}");
+            $this->telegramService->sendMessage($chatId, $response);
+
+            sleep(1);
+            $this->telegramService->sendMessage($chatId, "Utilisez /menu pour revenir au menu principal.");
             return;
         }
 
@@ -282,9 +311,8 @@ class WebhookController extends Controller
         }
 
         // Actions qui retournent des données (réponses mockées)
-        if (strpos($action, 'rapport_') === 0 ||
-            strpos($action, 'ventes_') === 0 ||
-            strpos($action, 'tirages_') === 0) {
+        if (strpos($action, 'ventes_') === 0 ||
+            strpos($action, 'tirage_') === 0) {
 
             $response = $this->menuService->getMockResponse($action);
             $this->telegramService->sendMessage($chatId, $response);
