@@ -89,16 +89,16 @@ return [
         ],
 
         'rapports' => [
-            'text' => "📊 *Rapports*\n\nSélectionnez un type de rapport:",
+            'text' => "📊 *Rapports*\n\nChoisissez la période:",
             'buttons' => [
                 [
-                    ['text' => '📅 Rapport journalier', 'callback_data' => 'rapport_type_jour'],
+                    ['text' => '🌅 Matin', 'callback_data' => 'rapport_matin'],
                 ],
                 [
-                    ['text' => '📆 Rapport hebdomadaire', 'callback_data' => 'rapport_type_semaine'],
+                    ['text' => '☀️ Après-midi', 'callback_data' => 'rapport_apres_midi'],
                 ],
                 [
-                    ['text' => '📊 Rapport mensuel', 'callback_data' => 'rapport_type_mois'],
+                    ['text' => '🌙 Soir', 'callback_data' => 'rapport_soir'],
                 ],
                 [
                     ['text' => '⬅️ Retour', 'callback_data' => 'retour'],
@@ -106,18 +106,62 @@ return [
             ],
         ],
 
-        // Sélection période pour rapports
-        'rapport_periode' => [
-            'text' => "⏰ *Choisissez la période*\n\nPour quel moment de la journée?",
+        // Rapports Matin - Liste des tirages
+        'rapport_matin' => [
+            'text' => "🌅 *Rapports Matin*\n\nSélectionnez le tirage:",
             'buttons' => [
                 [
-                    ['text' => '🌅 Matin', 'callback_data' => 'periode_matin'],
+                    ['text' => '🏴 Tennessee', 'callback_data' => 'rapport_tennessee_matin'],
                 ],
                 [
-                    ['text' => '☀️ Après-midi', 'callback_data' => 'periode_apres_midi'],
+                    ['text' => '🏴 Texas', 'callback_data' => 'rapport_texas_matin'],
                 ],
                 [
-                    ['text' => '🌙 Soir', 'callback_data' => 'periode_soir'],
+                    ['text' => '🏴 Georgia', 'callback_data' => 'rapport_georgia_matin'],
+                ],
+                [
+                    ['text' => '🏴 Florida', 'callback_data' => 'rapport_florida_matin'],
+                ],
+                [
+                    ['text' => '🏴 New York', 'callback_data' => 'rapport_newyork_matin'],
+                ],
+                [
+                    ['text' => '⬅️ Retour', 'callback_data' => 'rapports'],
+                ],
+            ],
+        ],
+
+        // Rapports Après-midi - Liste des tirages
+        'rapport_apres_midi' => [
+            'text' => "☀️ *Rapports Après-midi*\n\nSélectionnez le tirage:",
+            'buttons' => [
+                [
+                    ['text' => '🏴 Georgia Après-midi', 'callback_data' => 'rapport_georgia_apres_midi'],
+                ],
+                [
+                    ['text' => '⬅️ Retour', 'callback_data' => 'rapports'],
+                ],
+            ],
+        ],
+
+        // Rapports Soir - Liste des tirages
+        'rapport_soir' => [
+            'text' => "🌙 *Rapports Soir*\n\nSélectionnez le tirage:",
+            'buttons' => [
+                [
+                    ['text' => '🏴 Texas Soir', 'callback_data' => 'rapport_texas_soir'],
+                ],
+                [
+                    ['text' => '🏴 Tennessee Soir', 'callback_data' => 'rapport_tennessee_soir'],
+                ],
+                [
+                    ['text' => '🏴 Florida Soir', 'callback_data' => 'rapport_florida_soir'],
+                ],
+                [
+                    ['text' => '🏴 New York Soir', 'callback_data' => 'rapport_newyork_soir'],
+                ],
+                [
+                    ['text' => '🏴 Georgia Night', 'callback_data' => 'rapport_georgia_night'],
                 ],
                 [
                     ['text' => '⬅️ Retour', 'callback_data' => 'rapports'],
@@ -227,24 +271,30 @@ return [
     */
 
     'mock_responses' => [
-        // Rapports par période - Matin
-        'rapport_jour_matin' => "📊 *Rapport Journalier - Matin* 🌅\n{date}\n\n💰 Ventes: 45,000 HTG\n🎫 Tickets vendus: 18\n🏆 Gains distribués: 12,000 HTG\n📈 Bénéfice net: 33,000 HTG\n\n✅ Période: 6h - 12h",
+        // Rapports Matin - Par tirage
+        'rapport_tennessee_matin' => "📊 *Rapport Tennessee Matin* 🌅\n{date}\n\n🎰 Tirage: Tennessee\n💰 Ventes: 8,500 HTG\n🎫 Tickets vendus: 12\n🏆 Gains distribués: 2,500 HTG\n📈 Bénéfice net: 6,000 HTG\n\n✅ Période: 10:00",
 
-        'rapport_jour_apres_midi' => "📊 *Rapport Journalier - Après-midi* ☀️\n{date}\n\n💰 Ventes: 50,000 HTG\n🎫 Tickets vendus: 20\n🏆 Gains distribués: 15,000 HTG\n📈 Bénéfice net: 35,000 HTG\n\n✅ Période: 12h - 18h",
+        'rapport_texas_matin' => "📊 *Rapport Texas Matin* 🌅\n{date}\n\n🎰 Tirage: Texas\n💰 Ventes: 9,200 HTG\n🎫 Tickets vendus: 14\n🏆 Gains distribués: 3,000 HTG\n📈 Bénéfice net: 6,200 HTG\n\n✅ Période: 10:30",
 
-        'rapport_jour_soir' => "📊 *Rapport Journalier - Soir* 🌙\n{date}\n\n💰 Ventes: 30,000 HTG\n🎫 Tickets vendus: 12\n🏆 Gains distribués: 8,000 HTG\n📈 Bénéfice net: 22,000 HTG\n\n✅ Période: 18h - 23h",
+        'rapport_georgia_matin' => "📊 *Rapport Georgia Matin* 🌅\n{date}\n\n🎰 Tirage: Georgia\n💰 Ventes: 10,100 HTG\n🎫 Tickets vendus: 16\n🏆 Gains distribués: 0 HTG (Jackpot reporté)\n📈 Bénéfice net: 10,100 HTG\n\n✅ Période: 11:00",
 
-        'rapport_semaine_matin' => "📊 *Rapport Hebdomadaire - Matin* 🌅\n{date}\n\n💰 Ventes: 315,000 HTG\n🎫 Tickets vendus: 126\n🏆 Gains distribués: 84,000 HTG\n📈 Bénéfice net: 231,000 HTG\n\n📈 +8% vs semaine dernière",
+        'rapport_florida_matin' => "📊 *Rapport Florida Matin* 🌅\n{date}\n\n🎰 Tirage: Florida\n💰 Ventes: 7,800 HTG\n🎫 Tickets vendus: 10\n🏆 Gains distribués: 2,000 HTG\n📈 Bénéfice net: 5,800 HTG\n\n✅ Période: 11:30",
 
-        'rapport_semaine_apres_midi' => "📊 *Rapport Hebdomadaire - Après-midi* ☀️\n{date}\n\n💰 Ventes: 350,000 HTG\n🎫 Tickets vendus: 140\n🏆 Gains distribués: 105,000 HTG\n📈 Bénéfice net: 245,000 HTG\n\n📈 +15% vs semaine dernière",
+        'rapport_newyork_matin' => "📊 *Rapport New York Matin* 🌅\n{date}\n\n🎰 Tirage: New York\n💰 Ventes: 11,500 HTG\n🎫 Tickets vendus: 18\n🏆 Gains distribués: 3,500 HTG\n📈 Bénéfice net: 8,000 HTG\n\n✅ Période: 12:00",
 
-        'rapport_semaine_soir' => "📊 *Rapport Hebdomadaire - Soir* 🌙\n{date}\n\n💰 Ventes: 210,000 HTG\n🎫 Tickets vendus: 84\n🏆 Gains distribués: 56,000 HTG\n📈 Bénéfice net: 154,000 HTG\n\n📈 +10% vs semaine dernière",
+        // Rapports Après-midi - Par tirage
+        'rapport_georgia_apres_midi' => "📊 *Rapport Georgia Après-midi* ☀️\n{date}\n\n🎰 Tirage: Georgia Après-midi\n💰 Ventes: 15,000 HTG\n🎫 Tickets vendus: 22\n🏆 Gains distribués: 4,000 HTG\n📈 Bénéfice net: 11,000 HTG\n\n✅ Période: 15:00",
 
-        'rapport_mois_matin' => "📊 *Rapport Mensuel - Matin* 🌅\n{date}\n\n💰 Ventes: 1,350,000 HTG\n🎫 Tickets vendus: 540\n🏆 Gains distribués: 378,000 HTG\n📈 Bénéfice net: 972,000 HTG\n\n📊 Excellente performance!",
+        // Rapports Soir - Par tirage
+        'rapport_texas_soir' => "📊 *Rapport Texas Soir* 🌙\n{date}\n\n🎰 Tirage: Texas Soir\n💰 Ventes: 12,500 HTG\n🎫 Tickets vendus: 16\n🏆 Gains distribués: 4,500 HTG\n📈 Bénéfice net: 8,000 HTG\n\n✅ Période: 19:00",
 
-        'rapport_mois_apres_midi' => "📊 *Rapport Mensuel - Après-midi* ☀️\n{date}\n\n💰 Ventes: 1,500,000 HTG\n🎫 Tickets vendus: 600\n🏆 Gains distribués: 420,000 HTG\n📈 Bénéfice net: 1,080,000 HTG\n\n📊 Meilleure période du mois!",
+        'rapport_tennessee_soir' => "📊 *Rapport Tennessee Soir* 🌙\n{date}\n\n🎰 Tirage: Tennessee Soir\n💰 Ventes: 11,200 HTG\n🎫 Tickets vendus: 14\n🏆 Gains distribués: 0 HTG (Jackpot reporté)\n📈 Bénéfice net: 11,200 HTG\n\n✅ Période: 19:30",
 
-        'rapport_mois_soir' => "📊 *Rapport Mensuel - Soir* 🌙\n{date}\n\n💰 Ventes: 900,000 HTG\n🎫 Tickets vendus: 360\n🏆 Gains distribués: 252,000 HTG\n📈 Bénéfice net: 648,000 HTG\n\n📊 Bonne performance!",
+        'rapport_florida_soir' => "📊 *Rapport Florida Soir* 🌙\n{date}\n\n🎰 Tirage: Florida Soir\n💰 Ventes: 13,800 HTG\n🎫 Tickets vendus: 18\n🏆 Gains distribués: 5,000 HTG\n📈 Bénéfice net: 8,800 HTG\n\n✅ Période: 20:00",
+
+        'rapport_newyork_soir' => "📊 *Rapport New York Soir* 🌙\n{date}\n\n🎰 Tirage: New York Soir\n💰 Ventes: 14,500 HTG\n🎫 Tickets vendus: 20\n🏆 Gains distribués: 5,500 HTG\n📈 Bénéfice net: 9,000 HTG\n\n✅ Période: 20:30",
+
+        'rapport_georgia_night' => "📊 *Rapport Georgia Night* 🌙\n{date}\n\n🎰 Tirage: Georgia Night\n💰 Ventes: 16,000 HTG\n🎫 Tickets vendus: 24\n🏆 Gains distribués: 6,000 HTG\n📈 Bénéfice net: 10,000 HTG\n\n✅ Période: 21:00",
 
         // Ventes
         'ventes_jour' => "💰 *Résumé Ventes - Aujourd'hui*\n\nMatin (6h-12h): 45,000 HTG\nAprès-midi (12h-18h): 50,000 HTG\nSoir (18h-23h): 30,000 HTG\n\n*Total:* 125,000 HTG",

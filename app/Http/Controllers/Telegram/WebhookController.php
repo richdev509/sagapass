@@ -269,7 +269,21 @@ class WebhookController extends Controller
         }
 
         // Navigation vers menus principaux
-        if (in_array($action, ['rapports', 'ventes', 'tirages'])) {
+        if (in_array($action, ['ventes', 'tirages'])) {
+            $this->menuService->sendMenu($chatId, $action, $messageId);
+            $this->sessionService->updateSession((string)$userId, $action);
+            return;
+        }
+
+        // Navigation menu Rapports -> afficher périodes
+        if ($action === 'rapports') {
+            $this->menuService->sendMenu($chatId, 'rapports', $messageId);
+            $this->sessionService->updateSession((string)$userId, 'rapports');
+            return;
+        }
+
+        // Navigation vers sous-menus rapports (périodes)
+        if (in_array($action, ['rapport_matin', 'rapport_apres_midi', 'rapport_soir'])) {
             $this->menuService->sendMenu($chatId, $action, $messageId);
             $this->sessionService->updateSession((string)$userId, $action);
             return;
@@ -282,28 +296,6 @@ class WebhookController extends Controller
             return;
         }
 
-        // Sélection type de rapport -> demander période
-        if (in_array($action, ['rapport_type_jour', 'rapport_type_semaine', 'rapport_type_mois'])) {
-            $reportType = str_replace('rapport_type_', '', $action);
-            $this->sessionService->updateContext((string)$userId, ['report_type' => $reportType]);
-            $this->menuService->sendMenu($chatId, 'rapport_periode', $messageId);
-            return;
-        }
-
-        // Sélection période -> afficher rapport
-        if (strpos($action, 'periode_') === 0) {
-            $session = $this->sessionService->getSession((string)$userId);
-            $reportType = $session['context']['report_type'] ?? 'jour';
-            $periode = str_replace('periode_', '', $action);
-
-            $response = $this->menuService->getMockResponse("rapport_{$reportType}_{$periode}");
-            $this->telegramService->sendMessage($chatId, $response);
-
-            sleep(1);
-            $this->telegramService->sendMessage($chatId, "Utilisez /menu pour revenir au menu principal.");
-            return;
-        }
-
         // Afficher l'aide
         if ($action === 'aide') {
             $this->menuService->sendHelp($chatId);
@@ -312,7 +304,8 @@ class WebhookController extends Controller
 
         // Actions qui retournent des données (réponses mockées)
         if (strpos($action, 'ventes_') === 0 ||
-            strpos($action, 'tirage_') === 0) {
+            strpos($action, 'tirage_') === 0 ||
+            strpos($action, 'rapport_') === 0) {
 
             $response = $this->menuService->getMockResponse($action);
             $this->telegramService->sendMessage($chatId, $response);
