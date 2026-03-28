@@ -98,9 +98,9 @@ class OAuthAuthorizationCode extends Model
         }
 
         if ($this->code_challenge_method === 'S256') {
-            $hash = hash('sha256', $codeVerifier);
+            $hash = hash('sha256', $codeVerifier, true);
             $challenge = rtrim(strtr(base64_encode($hash), '+/', '-_'), '=');
-            return $challenge === $this->code_challenge;
+            return hash_equals($this->code_challenge, $challenge);
         }
 
         return $codeVerifier === $this->code_challenge;

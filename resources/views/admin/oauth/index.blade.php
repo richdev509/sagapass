@@ -12,7 +12,12 @@
                     <i class="fas fa-plug text-primary"></i>
                     Applications OAuth
                 </h2>
-                <a href="{{ route('admin.oauth.scope-requests') }}" class="btn btn-outline-primary">
+                <div>
+                    <a href="{{ route('admin.oauth.create-developer') }}" class="btn btn-success me-2">
+                        <i class="fas fa-user-plus me-1"></i>
+                        Créer un développeur
+                    </a>
+                    <a href="{{ route('admin.oauth.scope-requests') }}" class="btn btn-outline-primary">
                     <i class="fas fa-shield-alt me-1"></i>
                     Demandes de Scopes
                     @php

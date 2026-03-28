@@ -162,13 +162,58 @@
         <!-- Configuration OAuth -->
         <div class="col-md-6 mb-4">
             <div class="card h-100">
-                <div class="card-header bg-info text-white">
-                    <i class="fas fa-cog"></i> Configuration OAuth
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-cog"></i> Configuration OAuth</span>
+                    <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#editConfigModal">
+                        <i class="fas fa-edit me-1"></i> Modifier
+                    </button>
                 </div>
                 <div class="card-body">
                     <table class="table table-sm table-borderless">
                         <tr>
-                            <th width="40%">URLs callback</th>
+                            <th width="40%">Client ID</th>
+                            <td>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control font-monospace" value="{{ $application->client_id }}" readonly id="clientIdField">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('clientIdField')" title="Copier">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Client Secret</th>
+                            <td>
+                                @if(session('new_secret'))
+                                    <div class="alert alert-success p-2 mb-2">
+                                        <small><strong><i class="fas fa-exclamation-triangle"></i> Nouveau secret généré !</strong></small>
+                                    </div>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" class="form-control font-monospace" value="{{ session('new_secret') }}" readonly id="newSecretField">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('newSecretField')" title="Copier">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                @else
+                                    <div class="input-group input-group-sm">
+                                        <input type="password" class="form-control font-monospace" value="••••••••••••••••" readonly id="secretField">
+                                        <button class="btn btn-outline-secondary" type="button" id="toggleSecretBtn" onclick="toggleSecret({{ $application->id }})" title="Afficher/Masquer">
+                                            <i class="fas fa-eye" id="secretEyeIcon"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('secretField')" title="Copier" id="copySecretBtn" style="display:none;">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                @endif
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#regenerateSecretModal">
+                                        <i class="fas fa-sync-alt me-1"></i> Régénérer
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>URLs callback</th>
                             <td>
                                 @php
                                     $redirectUris = is_array($application->redirect_uris)
@@ -180,6 +225,9 @@
                                 @empty
                                     <span class="text-muted">Aucune</span>
                                 @endforelse
+                                <button type="button" class="btn btn-sm btn-outline-info mt-1" data-bs-toggle="modal" data-bs-target="#editConfigModal">
+                                    <i class="fas fa-edit me-1"></i> Modifier
+                                </button>
                             </td>
                         </tr>
                         <tr>
@@ -198,12 +246,22 @@
                         <tr>
                             <th>Site web</th>
                             <td>
-                                @if($application->website_url)
-                                    <a href="{{ $application->website_url }}" target="_blank">
-                                        {{ $application->website_url }}
+                                @if($application->website)
+                                    <a href="{{ $application->website }}" target="_blank" rel="noopener noreferrer">
+                                        {{ $application->website }}
                                     </a>
                                 @else
                                     <span class="text-muted">N/A</span>
+                                @endif
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Application de confiance</th>
+                            <td>
+                                @if($application->is_trusted)
+                                    <span class="badge bg-success"><i class="fas fa-shield-alt"></i> Oui</span>
+                                @else
+                                    <span class="badge bg-secondary">Non</span>
                                 @endif
                             </td>
                         </tr>
@@ -578,4 +636,159 @@
     </div>
 </div>
 
+{{-- Edit Config Modal --}}
+<div class="modal fade" id="editConfigModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="{{ route('admin.oauth.update-config', $application) }}" method="POST">
+                @csrf
+                @method('PUT')
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-cog me-2"></i>
+                        Modifier la configuration OAuth
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="config_name" class="form-label">Nom de l'application <span class="text-danger">*</span></label>
+                        <input type="text" name="name" id="config_name" class="form-control"
+                               value="{{ $application->name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="config_description" class="form-label">Description</label>
+                        <textarea name="description" id="config_description" class="form-control"
+                                  rows="3">{{ $application->description }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="config_website" class="form-label">Site web</label>
+                        <input type="url" name="website" id="config_website" class="form-control"
+                               value="{{ $application->website }}" placeholder="https://...">
+                    </div>
+                    <div class="mb-3">
+                        <label for="config_redirect_uris" class="form-label">URLs de callback <span class="text-danger">*</span></label>
+                        <textarea name="redirect_uris" id="config_redirect_uris" class="form-control font-monospace"
+                                  rows="4" required placeholder="Une URL par ligne">{{ implode("\n", $application->redirect_uris ?? []) }}</textarea>
+                        <div class="form-text">Entrez une URL par ligne. Ex: <code>kaypa://auth/callback</code></div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input type="hidden" name="is_trusted" value="0">
+                            <input class="form-check-input" type="checkbox" name="is_trusted" id="config_is_trusted"
+                                   value="1" {{ $application->is_trusted ? 'checked' : '' }}>
+                            <label class="form-check-label" for="config_is_trusted">
+                                <strong>Application de confiance</strong>
+                                <br><small class="text-muted">Les applications de confiance peuvent ignorer l'écran de consentement</small>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Le <strong>Client ID</strong> ne peut pas être modifié. Pour changer le <strong>Client Secret</strong>, utilisez le bouton "Régénérer".
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-info text-white">
+                        <i class="fas fa-save me-1"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- Regenerate Secret Modal --}}
+<div class="modal fade" id="regenerateSecretModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ route('admin.oauth.regenerate-secret', $application) }}" method="POST">
+                @csrf
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="fas fa-sync-alt me-2"></i>
+                        Régénérer le Client Secret
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <strong><i class="fas fa-exclamation-triangle me-2"></i> Attention !</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>L'ancien secret sera <strong>immédiatement invalidé</strong></li>
+                            <li>L'application <strong>{{ $application->name }}</strong> ne pourra plus échanger de tokens jusqu'à mise à jour de son secret</li>
+                            <li>Le nouveau secret sera affiché <strong>une seule fois</strong> — copiez-le immédiatement</li>
+                        </ul>
+                    </div>
+                    <p>Êtes-vous sûr de vouloir régénérer le secret pour <strong>{{ $application->name }}</strong> ?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-sync-alt me-1"></i> Régénérer le secret
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@endsection
+
+@section('scripts')
+<script>
+    let secretVisible = false;
+
+    function toggleSecret(appId) {
+        const field = document.getElementById('secretField');
+        const icon = document.getElementById('secretEyeIcon');
+        const copyBtn = document.getElementById('copySecretBtn');
+        const toggleBtn = document.getElementById('toggleSecretBtn');
+
+        if (secretVisible) {
+            field.type = 'password';
+            field.value = '••••••••••••••••';
+            icon.className = 'fas fa-eye';
+            copyBtn.style.display = 'none';
+            secretVisible = false;
+        } else {
+            toggleBtn.disabled = true;
+            icon.className = 'fas fa-spinner fa-spin';
+
+            fetch(`{{ url('/admin/oauth') }}/${appId}/secret`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                field.type = 'text';
+                field.value = data.secret;
+                icon.className = 'fas fa-eye-slash';
+                copyBtn.style.display = '';
+                secretVisible = true;
+            })
+            .catch(() => {
+                alert('Erreur lors du chargement du secret.');
+                icon.className = 'fas fa-eye';
+            })
+            .finally(() => {
+                toggleBtn.disabled = false;
+            });
+        }
+    }
+
+    function copyToClipboard(fieldId) {
+        const field = document.getElementById(fieldId);
+        const value = field.value;
+        navigator.clipboard.writeText(value).then(() => {
+            const btn = field.nextElementSibling;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check text-success"></i>';
+            setTimeout(() => { btn.innerHTML = originalHtml; }, 1500);
+        });
+    }
+</script>
 @endsection

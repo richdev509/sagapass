@@ -7,6 +7,7 @@ use App\Models\Document;
 use App\Models\User;
 use App\Models\Admin;
 use App\Models\AuditLog;
+use App\Models\UserVerificationDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -23,32 +24,46 @@ class DashboardController extends Controller
     public function index()
     {
         $stats = [
-            // Statistiques utilisateurs
-            'total_users' => User::count(),
-            'verified_users' => User::whereNotNull('email_verified_at')->count(),
-            'active_users' => User::where('account_status', 'active')->count(),
-            'new_users_today' => User::whereDate('created_at', today())->count(),
+            // Statistiques utilisateurs (app mobile)
+            'total_users'          => User::count(),
+            'active_users'         => User::where('account_status', 'active')->count(),
+            'new_users_today'      => User::whereDate('created_at', today())->count(),
+            'new_users_week'       => User::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->count(),
 
-            // Statistiques documents
-            'total_documents' => Document::count(),
-            'pending_documents' => Document::where('verification_status', 'pending')->count(),
-            'verified_documents' => Document::where('verification_status', 'verified')->count(),
-            'rejected_documents' => Document::where('verification_status', 'rejected')->count(),
+            // Vérifications mobile (UserVerificationDocument)
+            'mobile_pending'       => UserVerificationDocument::where('status', 'pending')->count(),
+            'mobile_approved'      => UserVerificationDocument::where('status', 'approved')->count(),
+            'mobile_rejected'      => UserVerificationDocument::where('status', 'rejected')->count(),
+            'mobile_total'         => UserVerificationDocument::count(),
 
-            // Documents par type
-            'cni_documents' => Document::where('document_type', 'cni')->count(),
-            'passport_documents' => Document::where('document_type', 'passport')->count(),
+            // Statuts utilisateurs
+            'users_pending'        => User::where('verification_status', 'pending')->count(),
+            'users_verified'       => User::where('verification_status', 'verified')->count(),
+            'users_rejected'       => User::where('verification_status', 'rejected')->count(),
+
+            // Documents anciens
+            'total_documents'      => Document::count(),
+            'pending_documents'    => Document::where('verification_status', 'pending')->count(),
+            'verified_documents'   => Document::where('verification_status', 'verified')->count(),
+            'rejected_documents'   => Document::where('verification_status', 'rejected')->count(),
 
             // Statistiques admins
-            'total_admins' => Admin::count(),
-            'active_admins' => Admin::where('status', 'active')->count(),
+            'total_admins'         => Admin::count(),
+            'active_admins'        => Admin::where('status', 'active')->count(),
         ];
 
-        // Documents récents en attente
+        // Inscriptions mobiles en attente de vérification
+        $pending_mobile = UserVerificationDocument::with('user')
+            ->where('status', 'pending')
+            ->latest()
+            ->take(10)
+            ->get();
+
+        // Documents anciens en attente
         $pending_documents = Document::with('user')
             ->where('verification_status', 'pending')
             ->latest()
-            ->take(10)
+            ->take(5)
             ->get();
 
         // Dernières activités (audit logs)
@@ -57,12 +72,19 @@ class DashboardController extends Controller
             ->take(15)
             ->get();
 
-        // Nouveaux utilisateurs
-        $new_users = User::latest()
-            ->take(10)
+        // Nouveaux utilisateurs (inscrits via mobile)
+        $new_users = User::with('verificationDocument')
+            ->latest()
+            ->take(8)
             ->get();
 
-        return view('admin.dashboard', compact('stats', 'pending_documents', 'recent_activities', 'new_users'));
+        return view('admin.dashboard', compact(
+            'stats',
+            'pending_mobile',
+            'pending_documents',
+            'recent_activities',
+            'new_users'
+        ));
     }
 }
 

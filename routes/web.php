@@ -207,21 +207,17 @@ Route::middleware(['auth:web', 'developer'])->prefix('developers')->name('develo
 */
 
 Route::prefix('oauth')->name('oauth.')->group(function () {
-    // OAuth Login (doit être AVANT les routes protégées)
-    Route::get('/login', [OAuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [OAuthController::class, 'processLogin'])->name('login.submit');
+    // Authorization endpoint web (écran de consentement) - Pour dev portal / navigateur
+    Route::get('/authorize', [OAuthController::class, 'showAuthorization'])->middleware(['auth:web', 'verified'])->name('authorize');
+    Route::post('/authorize', [OAuthController::class, 'approveOrDeny'])->middleware(['auth:web', 'verified'])->name('authorize.decision');
 
-    // Authorization endpoint (écran de consentement) - Utilise le middleware OAuth personnalisé
-    Route::get('/authorize', [OAuthController::class, 'showAuthorization'])->middleware(['oauth.auth', 'verified'])->name('authorize');
-    Route::post('/authorize', [OAuthController::class, 'approveOrDeny'])->middleware(['oauth.auth', 'verified'])->name('authorize.decision');
-
-    // Token endpoint (échange code contre access token)
+    // Token endpoint (échange code contre access token) - Server-to-server
     Route::post('/token', [OAuthController::class, 'issueToken'])->name('token');
 
     // Revoke token
     Route::post('/revoke', [OAuthController::class, 'revokeToken'])->name('revoke');
 
-    // Introspect token (optionnel, pour vérifier validité)
+    // Introspect token
     Route::post('/introspect', [OAuthController::class, 'introspect'])->name('introspect');
 });
 

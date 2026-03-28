@@ -4,10 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\DeveloperApplication;
+use App\Models\Developer;
+use App\Models\User;
 use App\Models\UserAuthorization;
 use App\Models\AuditLog;
+use App\Services\OAuthScopeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use App\Mail\ApplicationApprovedMail;
@@ -454,5 +458,270 @@ class OAuthManagementController extends Controller
         // TODO: Envoyer une notification par email au développeur
 
         return back()->with('success', 'Demande de scopes rejetée.');
+    }
+
+    /**
+     * Update OAuth configuration for an application.
+     */
+    public function updateConfig(Request $request, DeveloperApplication $application)
+    {
+        if (!auth('admin')->user()->can('view-oauth-apps')) {
+            abort(403, 'Accès refusé.');
+        }
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'website' => ['nullable', 'url', 'max:255'],
+            'redirect_uris' => ['required', 'string'],
+            'is_trusted' => ['nullable', 'boolean'],
+        ]);
+
+        // Parser les redirect_uris (une par ligne)
+        $redirectUris = array_values(array_filter(
+            array_map('trim', explode("\n", $validated['redirect_uris']))
+        ));
+
+        $application->update([
+            'name' => $validated['name'],
+            'description' => $validated['description'],
+            'website' => $validated['website'],
+            'redirect_uris' => $redirectUris,
+            'is_trusted' => $request->boolean('is_trusted'),
+        ]);
+
+        AuditLog::create([
+            'admin_id' => Auth::guard('admin')->id(),
+            'user_id' => $application->user_id,
+            'action' => 'oauth_app_config_updated',
+            'description' => "Configuration OAuth mise à jour pour '{$application->name}'",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return redirect()
+            ->route('admin.oauth.show', $application)
+            ->with('success', 'Configuration OAuth mise à jour avec succès.');
+    }
+
+    /**
+     * Regenerate client secret for an application.
+     */
+    public function regenerateSecret(Request $request, DeveloperApplication $application)
+    {
+        if (!auth('admin')->user()->can('view-oauth-apps')) {
+            abort(403, 'Accès refusé.');
+        }
+
+        $newSecret = $application->regenerateSecret();
+
+        AuditLog::create([
+            'admin_id' => Auth::guard('admin')->id(),
+            'user_id' => $application->user_id,
+            'action' => 'oauth_app_secret_regenerated',
+            'description' => "Client secret régénéré pour l'application '{$application->name}'",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return redirect()
+            ->route('admin.oauth.show', $application)
+            ->with('success', 'Client secret régénéré avec succès.')
+            ->with('new_secret', $newSecret);
+    }
+
+    /**
+     * Return the plaintext client secret (AJAX).
+     */
+    public function showSecret(DeveloperApplication $application)
+    {
+        if (!auth('admin')->user()->can('view-oauth-apps')) {
+            abort(403, 'Accès refusé.');
+        }
+
+        $secret = $application->getPlaintextSecret();
+
+        AuditLog::create([
+            'admin_id' => Auth::guard('admin')->id(),
+            'user_id' => $application->user_id,
+            'action' => 'oauth_app_secret_viewed',
+            'description' => "Client secret consulté pour l'application '{$application->name}'",
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        return response()->json([
+            'secret' => $secret ?? 'Impossible de déchiffrer le secret. Veuillez le régénérer.',
+        ]);
+    }
+
+    /**
+     * Afficher le formulaire de création de compte développeur par l'admin.
+     */
+    public function createDeveloper()
+    {
+        if (!auth('admin')->user()->can('view-oauth-apps')) {
+            abort(403, 'Accès refusé.');
+        }
+
+        $availableScopes = OAuthScopeService::getScopesForForm(true);
+
+        return view('admin.oauth.create-developer', compact('availableScopes'));
+    }
+
+    /**
+     * Rechercher un citoyen par NIU (AJAX).
+     */
+    public function searchCitizen(Request $request)
+    {
+        if (!auth('admin')->user()->can('view-oauth-apps')) {
+            abort(403, 'Accès refusé.');
+        }
+
+        $request->validate([
+            'niu' => ['required', 'string', 'size:10'],
+        ]);
+
+        $user = User::where('niu', $request->niu)->first();
+
+        if (!$user) {
+            return response()->json([
+                'found' => false,
+                'message' => 'Aucun citoyen trouvé avec ce NIU.',
+            ]);
+        }
+
+        if ($user->verification_status !== 'verified') {
+            return response()->json([
+                'found' => false,
+                'message' => 'Ce citoyen n\'est pas vérifié. Statut actuel : ' . $user->verification_status,
+            ]);
+        }
+
+        $hasDeveloper = $user->developer()->exists();
+
+        return response()->json([
+            'found' => true,
+            'citizen' => [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'niu' => $user->niu,
+                'verification_status' => $user->verification_status,
+                'account_level' => $user->account_level,
+                'has_developer_account' => $hasDeveloper,
+            ],
+        ]);
+    }
+
+    /**
+     * Créer un compte développeur + application OAuth pour un citoyen vérifié.
+     */
+    public function storeDeveloper(Request $request)
+    {
+        if (!auth('admin')->user()->can('view-oauth-apps')) {
+            abort(403, 'Accès refusé.');
+        }
+
+        $validated = $request->validate([
+            'user_id' => ['required', 'exists:users,id'],
+            'company_name' => ['required', 'string', 'max:255'],
+            'developer_bio' => ['nullable', 'string', 'max:1000'],
+            'developer_website' => ['nullable', 'url', 'max:255'],
+            'app_name' => ['required', 'string', 'max:255'],
+            'app_description' => ['nullable', 'string', 'max:1000'],
+            'app_website' => ['nullable', 'url', 'max:255'],
+            'redirect_uris' => ['required', 'string'],
+            'allowed_scopes' => ['nullable', 'array'],
+            'allowed_scopes.*' => ['string', 'in:' . implode(',', OAuthScopeService::getAllScopes())],
+            'is_trusted' => ['nullable', 'boolean'],
+            'auto_approve' => ['nullable', 'boolean'],
+        ], [
+            'user_id.required' => 'Veuillez rechercher un citoyen par NIU.',
+            'user_id.exists' => 'Citoyen introuvable.',
+            'company_name.required' => 'Le nom de la société/organisation est requis.',
+            'app_name.required' => 'Le nom de l\'application est requis.',
+            'redirect_uris.required' => 'Au moins une URI de redirection est requise.',
+        ]);
+
+        $user = User::findOrFail($validated['user_id']);
+
+        // Vérifier que le citoyen est vérifié
+        if ($user->verification_status !== 'verified') {
+            return back()->withInput()->with('error', 'Ce citoyen n\'est pas vérifié.');
+        }
+
+        DB::beginTransaction();
+
+        try {
+            // Créer ou mettre à jour le profil développeur
+            $developer = Developer::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'company_name' => $validated['company_name'],
+                    'developer_bio' => $validated['developer_bio'] ?? null,
+                    'developer_website' => $validated['developer_website'] ?? null,
+                    'status' => 'active',
+                    'verified_at' => now(),
+                ]
+            );
+
+            // Mettre à jour les champs développeur sur le User
+            $user->update([
+                'is_developer' => true,
+                'company_name' => $validated['company_name'],
+                'developer_bio' => $validated['developer_bio'] ?? null,
+                'developer_website' => $validated['developer_website'] ?? null,
+                'developer_verified_at' => now(),
+            ]);
+
+            // Parser les redirect_uris
+            $redirectUris = array_values(array_filter(
+                array_map('trim', explode("\n", $validated['redirect_uris']))
+            ));
+
+            // Scopes
+            $scopes = $validated['allowed_scopes'] ?? ['profile'];
+            if (!in_array('profile', $scopes)) {
+                array_unshift($scopes, 'profile');
+            }
+
+            // Créer l'application OAuth
+            $status = $request->boolean('auto_approve') ? 'approved' : 'pending';
+            $application = DeveloperApplication::create([
+                'user_id' => $user->id,
+                'name' => $validated['app_name'],
+                'description' => $validated['app_description'] ?? null,
+                'website' => $validated['app_website'] ?? null,
+                'redirect_uris' => $redirectUris,
+                'allowed_scopes' => $scopes,
+                'status' => $status,
+                'is_trusted' => $request->boolean('is_trusted'),
+                'approved_at' => $status === 'approved' ? now() : null,
+                'approved_by' => $status === 'approved' ? Auth::guard('admin')->id() : null,
+            ]);
+
+            // Audit log
+            AuditLog::create([
+                'admin_id' => Auth::guard('admin')->id(),
+                'user_id' => $user->id,
+                'action' => 'developer_account_created_by_admin',
+                'description' => "Compte développeur créé par admin pour {$user->first_name} {$user->last_name} (NIU: {$user->niu}). Application: '{$application->name}' ({$status})",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('admin.oauth.show', $application)
+                ->with('success', "Compte développeur créé avec succès pour {$user->first_name} {$user->last_name}. Application '{$application->name}' " . ($status === 'approved' ? 'approuvée automatiquement.' : 'en attente d\'approbation.'));
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Erreur création compte développeur par admin: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Erreur lors de la création: ' . $e->getMessage());
+        }
     }
 }

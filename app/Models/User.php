@@ -27,6 +27,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'date_of_birth',
         'phone',
+        'niu',
         'address',
         'profile_photo',
         'verification_status',
@@ -245,6 +246,22 @@ class User extends Authenticatable implements MustVerifyEmail
     public function consents()
     {
         return $this->hasMany(Consent::class);
+    }
+
+    /**
+     * Get verification documents for mobile registration.
+     */
+    public function verificationDocuments()
+    {
+        return $this->hasMany(UserVerificationDocument::class);
+    }
+
+    /**
+     * Get the latest verification document for mobile registration.
+     */
+    public function verificationDocument()
+    {
+        return $this->hasOne(UserVerificationDocument::class)->latest();
     }
 
     /**

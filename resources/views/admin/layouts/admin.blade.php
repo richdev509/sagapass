@@ -398,6 +398,48 @@
             </li>
             @endcan
 
+            @can('verify-documents', 'admin')
+            {{-- ============ INSCRIPTIONS MOBILES ============ --}}
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.mobile-verification.*') ? 'active' : '' }}"
+                   href="#mobileVerifSubmenu"
+                   data-bs-toggle="collapse"
+                   aria-expanded="{{ request()->routeIs('admin.mobile-verification.*') ? 'true' : 'false' }}">
+                    <i class="fas fa-mobile-alt"></i>
+                    <span>Inscriptions Mobiles</span>
+                    @php
+                        $pendingMobileCount = \App\Models\UserVerificationDocument::where('status', 'pending')->count();
+                    @endphp
+                    @if($pendingMobileCount > 0)
+                    <span class="badge bg-danger ms-auto">{{ $pendingMobileCount }}</span>
+                    @endif
+                    <i class="fas fa-chevron-down ms-auto" style="font-size:12px;"></i>
+                </a>
+                <div class="collapse {{ request()->routeIs('admin.mobile-verification.*') ? 'show' : '' }}" id="mobileVerifSubmenu">
+                    <ul class="nav flex-column ms-3">
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.mobile-verification.index') ? 'active' : '' }}" href="{{ route('admin.mobile-verification.index') }}">
+                                <i class="fas fa-clock"></i><span>En Attente</span>
+                                @if($pendingMobileCount > 0)
+                                <span class="badge bg-danger ms-1" style="font-size:10px;">{{ $pendingMobileCount }}</span>
+                                @endif
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.mobile-verification.approved') ? 'active' : '' }}" href="{{ route('admin.mobile-verification.approved') }}">
+                                <i class="fas fa-check-circle"></i><span>Approuvées</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('admin.mobile-verification.rejected') ? 'active' : '' }}" href="{{ route('admin.mobile-verification.rejected') }}">
+                                <i class="fas fa-times-circle"></i><span>Rejetées</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+            @endcan
+
             @can('view-users', 'admin')
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('admin.citizens.*') ? 'active' : '' }}" href="{{ route('admin.citizens.index') }}">

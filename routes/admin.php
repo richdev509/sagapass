@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\VerificationController;
 use App\Http\Controllers\Admin\VideoVerificationController;
+use App\Http\Controllers\Admin\MobileVerificationController;
 use App\Http\Controllers\Admin\CitizenController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AuditLogController;
@@ -38,6 +39,39 @@ Route::middleware(['auth:admin', 'ensure.2fa'])->prefix('admin')->name('admin.')
 
     // Dashboard Admin
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // ============================================
+    // Vérification des inscriptions mobiles (SAGA ID App)
+    // ============================================
+    Route::prefix('mobile-verification')->name('mobile-verification.')->group(function () {
+        Route::get('/', [MobileVerificationController::class, 'index'])
+            ->middleware('permission:verify-documents,admin')
+            ->name('index');
+
+        Route::get('/approved', [MobileVerificationController::class, 'approved'])
+            ->middleware('permission:verify-documents,admin')
+            ->name('approved');
+
+        Route::get('/rejected', [MobileVerificationController::class, 'rejected'])
+            ->middleware('permission:verify-documents,admin')
+            ->name('rejected');
+
+        Route::get('/{mobileVerification}', [MobileVerificationController::class, 'show'])
+            ->middleware('permission:verify-documents,admin')
+            ->name('show');
+
+        Route::get('/{mobileVerification}/image/{type}', [MobileVerificationController::class, 'serveImage'])
+            ->middleware('permission:verify-documents,admin')
+            ->name('image');
+
+        Route::post('/{mobileVerification}/approve', [MobileVerificationController::class, 'approve'])
+            ->middleware('permission:verify-documents,admin')
+            ->name('approve');
+
+        Route::post('/{mobileVerification}/reject', [MobileVerificationController::class, 'reject'])
+            ->middleware('permission:verify-documents,admin')
+            ->name('reject');
+    });
 
     // Vérification des documents
     Route::prefix('verification')->name('verification.')->group(function () {
@@ -166,6 +200,11 @@ Route::middleware(['auth:admin', 'ensure.2fa'])->prefix('admin')->name('admin.')
     Route::prefix('oauth')->name('oauth.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'index'])->name('index');
 
+        // Création de compte développeur par l'admin
+        Route::get('/create-developer', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'createDeveloper'])->name('create-developer');
+        Route::post('/search-citizen', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'searchCitizen'])->name('search-citizen');
+        Route::post('/store-developer', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'storeDeveloper'])->name('store-developer');
+
         // Demandes de scopes (AVANT les routes avec {application})
         Route::get('/scope-requests', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'scopeRequests'])->name('scope-requests');
         Route::post('/scope-requests/{scopeRequest}/approve', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'approveScopeRequest'])->name('approve-scope-request');
@@ -183,6 +222,11 @@ Route::middleware(['auth:admin', 'ensure.2fa'])->prefix('admin')->name('admin.')
         // Gestion des scopes
         Route::post('/{application}/scopes/add', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'addScope'])->name('add-scope');
         Route::delete('/{application}/scopes/{scope}', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'removeScope'])->name('remove-scope');
+
+        // Configuration OAuth
+        Route::put('/{application}/config', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'updateConfig'])->name('update-config');
+        Route::post('/{application}/regenerate-secret', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'regenerateSecret'])->name('regenerate-secret');
+        Route::get('/{application}/secret', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'showSecret'])->name('show-secret');
     });
 
     // Gestion des rôles et permissions

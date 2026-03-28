@@ -45,7 +45,8 @@ class DeveloperApplication extends Model
                 $app->client_id = (string) Str::uuid();
             }
             if (!$app->client_secret) {
-                $app->client_secret = bcrypt(Str::random(60));
+                $plainSecret = Str::random(64);
+                $app->client_secret = encrypt($plainSecret);
             }
             if (!$app->allowed_scopes) {
                 $app->allowed_scopes = ['profile'];
@@ -122,7 +123,34 @@ class DeveloperApplication extends Model
      */
     public function verifySecret(string $secret): bool
     {
-        return password_verify($secret, $this->client_secret);
+        try {
+            return hash_equals(decrypt($this->client_secret), $secret);
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get the plaintext client secret (admin only).
+     */
+    public function getPlaintextSecret(): ?string
+    {
+        try {
+            return decrypt($this->client_secret);
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Regenerate client secret and return the new plaintext value.
+     */
+    public function regenerateSecret(): string
+    {
+        $plainSecret = Str::random(64);
+        $this->client_secret = encrypt($plainSecret);
+        $this->save();
+        return $plainSecret;
     }
 
     /**

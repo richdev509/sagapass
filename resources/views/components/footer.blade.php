@@ -3,7 +3,7 @@
         <div class="row">
             <div class="col-md-4 mb-4">
                 <h3 class="footer-title">
-                    <i class="fas fa-shield-alt me-2"></i>{{ config('app.name', 'SAGAPASS') }}
+                   <img src="{{ asset('assets/images/sagapass-logo.png') }}" alt="{{ config('app.name', 'SAGAPASS') }}" style="height: 40px;">
                 </h3>
                 <p>Votre passeport numérique sécurisé pour accéder à tous les services en ligne.</p>
                 <div class="mt-3">

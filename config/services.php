@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'sagaloto' => [
+        'api_url' => env('SAGALOTO_API_URL'),
+        'api_key' => env('SAGALOTO_API_KEY'),
+    ],
+
 ];

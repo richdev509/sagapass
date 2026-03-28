@@ -51,13 +51,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'developer' => \App\Http\Middleware\EnsureUserIsDeveloper::class,
-            'oauth.auth' => \App\Http\Middleware\EnsureAuthenticatedForOAuth::class,
             'security.check' => \App\Http\Middleware\SecurityCheck::class,
             'maintenance' => \App\Http\Middleware\CheckMaintenanceMode::class,
             'ensure.2fa' => \App\Http\Middleware\EnsureTwoFactorEnabled::class,
             'verify.email.session' => \App\Http\Middleware\VerifyEmailInSession::class,
             'video.approved' => \App\Http\Middleware\EnsureVideoApproved::class,
-            'partner.auth' => \App\Http\Middleware\AuthenticatePartner::class,
         ]);
 
         // Middleware global de sécurité

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Telegram\TelegramService;
 use App\Services\Telegram\TelegramMenuService;
 use App\Services\Telegram\TelegramSessionService;
+use App\Services\Sagaloto\SagalotoApiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
@@ -16,15 +17,18 @@ class WebhookController extends Controller
     protected $telegramService;
     protected $menuService;
     protected $sessionService;
+    protected $sagalotoApi;
 
     public function __construct(
         TelegramService $telegramService,
         TelegramMenuService $menuService,
-        TelegramSessionService $sessionService
+        TelegramSessionService $sessionService,
+        SagalotoApiService $sagalotoApi
     ) {
         $this->telegramService = $telegramService;
         $this->menuService = $menuService;
         $this->sessionService = $sessionService;
+        $this->sagalotoApi = $sagalotoApi;
     }
 
     /**
@@ -82,6 +86,7 @@ class WebhookController extends Controller
     {
         $chatId = $message['chat']['id'] ?? null;
         $userId = $message['from']['id'] ?? null;
+        $username = $message['from']['username'] ?? null;
         $text = $message['text'] ?? null;
         $messageDate = $message['date'] ?? null;
 
@@ -107,7 +112,7 @@ class WebhookController extends Controller
         if (!$this->isAuthorized($userId)) {
             Log::warning('Unauthorized Telegram user attempted access', [
                 'user_id' => $userId,
-                'username' => $message['from']['username'] ?? null,
+                'username' => $username,
             ]);
             $this->telegramService->sendMessage($chatId, config('telegram.unauthorized_message'));
             return;
@@ -117,6 +122,11 @@ class WebhookController extends Controller
         if ($this->isRateLimited($userId)) {
             Log::warning('Telegram rate limit exceeded', ['user_id' => $userId]);
             return;
+        }
+
+        // Stocker le username dans le contexte de session
+        if ($username) {
+            $this->sessionService->updateContext($userId, ['telegram_username' => $username]);
         }
 
         // Traiter les commandes
@@ -144,6 +154,7 @@ class WebhookController extends Controller
     {
         $chatId = $callbackQuery['message']['chat']['id'] ?? null;
         $userId = $callbackQuery['from']['id'] ?? null;
+        $username = $callbackQuery['from']['username'] ?? null;
         $messageId = $callbackQuery['message']['message_id'] ?? null;
         $data = $callbackQuery['data'] ?? null;
         $callbackQueryId = $callbackQuery['id'] ?? null;
@@ -173,6 +184,11 @@ class WebhookController extends Controller
         if (!$this->isAuthorized($userId)) {
             $this->telegramService->answerCallbackQuery($callbackQueryId, "Accès non autorisé", true);
             return;
+        }
+
+        // Stocker le username dans le contexte de session
+        if ($username) {
+            $this->sessionService->updateContext($userId, ['telegram_username' => $username]);
         }
 
         // Répondre au callback pour retirer l'indicateur de chargement
@@ -228,26 +244,14 @@ class WebhookController extends Controller
      */
     protected function handleTextMessage(int $chatId, int $userId, string $text)
     {
-        $text = trim(strtolower($text));
-
-        // Commandes texte sans /
-        if (in_array($text, ['salut', 'bonjour', 'hello', 'hi', 'menu', 'start'])) {
-            $this->telegramService->sendMessage($chatId, config('telegram.welcome_message'));
-            $this->menuService->sendMainMenu($chatId);
-            $this->sessionService->updateSession((string)$userId, 'main');
-            return;
-        }
-
-        if (in_array($text, ['aide', 'help', '?'])) {
-            $this->menuService->sendHelp($chatId);
-            return;
-        }
-
-        // Message non reconnu
+        // Pour tout message texte (sauf commandes /), afficher le menu principal
+        // Interaction uniquement par boutons
         $this->telegramService->sendMessage(
             $chatId,
-            "Je n'ai pas compris. Utilisez /start pour voir le menu ou /aide pour l'aide."
+            "Veuillez utiliser les boutons ci-dessous pour interagir avec le bot :"
         );
+        $this->menuService->sendMainMenu($chatId);
+        $this->sessionService->updateSession((string)$userId, 'main');
     }
 
     /**
@@ -282,17 +286,95 @@ class WebhookController extends Controller
             return;
         }
 
-        // Navigation vers sous-menus rapports (périodes)
+        // Navigation vers sous-menus rapports (périodes) -> demander les branches
         if (in_array($action, ['rapport_matin', 'rapport_apres_midi', 'rapport_soir'])) {
-            $this->menuService->sendMenu($chatId, $action, $messageId);
-            $this->sessionService->updateSession((string)$userId, $action);
+            // Récupérer le username depuis le contexte
+            $session = $this->sessionService->getSession((string)$userId);
+            $username = $session['context']['telegram_username'] ?? null;
+
+            if (!$username) {
+                $this->telegramService->sendMessage($chatId, "❌ Erreur: Username Telegram introuvable. Utilisez /start pour réinitialiser.");
+                return;
+            }
+
+            // Extraire la période (matin, apres_midi, soir)
+            $periode = str_replace('rapport_', '', $action);
+
+            // Récupérer les branches depuis Sagaloto API
+            $branchesData = $this->sagalotoApi->getUserBranches($username);
+
+            if (!$branchesData || !$branchesData['success']) {
+                $this->telegramService->sendMessage($chatId, "❌ Impossible de récupérer vos branches. Veuillez réessayer plus tard.");
+                Log::error('Failed to fetch branches from Sagaloto', [
+                    'username' => $username,
+                    'periode' => $periode,
+                ]);
+                return;
+            }
+
+            $branches = $branchesData['data']['branches'] ?? [];
+
+            if (empty($branches)) {
+                $this->telegramService->sendMessage($chatId, "❌ Aucune branche disponible pour votre compte.");
+                return;
+            }
+
+            // Stocker les branches et la période dans le contexte
+            $this->sessionService->updateContext((string)$userId, [
+                'branches' => $branches,
+                'selected_periode' => $periode,
+                'selected_type' => 'rapport',
+            ]);
+
+            // Afficher le menu de sélection des branches
+            $this->sendBranchSelectionMenu($chatId, $branches, $messageId);
+            $this->sessionService->updateSession((string)$userId, 'branch_selection');
             return;
         }
 
-        // Navigation vers sous-menus tirages (périodes)
+        // Navigation vers sous-menus tirages (périodes) -> demander les branches
         if (in_array($action, ['tirage_matin', 'tirage_apres_midi', 'tirage_soir'])) {
-            $this->menuService->sendMenu($chatId, $action, $messageId);
-            $this->sessionService->updateSession((string)$userId, $action);
+            // Récupérer le username depuis le contexte
+            $session = $this->sessionService->getSession((string)$userId);
+            $username = $session['context']['telegram_username'] ?? null;
+
+            if (!$username) {
+                $this->telegramService->sendMessage($chatId, "❌ Erreur: Username Telegram introuvable. Utilisez /start pour réinitialiser.");
+                return;
+            }
+
+            // Extraire la période
+            $periode = str_replace('tirage_', '', $action);
+
+            // Récupérer les branches depuis Sagaloto API
+            $branchesData = $this->sagalotoApi->getUserBranches($username);
+
+            if (!$branchesData || !$branchesData['success']) {
+                $this->telegramService->sendMessage($chatId, "❌ Impossible de récupérer vos branches. Veuillez réessayer plus tard.");
+                Log::error('Failed to fetch branches from Sagaloto', [
+                    'username' => $username,
+                    'periode' => $periode,
+                ]);
+                return;
+            }
+
+            $branches = $branchesData['data']['branches'] ?? [];
+
+            if (empty($branches)) {
+                $this->telegramService->sendMessage($chatId, "❌ Aucune branche disponible pour votre compte.");
+                return;
+            }
+
+            // Stocker les branches et la période dans le contexte
+            $this->sessionService->updateContext((string)$userId, [
+                'branches' => $branches,
+                'selected_periode' => $periode,
+                'selected_type' => 'tirage',
+            ]);
+
+            // Afficher le menu de sélection des branches
+            $this->sendBranchSelectionMenu($chatId, $branches, $messageId);
+            $this->sessionService->updateSession((string)$userId, 'branch_selection');
             return;
         }
 
@@ -302,20 +384,128 @@ class WebhookController extends Controller
             return;
         }
 
-        // Actions qui retournent des données (réponses mockées)
-        if (strpos($action, 'ventes_') === 0 ||
-            strpos($action, 'tirage_') === 0 ||
-            strpos($action, 'rapport_') === 0) {
+        // Gestion de la sélection de branche
+        if (strpos($action, 'branch_') === 0) {
+            $branchId = (int) str_replace('branch_', '', $action);
 
-            $response = $this->menuService->getMockResponse($action);
+            // Récupérer le contexte de session
+            $session = $this->sessionService->getSession((string)$userId);
+            $username = $session['context']['telegram_username'] ?? null;
+            $periode = $session['context']['selected_periode'] ?? null;
+            $type = $session['context']['selected_type'] ?? 'rapport';
+            $branches = $session['context']['branches'] ?? [];
+
+            if (!$username || !$periode) {
+                $this->telegramService->sendMessage($chatId, "❌ Session expirée. Utilisez /menu pour recommencer.");
+                return;
+            }
+
+            // Trouver la branche sélectionnée
+            $selectedBranch = null;
+            foreach ($branches as $branch) {
+                if ($branch['id'] === $branchId) {
+                    $selectedBranch = $branch;
+                    break;
+                }
+            }
+
+            if (!$selectedBranch) {
+                $this->telegramService->sendMessage($chatId, "❌ Branche invalide. Utilisez /menu pour recommencer.");
+                return;
+            }
+
+            // Stocker la branche sélectionnée
+            $this->sessionService->updateContext((string)$userId, [
+                'selected_branch_id' => $branchId,
+                'selected_branch_name' => $selectedBranch['name'],
+            ]);
+
+            // Afficher le menu des tirages pour cette période
+            $menuKey = $type . '_' . $periode;
+            $this->menuService->sendMenu($chatId, $menuKey, $messageId);
+            $this->sessionService->updateSession((string)$userId, $menuKey);
+            return;
+        }
+
+        // Actions qui retournent des données depuis l'API Sagaloto
+        if (strpos($action, 'ventes_') === 0) {
+            // Gérer les ventes
+            $session = $this->sessionService->getSession((string)$userId);
+            $username = $session['context']['telegram_username'] ?? null;
+            $branchId = $session['context']['selected_branch_id'] ?? null;
+            $periode = str_replace('ventes_', '', $action); // jour ou semaine
+
+            if (!$username || !$branchId) {
+                $this->telegramService->sendMessage($chatId, "❌ Session expirée. Utilisez /menu pour recommencer.");
+                return;
+            }
+
+            $ventesData = $this->sagalotoApi->getVentes($username, $branchId, $periode);
+
+            if (!$ventesData || !$ventesData['success']) {
+                $this->telegramService->sendMessage($chatId, "❌ Impossible de récupérer les statistiques de ventes.");
+                return;
+            }
+
+            $response = $this->formatVentes($ventesData['data']['ventes']);
+            $this->telegramService->sendMessage($chatId, $response);
+
+            sleep(1);
+            $this->telegramService->sendMessage($chatId, "Utilisez /menu pour revenir au menu principal.");
+            return;
+        }
+
+        if (strpos($action, 'tirage_') === 0 || strpos($action, 'rapport_') === 0) {
+            // Extraire le type (tirage ou rapport), la loterie et la période
+            preg_match('/^(tirage|rapport)_([a-z_]+)_(matin|apres_midi|soir)$/', $action, $matches);
+
+            if (count($matches) !== 4) {
+                Log::warning('Invalid action format', ['action' => $action]);
+                $this->telegramService->sendMessage($chatId, "❌ Action invalide.");
+                return;
+            }
+
+            $type = $matches[1]; // tirage ou rapport
+            $tirage = $matches[2]; // tennessee, texas, etc.
+            $periode = $matches[3]; // matin, apres_midi, soir
+
+            // Récupérer le contexte
+            $session = $this->sessionService->getSession((string)$userId);
+            $username = $session['context']['telegram_username'] ?? null;
+            $branchId = $session['context']['selected_branch_id'] ?? null;
+
+            if (!$username || !$branchId) {
+                $this->telegramService->sendMessage($chatId, "❌ Session expirée. Utilisez /menu pour recommencer.");
+                return;
+            }
+
+            // Appeler l'API Sagaloto
+            $rapportData = $this->sagalotoApi->getRapport($username, $branchId, $periode, $tirage, $type);
+
+            if (!$rapportData || !$rapportData['success']) {
+                $this->telegramService->sendMessage($chatId, "❌ Impossible de récupérer les données. Veuillez réessayer.");
+                Log::error('Failed to fetch rapport from Sagaloto', [
+                    'username' => $username,
+                    'branch_id' => $branchId,
+                    'periode' => $periode,
+                    'tirage' => $tirage,
+                    'type' => $type,
+                ]);
+                return;
+            }
+
+            // Formater et envoyer la réponse
+            if ($type === 'rapport') {
+                $response = $this->formatRapport($rapportData['data']['rapport']);
+            } else {
+                $response = $this->formatTirage($rapportData['data']['tirage']);
+            }
+
             $this->telegramService->sendMessage($chatId, $response);
 
             // Proposer de revenir au menu
             sleep(1);
-            $this->telegramService->sendMessage(
-                $chatId,
-                "Utilisez /menu pour revenir au menu principal."
-            );
+            $this->telegramService->sendMessage($chatId, "Utilisez /menu pour revenir au menu principal.");
             return;
         }
 
@@ -391,5 +581,200 @@ class WebhookController extends Controller
             'timestamp' => now()->toIso8601String(),
             'data' => $data,
         ]);
+    }
+
+    /**
+     * Afficher le menu de sélection des branches
+     *
+     * @param int $chatId
+     * @param array $branches
+     * @param int|null $messageId
+     * @return void
+     */
+    protected function sendBranchSelectionMenu(int $chatId, array $branches, ?int $messageId = null)
+    {
+        $keyboard = [];
+        $row = [];
+
+        foreach ($branches as $branch) {
+            $row[] = [
+                'text' => $branch['name'],
+                'callback_data' => 'branch_' . $branch['id']
+            ];
+
+            // 2 branches par ligne
+            if (count($row) === 2) {
+                $keyboard[] = $row;
+                $row = [];
+            }
+        }
+
+        // Ajouter la dernière ligne si elle n'est pas vide
+        if (!empty($row)) {
+            $keyboard[] = $row;
+        }
+
+        // Ajouter le bouton de retour
+        $keyboard[] = [
+            ['text' => '🔙 Retour au menu', 'callback_data' => 'menu']
+        ];
+
+        $text = "🏢 *Sélectionnez votre branche*\n\nChoisissez la branche pour laquelle vous souhaitez consulter les informations:";
+
+        if ($messageId) {
+            $this->telegramService->editMessage($chatId, $messageId, $text, $keyboard);
+        } else {
+            $this->telegramService->sendInlineKeyboard($chatId, $text, $keyboard);
+        }
+    }
+
+    /**
+     * Formater un rapport pour l'affichage
+     *
+     * @param array $rapport
+     * @return string
+     */
+    protected function formatRapport(array $rapport): string
+    {
+        $tirageInfo = $rapport['tirage_info'] ?? [];
+        $branchInfo = $rapport['branch_info'] ?? [];
+        $stats = $rapport['statistiques'] ?? [];
+        $numeros = $rapport['numeros_gagnants'] ?? [];
+
+        $message = "📊 *RAPPORT - " . strtoupper($tirageInfo['name'] ?? 'N/A') . "*\n";
+        $message .= "━━━━━━━━━━━━━━━━━━━━━━\n\n";
+
+        $message .= "🏢 *Branche:* " . ($branchInfo['name'] ?? 'N/A') . "\n";
+        $message .= "📅 *Date:* " . ($tirageInfo['date'] ?? 'N/A') . "\n";
+        $message .= "🕐 *Heure:* " . ($tirageInfo['heure'] ?? 'N/A') . "\n";
+        $message .= "🌅 *Période:* " . ucfirst($tirageInfo['periode'] ?? 'N/A') . "\n\n";
+
+        $message .= "🎯 *NUMÉROS GAGNANTS*\n";
+        $message .= "━━━━━━━━━━━━━━━━━━━━━━\n";
+        if (!empty($numeros)) {
+            foreach ($numeros as $type => $numero) {
+                $message .= "• " . ucfirst(str_replace('_', ' ', $type)) . ": *" . $numero . "*\n";
+            }
+        } else {
+            $message .= "Aucun numéro disponible\n";
+        }
+
+        $message .= "\n💰 *STATISTIQUES*\n";
+        $message .= "━━━━━━━━━━━━━━━━━━━━━━\n";
+        $message .= "💵 Ventes totales: *" . number_format($stats['total_ventes'] ?? 0, 2) . " HTG*\n";
+        $message .= "🎟️ Tickets vendus: *" . number_format($stats['total_tickets'] ?? 0) . "*\n";
+        $message .= "🎁 Gains payés: *" . number_format($stats['total_gains'] ?? 0, 2) . " HTG*\n";
+        $message .= "📈 Bénéfice net: *" . number_format($stats['benefice_net'] ?? 0, 2) . " HTG*\n";
+        $message .= "📊 Taux de retour: *" . number_format($stats['taux_retour'] ?? 0, 1) . "%*\n";
+
+        // Afficher les tickets gagnants si disponibles
+        if (!empty($rapport['tickets_gagnants'])) {
+            $message .= "\n🏆 *TICKETS GAGNANTS*\n";
+            $message .= "━━━━━━━━━━━━━━━━━━━━━━\n";
+            foreach ($rapport['tickets_gagnants'] as $ticket) {
+                $message .= "• *" . $ticket['numero'] . "* (" . $ticket['type'] . ")\n";
+                $message .= "  Mise: " . number_format($ticket['montant_mise'], 2) . " HTG\n";
+                $message .= "  Gain: " . number_format($ticket['montant_gain'], 2) . " HTG\n";
+                $message .= "  Gagnants: " . $ticket['nombre_gagnants'] . "\n\n";
+            }
+        }
+
+        return $message;
+    }
+
+    /**
+     * Formater un tirage pour l'affichage
+     *
+     * @param array $tirage
+     * @return string
+     */
+    protected function formatTirage(array $tirage): string
+    {
+        $tirageInfo = $tirage['tirage_info'] ?? [];
+        $branchInfo = $tirage['branch_info'] ?? [];
+        $numeros = $tirage['numeros_tires'] ?? [];
+        $stats = $tirage['statistiques_rapides'] ?? [];
+
+        $message = "🎲 *TIRAGE - " . strtoupper($tirageInfo['name'] ?? 'N/A') . "*\n";
+        $message .= "━━━━━━━━━━━━━━━━━━━━━━\n\n";
+
+        $message .= "🏢 *Branche:* " . ($branchInfo['name'] ?? 'N/A') . "\n";
+        $message .= "📅 *Date:* " . ($tirageInfo['date'] ?? 'N/A') . "\n";
+        $message .= "🕐 *Heure:* " . ($tirageInfo['heure'] ?? 'N/A') . "\n";
+        $message .= "🌅 *Période:* " . ucfirst($tirageInfo['periode'] ?? 'N/A') . "\n";
+        $message .= "📍 *Statut:* " . ucfirst($tirageInfo['statut'] ?? 'N/A') . "\n\n";
+
+        $message .= "🎯 *NUMÉROS TIRÉS*\n";
+        $message .= "━━━━━━━━━━━━━━━━━━━━━━\n";
+        if (!empty($numeros)) {
+            foreach ($numeros as $type => $numero) {
+                $message .= "• " . ucfirst(str_replace('_', ' ', $type)) . ": *" . $numero . "*\n";
+            }
+        } else {
+            $message .= "Aucun numéro disponible\n";
+        }
+
+        if (!empty($stats)) {
+            $message .= "\n📊 *STATISTIQUES RAPIDES*\n";
+            $message .= "━━━━━━━━━━━━━━━━━━━━━━\n";
+            $message .= "💵 Ventes totales: *" . number_format($stats['total_ventes'] ?? 0, 2) . " HTG*\n";
+            $message .= "🎟️ Tickets vendus: *" . number_format($stats['total_tickets'] ?? 0) . "*\n";
+        }
+
+        return $message;
+    }
+
+    /**
+     * Formater les ventes pour l'affichage
+     *
+     * @param array $ventes
+     * @return string
+     */
+    protected function formatVentes(array $ventes): string
+    {
+        $branchInfo = $ventes['branch_info'] ?? [];
+        $stats = $ventes['statistiques'] ?? [];
+        $periode = ucfirst($ventes['periode'] ?? 'N/A');
+
+        $message = "💰 *STATISTIQUES DE VENTES*\n";
+        $message .= "━━━━━━━━━━━━━━━━━━━━━━\n\n";
+
+        $message .= "🏢 *Branche:* " . ($branchInfo['name'] ?? 'N/A') . "\n";
+        $message .= "📅 *Période:* " . $periode . "\n";
+        $message .= "🗓️ *Du:* " . ($ventes['date_debut'] ?? 'N/A') . "\n";
+        $message .= "🗓️ *Au:* " . ($ventes['date_fin'] ?? 'N/A') . "\n\n";
+
+        $message .= "💵 *RÉSUMÉ*\n";
+        $message .= "━━━━━━━━━━━━━━━━━━━━━━\n";
+        $message .= "• Ventes totales: *" . number_format($stats['total_ventes'] ?? 0, 2) . " HTG*\n";
+        $message .= "• Tickets vendus: *" . number_format($stats['total_tickets'] ?? 0) . "*\n";
+        $message .= "• Gains payés: *" . number_format($stats['total_gains'] ?? 0, 2) . " HTG*\n";
+        $message .= "• Bénéfice net: *" . number_format($stats['benefice_net'] ?? 0, 2) . " HTG*\n";
+        $message .= "• Taux de retour: *" . number_format($stats['taux_retour'] ?? 0, 1) . "%*\n";
+
+        // Afficher les ventes par tirage si disponibles
+        if (!empty($ventes['ventes_par_tirage'])) {
+            $message .= "\n📊 *VENTES PAR TIRAGE*\n";
+            $message .= "━━━━━━━━━━━━━━━━━━━━━━\n";
+            foreach ($ventes['ventes_par_tirage'] as $tirage) {
+                $message .= "\n*" . $tirage['tirage'] . "* (" . ucfirst($tirage['periode']) . ")\n";
+                $message .= "  • Ventes: " . number_format($tirage['ventes'], 2) . " HTG\n";
+                $message .= "  • Tickets: " . number_format($tirage['tickets']) . "\n";
+                $message .= "  • Gains: " . number_format($tirage['gains'], 2) . " HTG\n";
+            }
+        }
+
+        // Afficher les top numéros si disponibles
+        if (!empty($ventes['top_numeros'])) {
+            $message .= "\n🔥 *TOP NUMÉROS*\n";
+            $message .= "━━━━━━━━━━━━━━━━━━━━━━\n";
+            foreach (array_slice($ventes['top_numeros'], 0, 5) as $top) {
+                $message .= "• *" . $top['numero'] . "* (" . $top['type'] . ")\n";
+                $message .= "  Fréquence: " . $top['frequence'] . " fois\n";
+                $message .= "  Montant: " . number_format($top['montant_total'], 2) . " HTG\n";
+            }
+        }
+
+        return $message;
     }
 }

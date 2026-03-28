@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\UserVerificationDocument;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class UserApiController extends Controller
 {
@@ -25,9 +28,15 @@ class UserApiController extends Controller
         if ($token->can('profile')) {
             $data['first_name'] = $user->first_name;
             $data['last_name'] = $user->last_name;
+            $data['niu'] = $user->niu;
             $data['account_level'] = $user->account_level; // pending, basic, verified
             $data['verification_level'] = $user->verification_level; // none, email, video, document
             $data['verification_status'] = $user->verification_status;
+            // Si rejeté, inclure le motif depuis le dernier document de vérification
+            if ($user->verification_status === 'rejected') {
+                $latestDoc = $user->verificationDocument;
+                $data['rejection_reason'] = $latestDoc?->rejection_reason;
+            }
             $data['video_status'] = $user->video_status; // none, pending, approved, rejected
             $data['video_verified_at'] = $user->video_verified_at?->toDateString();
             $data['verified_at'] = $user->verified_at?->toDateString();
@@ -67,7 +76,10 @@ class UserApiController extends Controller
             return response()->json(['error' => 'No permissions granted'], 403);
         }
 
-        return response()->json($data);
+        return response()->json([
+            'success' => true,
+            'data' => array_merge(['id' => $user->id, 'created_at' => $user->created_at, 'account_status' => $user->account_status], $data),
+        ]);
     }
 
     /**
@@ -157,5 +169,98 @@ class UserApiController extends Controller
         }
 
         return [];
+    }
+
+    /**
+     * Resoumettre les documents après un rejet
+     */
+    public function resubmitDocuments(Request $request)
+    {
+        $request->validate([
+            'id_card_front' => 'required|string',
+            'id_card_back'  => 'required|string',
+            'selfie'        => 'required|string',
+            'niu'           => 'sometimes|string|regex:/^[0-9]{10}$/',
+        ], [
+            'niu.regex' => 'Le NIU doit contenir exactement 10 chiffres',
+        ]);
+
+        $user = $request->user();
+
+        // Seuls les utilisateurs rejetés peuvent resoumettre
+        if ($user->verification_status !== 'rejected') {
+            return response()->json([
+                'success' => false,
+                'message' => 'La re-soumission n\'est possible que si vos documents ont été rejetés.',
+            ], 403);
+        }
+
+        // Si le NIU a changé, vérifier l'unicité
+        if ($request->filled('niu') && $request->niu !== $user->niu) {
+            $niuExists = \App\Models\User::where('niu', $request->niu)
+                ->where('id', '!=', $user->id)
+                ->exists();
+
+            if ($niuExists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ce NIU est déjà enregistré par un autre utilisateur.',
+                ], 422);
+            }
+        }
+
+        try {
+            // Sauvegarder les nouvelles photos
+            $idCardFrontPath = $this->saveBase64Image($request->id_card_front, 'id_cards');
+            $idCardBackPath  = $this->saveBase64Image($request->id_card_back, 'id_cards');
+            $selfiePath      = $this->saveBase64Image($request->selfie, 'selfies');
+
+            // Créer un nouveau document de vérification
+            UserVerificationDocument::create([
+                'user_id'      => $user->id,
+                'id_card_front' => $idCardFrontPath,
+                'id_card_back'  => $idCardBackPath,
+                'selfie'        => $selfiePath,
+                'status'        => 'pending',
+            ]);
+
+            // Mettre à jour l'utilisateur
+            $updateData = ['verification_status' => 'pending'];
+            if ($request->filled('niu') && $request->niu !== $user->niu) {
+                $updateData['niu'] = $request->niu;
+            }
+            $user->update($updateData);
+
+            Log::info('Documents resubmitted', ['user_id' => $user->id]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Vos documents ont été re-soumis avec succès. Vérification en cours (24-48h).',
+                'data' => [
+                    'verification_status' => 'pending',
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Document resubmission failed', [
+                'user_id' => $user->id,
+                'error'   => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Une erreur est survenue lors de la re-soumission.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Sauvegarder une image base64 dans le storage
+     */
+    private function saveBase64Image(string $base64, string $folder): string
+    {
+        $imageData = base64_decode($base64);
+        $filename = $folder . '/' . uniqid() . '_' . time() . '.jpg';
+        Storage::put($filename, $imageData);
+        return $filename;
     }
 }
