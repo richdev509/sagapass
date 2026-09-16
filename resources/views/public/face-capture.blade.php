@@ -314,7 +314,7 @@
         </div>
     @endif
 
-    <form id="captureForm" method="POST" action="{{ route('capture.submit', $token) }}" enctype="multipart/form-data" hidden>
+    <form id="captureForm" method="POST" action="{{ route('capture.submit-selfie', $token) }}" enctype="multipart/form-data" hidden>
         @csrf
         <input type="file" name="selfie_left" id="fileLeft">
         <input type="file" name="selfie_center" id="fileCenter">

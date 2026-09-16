@@ -7,7 +7,6 @@ use App\Models\PartnerVerificationSession;
 use App\Support\PartnerAuthenticator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 
@@ -40,8 +39,14 @@ class PartnerVerificationSessionController extends Controller
             'partner_reference' => ['nullable', 'string', 'max:255'],
             'webhook_url' => ['required', 'url'],
             'document_type' => ['required', 'string', 'max:50'],
-            'front_photo' => ['required', 'image', 'mimes:jpeg,jpg,png', 'max:8192'],
-            'back_photo' => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:8192'],
+            // Aucun fichier attendu ici : le partenaire n'envoie plus de
+            // photos à la création de session — la capture de la pièce se
+            // fait entièrement côté SagaPass (voir Public\FaceCaptureController
+            // ::submitId()), jamais via un fichier uploadé transmis par un
+            // tiers. "partner_submitted_data" reste volontairement un tableau
+            // libre (pas de schéma strict) pour rester générique à de futurs
+            // partenaires dont les champs de formulaire diffèrent.
+            'partner_submitted_data' => ['nullable', 'array'],
         ]);
 
         if ($validator->fails()) {
@@ -59,7 +64,7 @@ class PartnerVerificationSessionController extends Controller
         if (! empty($data['partner_reference'])) {
             $existing = PartnerVerificationSession::where('developer_application_id', $app->id)
                 ->where('partner_reference', $data['partner_reference'])
-                ->where('status', 'awaiting_capture')
+                ->whereIn('status', ['awaiting_id_capture', 'awaiting_selfie_capture'])
                 ->first();
 
             if ($existing && ! $existing->isExpired()) {
@@ -73,22 +78,15 @@ class PartnerVerificationSessionController extends Controller
         }
 
         $token = Str::random(64);
-        $folder = "partner-sessions/{$token}";
-
-        $frontPath = $request->file('front_photo')->store($folder, 'private');
-        $backPath = $request->hasFile('back_photo')
-            ? $request->file('back_photo')->store($folder, 'private')
-            : null;
 
         $session = PartnerVerificationSession::query()->create([
             'token' => $token,
             'developer_application_id' => $app->id,
             'partner_reference' => $data['partner_reference'] ?? null,
+            'partner_submitted_data' => $data['partner_submitted_data'] ?? null,
             'webhook_url' => $data['webhook_url'],
             'document_type' => $data['document_type'],
-            'front_photo_path' => $frontPath,
-            'back_photo_path' => $backPath,
-            'status' => 'awaiting_capture',
+            'status' => 'awaiting_id_capture',
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'expires_at' => now()->addMinutes((int) config('faceverification.session_ttl_minutes')),

@@ -18,20 +18,94 @@ use Illuminate\View\View;
  */
 class FaceCaptureController extends Controller
 {
+    /**
+     * Routeur selon l'état de la session — permet de reprendre proprement au
+     * bon écran si l'utilisateur recharge la page en cours de route (ex.
+     * pièce déjà capturée, mais pas encore le selfie).
+     */
     public function show(string $token): View
     {
         $session = PartnerVerificationSession::where('token', $token)->first();
 
-        if (! $session || ! $session->isAwaitingCapture()) {
+        if (! $session) {
+            return view('public.face-capture-unavailable', ['reason' => 'not_found']);
+        }
+
+        if ($session->isAwaitingIdCapture()) {
+            return view('public.id-capture', [
+                'token' => $token,
+                'documentType' => $session->document_type,
+            ]);
+        }
+
+        if ($session->isAwaitingSelfieCapture()) {
+            return view('public.face-capture', ['token' => $token]);
+        }
+
+        return view('public.face-capture-unavailable', [
+            'reason' => $session->isExpired() ? 'expired' : 'already_used',
+        ]);
+    }
+
+    /**
+     * POST /capture/{token}/id — photo(s) de la pièce (recto seul, ou
+     * recto+verso pour une carte nationale). Jamais de fichier arbitraire
+     * transmis par un tiers : ces images viennent uniquement de la capture
+     * caméra en direct sur cette page (voir id-capture.blade.php).
+     */
+    public function submitId(Request $request, string $token): View
+    {
+        $session = PartnerVerificationSession::where('token', $token)->first();
+
+        if (! $session || ! $session->isAwaitingIdCapture()) {
             return view('public.face-capture-unavailable', [
                 'reason' => $session === null ? 'not_found' : ($session->isExpired() ? 'expired' : 'already_used'),
             ]);
         }
 
+        $requiresBack = $session->document_type === 'national_id';
+
+        $validator = Validator::make($request->all(), [
+            'id_front' => ['required', 'image', 'mimes:jpeg,jpg,png', 'max:8192'],
+            'id_back' => [$requiresBack ? 'required' : 'nullable', 'image', 'mimes:jpeg,jpg,png', 'max:8192'],
+        ]);
+
+        if ($validator->fails()) {
+            return view('public.id-capture', [
+                'token' => $token,
+                'documentType' => $session->document_type,
+                'errors' => $validator->errors(),
+            ]);
+        }
+
+        // Même garde atomique que submitSelfie() : empêche un double-tap ou
+        // un replay de repasser deux fois par cette étape.
+        $affected = PartnerVerificationSession::where('token', $token)
+            ->where('status', 'awaiting_id_capture')
+            ->update(['status' => 'awaiting_selfie_capture']);
+
+        if ($affected === 0) {
+            return view('public.face-capture-unavailable', ['reason' => 'already_used']);
+        }
+
+        $folder = "partner-sessions/{$token}";
+        $session->update([
+            'front_photo_path' => $request->file('id_front')->store($folder, 'private'),
+            'back_photo_path' => $request->hasFile('id_back')
+                ? $request->file('id_back')->store($folder, 'private')
+                : null,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
         return view('public.face-capture', ['token' => $token]);
     }
 
-    public function submit(Request $request, string $token): RedirectResponse|View
+    /**
+     * POST /capture/{token}/selfie — les 3 frames de vivacité active
+     * (gauche/centre/droite).
+     */
+    public function submitSelfie(Request $request, string $token): RedirectResponse|View
     {
         $validator = Validator::make($request->all(), [
             'selfie_left' => ['required', 'image', 'mimes:jpeg,jpg,png', 'max:8192'],
@@ -51,7 +125,7 @@ class FaceCaptureController extends Controller
         // (usage unique). Le nombre de lignes affectées fait foi, pas une
         // lecture préalable suivie d'une écriture séparée.
         $affected = PartnerVerificationSession::where('token', $token)
-            ->where('status', 'awaiting_capture')
+            ->where('status', 'awaiting_selfie_capture')
             ->update(['status' => 'processing']);
 
         if ($affected === 0) {

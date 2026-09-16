@@ -14,12 +14,14 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Page publique de capture faciale (flux session partenaire QR) — aucune
-// authentification, le jeton dans l'URL en tient lieu. Throttle plus strict
-// (IP anonyme) qu'un endpoint applicatif normal.
+// Page publique de capture (pièce d'identité, étape 1, puis vivacité
+// faciale, étape 2 — flux session partenaire QR) — aucune authentification,
+// le jeton dans l'URL en tient lieu. Throttle plus strict (IP anonyme) qu'un
+// endpoint applicatif normal.
 Route::middleware('throttle:20,1')->group(function () {
     Route::get('/capture/{token}', [FaceCaptureController::class, 'show'])->name('capture.show');
-    Route::post('/capture/{token}', [FaceCaptureController::class, 'submit'])->name('capture.submit');
+    Route::post('/capture/{token}/id', [FaceCaptureController::class, 'submitId'])->name('capture.submit-id');
+    Route::post('/capture/{token}/selfie', [FaceCaptureController::class, 'submitSelfie'])->name('capture.submit-selfie');
 });
 
 // Known Errors Page (public)

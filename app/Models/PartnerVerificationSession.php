@@ -18,6 +18,7 @@ class PartnerVerificationSession extends Model
         'token',
         'developer_application_id',
         'partner_reference',
+        'partner_submitted_data',
         'webhook_url',
         'document_type',
         'front_photo_path',
@@ -46,6 +47,7 @@ class PartnerVerificationSession extends Model
             'liveness_passed' => 'boolean',
             'analysis_raw' => 'array',
             'warnings' => 'array',
+            'partner_submitted_data' => 'array',
             'expires_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
@@ -61,8 +63,13 @@ class PartnerVerificationSession extends Model
         return $this->expires_at->isPast();
     }
 
-    public function isAwaitingCapture(): bool
+    public function isAwaitingIdCapture(): bool
     {
-        return $this->status === 'awaiting_capture' && ! $this->isExpired();
+        return $this->status === 'awaiting_id_capture' && ! $this->isExpired();
+    }
+
+    public function isAwaitingSelfieCapture(): bool
+    {
+        return $this->status === 'awaiting_selfie_capture' && ! $this->isExpired();
     }
 }
