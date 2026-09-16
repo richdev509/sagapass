@@ -126,6 +126,12 @@ def check_passive_liveness(selfie_path: str) -> tuple:
             # le sujet principal) fait foi.
             main_face = max(faces, key=lambda f: f.get("facial_area", {}).get("w", 0))
             liveness_passed = bool(main_face.get("is_real", False))
+            if not liveness_passed:
+                # Verdict métier légitime (pas une panne technique) — quand
+                # même noté pour que le résultat final reste explicable :
+                # sans ça, un liveness_passed=False silencieux ressemble à un
+                # bug plutôt qu'à un vrai refus du modèle anti-spoofing.
+                warnings.append("passive_liveness_failed")
         else:
             warnings.append("no_face_detected_in_selfie")
     except ValueError as exc:
@@ -134,6 +140,7 @@ def check_passive_liveness(selfie_path: str) -> tuple:
         # vivacité, pas une panne technique.
         if "spoof" in str(exc).lower():
             liveness_passed = False
+            warnings.append("passive_liveness_failed")
         else:
             warnings.append(f"liveness_check_error: {exc}")
     except Exception as exc:  # noqa: BLE001

@@ -71,6 +71,13 @@ class FaceVerificationScriptClient
             ->timeout($this->timeoutSeconds)
             ->env([
                 'DEEPFACE_HOME' => $this->modelCacheDir,
+                // matplotlib (dépendance de mediapipe) essaie par défaut
+                // d'écrire son cache dans le home de l'utilisateur système
+                // (souvent non accessible en écriture pour www-data) —
+                // pointé vers le même dossier cache que DeepFace plutôt que
+                // de laisser matplotlib échouer puis retomber sur /tmp à
+                // chaque appel.
+                'MPLCONFIGDIR' => $this->modelCacheDir,
             ])
             ->run([
                 $this->pythonBinary,
