@@ -37,7 +37,10 @@ class SecurityHeaders
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com",
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://unpkg.com",
-            "img-src 'self' data: https:",
+            // blob: nécessaire pour les miniatures de la page de capture
+            // faciale (URL.createObjectURL sur une photo tout juste prise
+            // côté client, jamais chargée depuis une source distante).
+            "img-src 'self' data: blob: https:",
             "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com",
             "connect-src 'self' https://cdn.jsdelivr.net",
             "frame-ancestors 'none'",
