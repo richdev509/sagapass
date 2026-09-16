@@ -293,6 +293,115 @@ def check_active_liveness(selfie_left_path: str, selfie_center_path: str, selfie
     return active_liveness_passed, warnings
 
 
+def _face_bounding_box(image_path: str):
+    """(min_x, min_y, max_x, max_y) normalisé 0-1, ou None si aucun visage détecté."""
+    import cv2
+    import mediapipe as mp
+
+    image = cv2.imread(image_path)
+    if image is None:
+        return None
+
+    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    with mp.solutions.face_mesh.FaceMesh(
+        static_image_mode=True,
+        max_num_faces=1,
+        refine_landmarks=False,
+        min_detection_confidence=0.5,
+    ) as face_mesh:
+        result = face_mesh.process(rgb_image)
+
+    if not result.multi_face_landmarks:
+        return None
+
+    landmarks = result.multi_face_landmarks[0].landmark
+    xs = [lm.x for lm in landmarks]
+    ys = [lm.y for lm in landmarks]
+
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _detect_hand_landmarks(image_path: str) -> list:
+    """Une liste de jeux de landmarks (un par main détectée), vide si aucune —
+    mediapipe.solutions.hands, même famille "legacy" que face_mesh : modèles
+    embarqués dans le paquet, pas de fichier .task à télécharger séparément.
+    """
+    import cv2
+    import mediapipe as mp
+
+    image = cv2.imread(image_path)
+    if image is None:
+        return []
+
+    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+    with mp.solutions.hands.Hands(
+        static_image_mode=True,
+        max_num_hands=2,
+        min_detection_confidence=0.5,
+    ) as hands:
+        result = hands.process(rgb_image)
+
+    return result.multi_hand_landmarks or []
+
+
+# Une main est considérée comme "sur le visage" seulement si une bonne partie
+# de ses 21 points tombe dans la boîte englobante du visage (pas juste un
+# doigt qui frôle le bord du cadre) — réduit les faux positifs (main qui
+# rajuste une mèche de cheveux, repose près du menton sans le couvrir...).
+HAND_OCCLUSION_MIN_POINTS_INSIDE = 6
+
+# Rétrécit légèrement la boîte du visage testée : une main doit vraiment
+# empiéter sur le visage, pas juste toucher son contour extérieur.
+HAND_OCCLUSION_BOX_MARGIN_RATIO = 0.08
+
+
+def check_hand_occlusion(labeled_paths: list) -> tuple:
+    """labeled_paths : [(label, path), ...]. Retourne (occlusion_detected: bool,
+    warnings: list[str]) — True si une main recouvre significativement le
+    visage sur au moins une des images fournies. Demande explicite : un
+    visage partiellement caché par la main ne doit jamais passer la
+    vérification, même si les autres contrôles (rotation, correspondance)
+    seraient par ailleurs satisfaits.
+    """
+    warnings: list[str] = []
+    occlusion_detected = False
+
+    try:
+        import mediapipe  # noqa: F401
+    except ImportError:
+        log("mediapipe n'est pas installé — détection de main sur le visage ignorée.")
+        warnings.append("hand_occlusion_check_unavailable")
+        return False, warnings
+
+    for label, path in labeled_paths:
+        try:
+            face_box = _face_bounding_box(path)
+            if face_box is None:
+                continue  # absence de visage déjà signalée ailleurs
+
+            min_x, min_y, max_x, max_y = face_box
+            margin_x = (max_x - min_x) * HAND_OCCLUSION_BOX_MARGIN_RATIO
+            margin_y = (max_y - min_y) * HAND_OCCLUSION_BOX_MARGIN_RATIO
+            min_x, max_x = min_x + margin_x, max_x - margin_x
+            min_y, max_y = min_y + margin_y, max_y - margin_y
+
+            for hand_landmarks in _detect_hand_landmarks(path):
+                points_inside = sum(
+                    1 for lm in hand_landmarks.landmark
+                    if min_x <= lm.x <= max_x and min_y <= lm.y <= max_y
+                )
+                if points_inside >= HAND_OCCLUSION_MIN_POINTS_INSIDE:
+                    occlusion_detected = True
+                    warnings.append(f"hand_occlusion_detected_in_{label}_frame")
+                    break
+        except Exception as exc:  # noqa: BLE001 - jamais crasher tout le script pour ce contrôle seul
+            warnings.append(f"hand_occlusion_check_error_{label}: {exc}")
+
+    return occlusion_detected, warnings
+
+
 def analyze_face_active(
     front_photo_path: str,
     selfie_left_path: str,
@@ -304,19 +413,29 @@ def analyze_face_active(
     Retourne (face_match_score: ?float, liveness_passed: ?bool, warnings: list[str]).
     Le frame "centre" sert à la fois de référence de correspondance (le plus
     proche d'une pose frontale) et de base pour la vérification passive
-    (MiniFASNet) — combinée à la vérification active de rotation de tête,
-    liveness_passed n'est vrai que si LES DEUX vérifications le sont.
+    (MiniFASNet) — combinée à la vérification active de rotation de tête et à
+    l'absence de main détectée sur le visage sur les 3 frames, liveness_passed
+    n'est vrai que si TOUTES ces vérifications le sont.
     """
     passive_passed, passive_warnings = check_passive_liveness(selfie_center_path)
     active_passed, active_warnings = check_active_liveness(selfie_left_path, selfie_center_path, selfie_right_path)
+    occlusion_detected, occlusion_warnings = check_hand_occlusion([
+        ("left", selfie_left_path),
+        ("center", selfie_center_path),
+        ("right", selfie_right_path),
+    ])
     face_match_score, match_warnings = check_face_match(front_photo_path, selfie_center_path)
 
     if passive_passed is None or active_passed is None:
         liveness_passed = None
     else:
-        liveness_passed = bool(passive_passed and active_passed)
+        liveness_passed = bool(passive_passed and active_passed and not occlusion_detected)
 
-    return face_match_score, liveness_passed, passive_warnings + active_warnings + match_warnings
+    return (
+        face_match_score,
+        liveness_passed,
+        passive_warnings + active_warnings + occlusion_warnings + match_warnings,
+    )
 
 
 def main() -> int:
