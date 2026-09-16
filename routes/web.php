@@ -6,11 +6,20 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\Auth\RegisterBasicController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\Public\FaceCaptureController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
 
 Route::get('/', function () {
     return view('welcome');
+});
+
+// Page publique de capture faciale (flux session partenaire QR) — aucune
+// authentification, le jeton dans l'URL en tient lieu. Throttle plus strict
+// (IP anonyme) qu'un endpoint applicatif normal.
+Route::middleware('throttle:20,1')->group(function () {
+    Route::get('/capture/{token}', [FaceCaptureController::class, 'show'])->name('capture.show');
+    Route::post('/capture/{token}', [FaceCaptureController::class, 'submit'])->name('capture.submit');
 });
 
 // Known Errors Page (public)

@@ -22,9 +22,50 @@ class FaceVerificationScriptClient
     ) {}
 
     /**
+     * Mode single-frame (flux Document/AnalyzeDocumentJob).
+     *
      * @return array{ocr: array{document_number: ?string, full_name: ?string, date_of_birth: ?string}, liveness_passed: ?bool, face_match_score: ?float, warnings: list<string>}
      */
     public function analyze(string $documentType, string $frontPhotoPath, ?string $backPhotoPath, string $selfiePath): array
+    {
+        return $this->runScript([
+            $documentType,
+            $frontPhotoPath,
+            $backPhotoPath ?? '',
+            $selfiePath,
+        ]);
+    }
+
+    /**
+     * Mode vivacité active 3-frames (flux session partenaire QR — voir
+     * PartnerVerificationSession/AnalyzePartnerSessionJob). Le frame "centre"
+     * sert de référence pour la correspondance visage, comme dans analyze().
+     *
+     * @return array{ocr: array{document_number: ?string, full_name: ?string, date_of_birth: ?string}, liveness_passed: ?bool, face_match_score: ?float, warnings: list<string>}
+     */
+    public function analyzeWithActiveLiveness(
+        string $documentType,
+        string $frontPhotoPath,
+        ?string $backPhotoPath,
+        string $selfieCenterPath,
+        string $selfieLeftPath,
+        string $selfieRightPath,
+    ): array {
+        return $this->runScript([
+            $documentType,
+            $frontPhotoPath,
+            $backPhotoPath ?? '',
+            $selfieCenterPath,
+            $selfieLeftPath,
+            $selfieRightPath,
+        ]);
+    }
+
+    /**
+     * @param list<string> $arguments
+     * @return array{ocr: array{document_number: ?string, full_name: ?string, date_of_birth: ?string}, liveness_passed: ?bool, face_match_score: ?float, warnings: list<string>}
+     */
+    private function runScript(array $arguments): array
     {
         $result = Process::path($this->scriptPath)
             ->timeout($this->timeoutSeconds)
@@ -34,10 +75,7 @@ class FaceVerificationScriptClient
             ->run([
                 $this->pythonBinary,
                 'analyze.py',
-                $documentType,
-                $frontPhotoPath,
-                $backPhotoPath ?? '',
-                $selfiePath,
+                ...$arguments,
             ]);
 
         if (! $result->successful()) {

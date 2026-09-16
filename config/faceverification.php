@@ -30,4 +30,13 @@ return [
     // SwapLajan.
     'model_cache_dir' => env('DEEPFACE_HOME', base_path('scripts/face-verification/.deepface-cache')),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Sessions de vérification partenaire (flux QR — voir
+    | PartnerVerificationSession / Api\Partner\PartnerVerificationSessionController)
+    |--------------------------------------------------------------------------
+    */
+
+    'session_ttl_minutes' => (int) env('FACE_VERIFICATION_SESSION_TTL_MINUTES', 15),
+
 ];

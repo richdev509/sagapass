@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\UserApiController;
 use App\Http\Controllers\Api\Mobile\MobileAuthController;
+use App\Http\Controllers\Api\Partner\PartnerVerificationSessionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -34,4 +35,13 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     Route::get('/user/profile', [UserApiController::class, 'profile']);
     Route::get('/user/documents', [UserApiController::class, 'documents']);
     Route::post('/user/resubmit-documents', [UserApiController::class, 'resubmitDocuments']);
+});
+
+// ============================================
+// PARTNER SERVER-TO-SERVER API
+// Authentification : Authorization: Basic base64(client_id:client_secret)
+// ============================================
+Route::prefix('partner/v1')->middleware('throttle:30,1')->group(function () {
+    Route::post('/verification-sessions', [PartnerVerificationSessionController::class, 'store']);
+    Route::get('/verification-sessions/{token}/status', [PartnerVerificationSessionController::class, 'status']);
 });

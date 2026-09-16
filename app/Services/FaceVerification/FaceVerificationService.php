@@ -24,6 +24,41 @@ class FaceVerificationService
             return FaceVerificationResult::failed($e->getMessage());
         }
 
+        return $this->toResult($decoded);
+    }
+
+    /**
+     * Vivacité active 3-frames (flux session partenaire QR) — voir
+     * FaceVerificationScriptClient::analyzeWithActiveLiveness().
+     */
+    public function analyzeWithActiveLiveness(
+        string $documentType,
+        string $frontPhotoPath,
+        ?string $backPhotoPath,
+        string $selfieCenterPath,
+        string $selfieLeftPath,
+        string $selfieRightPath,
+    ): FaceVerificationResult {
+        try {
+            $decoded = $this->client->analyzeWithActiveLiveness(
+                $documentType,
+                $frontPhotoPath,
+                $backPhotoPath,
+                $selfieCenterPath,
+                $selfieLeftPath,
+                $selfieRightPath,
+            );
+        } catch (FaceVerificationUnavailableException $e) {
+            Log::warning('FaceVerificationService: moteur indisponible (vivacité active)', ['message' => $e->getMessage()]);
+
+            return FaceVerificationResult::failed($e->getMessage());
+        }
+
+        return $this->toResult($decoded);
+    }
+
+    private function toResult(array $decoded): FaceVerificationResult
+    {
         $ocr = [
             'document_number' => $decoded['ocr']['document_number'] ?? null,
             'full_name' => $decoded['ocr']['full_name'] ?? null,

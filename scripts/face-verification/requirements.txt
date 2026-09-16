@@ -20,3 +20,9 @@ easyocr>=1.7
 # détecteur de visage par défaut de DeepFace ("opencv") attend encore —
 # confirmé en échouant en conditions réelles avec opencv-python-headless 5.0.
 opencv-python-headless>=4.9,<5
+
+# mediapipe : landmarks faciaux (FaceMesh, TFLite — léger) pour la vivacité
+# active (rotation de tête gauche/centre/droite, flux session partenaire QR).
+# Volontairement pas de modèle TensorFlow additionnel lourd — voir l'incident
+# OOM avec VGG-Face plus haut, même contrainte RAM ici.
+mediapipe>=0.10
