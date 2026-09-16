@@ -359,15 +359,26 @@ def _detect_hand_landmarks(hand_landmarker, image_path: str) -> list:
     return result.hand_landmarks or []
 
 
-# Une main est considérée comme "sur le visage" seulement si une bonne partie
-# de ses 21 points tombe dans la boîte englobante du visage (pas juste un
-# doigt qui frôle le bord du cadre) — réduit les faux positifs (main qui
-# rajuste une mèche de cheveux, repose près du menton sans le couvrir...).
-HAND_OCCLUSION_MIN_POINTS_INSIDE = 6
+# Indices des 5 bouts de doigts (topologie main à 21 points) — seuls ces
+# points comptent, pas les 21 (poignet/base de paume inclus). Confirmé en
+# test manuel réel : compter tous les points de la main faisait remonter un
+# faux positif quand la main tenant le téléphone passait près de la mâchoire
+# pendant une rotation de tête, sans jamais couvrir le visage — le poignet/la
+# paume qui tient l'appareil est naturellement proche du bord du cadre, alors
+# que de vrais doigts posés sur la bouche/le menton se distinguent par
+# plusieurs BOUTS de doigts (pas juste la paume) qui empiètent sur le centre
+# du visage.
+_HAND_FINGERTIP_INDICES = (4, 8, 12, 16, 20)
 
-# Rétrécit légèrement la boîte du visage testée : une main doit vraiment
-# empiéter sur le visage, pas juste toucher son contour extérieur.
-HAND_OCCLUSION_BOX_MARGIN_RATIO = 0.08
+# Une main est considérée comme "sur le visage" seulement si au moins 2 des 5
+# bouts de doigts tombent dans la zone centrale du visage (pas un seul doigt
+# isolé qui frôle le bord).
+HAND_OCCLUSION_MIN_FINGERTIPS_INSIDE = 2
+
+# Rétrécit fortement la boîte du visage testée, vers sa zone centrale
+# (yeux/nez/bouche) — exclut la mâchoire/les oreilles/le contour, là où une
+# main tenant le téléphone se trouve naturellement sans occlusion réelle.
+HAND_OCCLUSION_BOX_MARGIN_RATIO = 0.22
 
 
 def check_hand_occlusion(labeled_paths: list) -> tuple:
@@ -402,11 +413,11 @@ def check_hand_occlusion(labeled_paths: list) -> tuple:
                 min_y, max_y = min_y + margin_y, max_y - margin_y
 
                 for hand_landmarks in _detect_hand_landmarks(hand_landmarker, path):
-                    points_inside = sum(
-                        1 for lm in hand_landmarks
-                        if min_x <= lm.x <= max_x and min_y <= lm.y <= max_y
+                    fingertips_inside = sum(
+                        1 for idx in _HAND_FINGERTIP_INDICES
+                        if min_x <= hand_landmarks[idx].x <= max_x and min_y <= hand_landmarks[idx].y <= max_y
                     )
-                    if points_inside >= HAND_OCCLUSION_MIN_POINTS_INSIDE:
+                    if fingertips_inside >= HAND_OCCLUSION_MIN_FINGERTIPS_INSIDE:
                         occlusion_detected = True
                         warnings.append(f"hand_occlusion_detected_in_{label}_frame")
                         break
