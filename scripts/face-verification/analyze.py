@@ -41,6 +41,33 @@ def log(message: str) -> None:
     print(message, file=sys.stderr)
 
 
+# Une vraie photo de téléphone (souvent 3000-4000px de large) a provoqué un
+# OOM-kill d'EasyOCR en conditions réelles sur ce serveur à RAM limitée —
+# confirmé en testant avec un vrai échantillon de carte d'identité. Le texte
+# d'une pièce d'identité reste lisible bien en dessous de cette résolution ;
+# rétrécir avant l'OCR borne l'empreinte mémoire quelle que soit la photo
+# envoyée, plutôt que de dépendre de la taille choisie par le téléphone de
+# l'utilisateur.
+OCR_MAX_IMAGE_DIMENSION = 1600
+
+
+def _load_image_for_ocr(image_path: str):
+    """Charge l'image et la redimensionne si nécessaire (garde le ratio
+    d'aspect, ne réduit jamais — seulement si trop grande)."""
+    from PIL import Image
+    import numpy as np
+
+    image = Image.open(image_path).convert("RGB")
+    width, height = image.size
+    longest_side = max(width, height)
+
+    if longest_side > OCR_MAX_IMAGE_DIMENSION:
+        scale = OCR_MAX_IMAGE_DIMENSION / longest_side
+        image = image.resize((int(width * scale), int(height * scale)), Image.LANCZOS)
+
+    return np.array(image)
+
+
 def extract_ocr_fields(document_type: str, front_photo_path: str) -> dict:
     """Retourne {"document_number": ?str, "full_name": ?str, "date_of_birth": ?str}.
 
@@ -58,7 +85,7 @@ def extract_ocr_fields(document_type: str, front_photo_path: str) -> dict:
         # Français (langue administrative d'Haïti) + anglais (souvent présent
         # sur les passeports, mentions bilingues).
         reader = easyocr.Reader(["fr", "en"], gpu=False)
-        raw_results = reader.readtext(front_photo_path, detail=1)
+        raw_results = reader.readtext(_load_image_for_ocr(front_photo_path), detail=1)
     except Exception as exc:  # noqa: BLE001 - on ne veut jamais crasher tout le script pour l'OCR seul
         log(f"echec OCR: {exc}")
         return fields
