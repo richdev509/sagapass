@@ -16,6 +16,12 @@ return [
 
     'script_path' => base_path('scripts/face-verification'),
 
+    // Interpréteur à invoquer — 'python3' par défaut (dev/tests), pointé vers
+    // le binaire d'un virtualenv dédié en production (voir requirements.txt)
+    // pour ne pas installer TensorFlow/PyTorch dans le Python système, partagé
+    // avec d'autres projets sur le même serveur.
+    'python_binary' => env('FACE_VERIFICATION_PYTHON_BIN', 'python3'),
+
     'timeout_seconds' => (int) env('FACE_VERIFICATION_TIMEOUT_SECONDS', 90),
 
     // DeepFace télécharge ses modèles au premier lancement — cache pointé hors

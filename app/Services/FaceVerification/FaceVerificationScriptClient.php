@@ -18,6 +18,7 @@ class FaceVerificationScriptClient
         private readonly string $scriptPath,
         private readonly string $modelCacheDir,
         private readonly int $timeoutSeconds,
+        private readonly string $pythonBinary = 'python3',
     ) {}
 
     /**
@@ -31,7 +32,7 @@ class FaceVerificationScriptClient
                 'DEEPFACE_HOME' => $this->modelCacheDir,
             ])
             ->run([
-                'python3',
+                $this->pythonBinary,
                 'analyze.py',
                 $documentType,
                 $frontPhotoPath,

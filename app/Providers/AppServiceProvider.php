@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
                 scriptPath: (string) $config['script_path'],
                 modelCacheDir: (string) $config['model_cache_dir'],
                 timeoutSeconds: (int) $config['timeout_seconds'],
+                pythonBinary: (string) $config['python_binary'],
             );
         });
     }
