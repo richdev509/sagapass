@@ -127,11 +127,16 @@ def analyze_face(front_photo_path: str, selfie_path: str) -> tuple:
         warnings.append(f"liveness_check_error: {exc}")
 
     # Correspondance visage pièce <-> selfie (sans anti_spoofing ici, déjà géré
-    # ci-dessus séparément).
+    # ci-dessus séparément). model_name="SFace" : modèle volontairement léger
+    # (quelques Mo, backend ONNX) plutôt que le VGG-Face par défaut de DeepFace
+    # (~580 Mo de poids + TensorFlow complet) — le serveur de déploiement est
+    # une VM partagée à RAM très limitée (~3.8 Go, plusieurs autres apps), où
+    # VGG-Face a provoqué un OOM-kill du process en conditions réelles.
     try:
         result = DeepFace.verify(
             img1_path=front_photo_path,
             img2_path=selfie_path,
+            model_name="SFace",
             enforce_detection=True,
         )
         distance = result.get("distance")
