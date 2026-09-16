@@ -10,23 +10,8 @@
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h2 class="mb-0">
                     <i class="fas fa-plug text-primary"></i>
-                    Applications OAuth
+                    Applications Partenaires
                 </h2>
-                <div>
-                    <a href="{{ route('admin.oauth.create-developer') }}" class="btn btn-success me-2">
-                        <i class="fas fa-user-plus me-1"></i>
-                        Créer un développeur
-                    </a>
-                    <a href="{{ route('admin.oauth.scope-requests') }}" class="btn btn-outline-primary">
-                    <i class="fas fa-shield-alt me-1"></i>
-                    Demandes de Scopes
-                    @php
-                        $pendingRequests = \App\Models\ScopeRequest::where('status', 'pending')->count();
-                    @endphp
-                    @if($pendingRequests > 0)
-                        <span class="badge bg-warning text-dark ms-1">{{ $pendingRequests }}</span>
-                    @endif
-                </a>
             </div>
         </div>
     </div>

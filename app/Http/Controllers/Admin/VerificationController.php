@@ -209,20 +209,7 @@ class VerificationController extends Controller
     {
         $document->load(['user', 'verifiedBy', 'histories.admin']);
 
-        // Vérifier l'état de la vidéo de l'utilisateur
-        $user = $document->user;
-        $videoStatus = [
-            'has_video' => !empty($user->verification_video),
-            'video_status' => $user->video_status,
-            'is_approved' => $user->video_status === 'approved',
-            'is_pending' => $user->video_status === 'pending',
-            'is_rejected' => $user->video_status === 'rejected',
-            'is_none' => $user->video_status === 'none',
-            'can_approve_document' => $user->video_status === 'approved',
-            'rejection_reason' => $user->video_rejection_reason,
-        ];
-
-        return view('admin.verification.show', compact('document', 'videoStatus'));
+        return view('admin.verification.show', compact('document'));
     }
 
     /**
@@ -236,23 +223,7 @@ class VerificationController extends Controller
                 ->with('error', 'Ce document a déjà été traité.');
         }
 
-        // VÉRIFICATION CRITIQUE : La vidéo doit être approuvée avant d'approuver le document
         $user = $document->user;
-        if ($user->video_status !== 'approved') {
-            $errorMessage = 'Impossible d\'approuver ce document. ';
-
-            if ($user->video_status === 'none' || empty($user->verification_video)) {
-                $errorMessage .= 'L\'utilisateur n\'a pas encore soumis de vidéo de vérification.';
-            } elseif ($user->video_status === 'pending') {
-                $errorMessage .= 'La vidéo de vérification est en attente de validation. Veuillez d\'abord vérifier et approuver la vidéo.';
-            } elseif ($user->video_status === 'rejected') {
-                $errorMessage .= 'La vidéo de vérification a été rejetée. L\'utilisateur doit soumettre une nouvelle vidéo.';
-            }
-
-            return redirect()
-                ->route('admin.verification.show', $document)
-                ->with('error', $errorMessage);
-        }
 
         $document->update([
             'verification_status' => 'verified',
@@ -386,11 +357,13 @@ class VerificationController extends Controller
      */
     public function serveImage(Document $document, string $type)
     {
-        // Vérifier le type (front ou back)
+        // Vérifier le type (front, back ou selfie)
         if ($type === 'front' && $document->front_photo_path) {
             $path = $document->front_photo_path;
         } elseif ($type === 'back' && $document->back_photo_path) {
             $path = $document->back_photo_path;
+        } elseif ($type === 'selfie' && $document->selfie_path) {
+            $path = $document->selfie_path;
         } else {
             abort(404);
         }

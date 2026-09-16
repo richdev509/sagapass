@@ -94,12 +94,12 @@
                 <div class="card-body p-5 text-center">
                     <h2 class="h3 mb-3">Prêt à commencer ?</h2>
                     <p class="mb-4">
-                        Créez votre compte développeur pour obtenir vos clés API et accéder à la documentation complète.
+                        Contactez-nous pour devenir partenaire et obtenir vos clés API.
                     </p>
-                    <a href="{{ route('developers.register') }}" class="btn btn-light btn-lg me-2">
-                        <i class="fas fa-user-plus me-2"></i>Créer un compte développeur
+                    <a href="{{ route('contact') }}" class="btn btn-light btn-lg me-2">
+                        <i class="fas fa-envelope me-2"></i>Nous contacter
                     </a>
-                    <a href="{{ route('developers.documentation') }}" class="btn btn-outline-light btn-lg">
+                    <a href="{{ route('documentation') }}" class="btn btn-outline-light btn-lg">
                         <i class="fas fa-book me-2"></i>Documentation complète
                     </a>
                 </div>

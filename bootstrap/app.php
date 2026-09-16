@@ -14,28 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             Route::middleware('web')
                 ->group(base_path('routes/admin.php'));
-
-            // Routes Partner (API + Widget)
-            // Le fichier partner.php gère ses propres middlewares
-            Route::group([], base_path('routes/partner.php'));
-
-            // Routes WhatsApp (API Webhook)
-            Route::prefix('api/whatsapp')
-                ->name('whatsapp.')
-                ->group(base_path('routes/whatsapp.php'));
-
-            // Routes Telegram Bot (API Webhook)
-            Route::prefix('api/telegram')
-                ->name('telegram.')
-                ->group(base_path('routes/telegram.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // Configurer les exceptions CSRF
         $middleware->validateCsrfTokens(except: [
-            'oauth/token',
-            'oauth/revoke',
-            'oauth/introspect',
             'api/*',
         ]);
 
@@ -50,12 +33,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
-            'developer' => \App\Http\Middleware\EnsureUserIsDeveloper::class,
             'security.check' => \App\Http\Middleware\SecurityCheck::class,
             'maintenance' => \App\Http\Middleware\CheckMaintenanceMode::class,
             'ensure.2fa' => \App\Http\Middleware\EnsureTwoFactorEnabled::class,
             'verify.email.session' => \App\Http\Middleware\VerifyEmailInSession::class,
-            'video.approved' => \App\Http\Middleware\EnsureVideoApproved::class,
         ]);
 
         // Middleware global de sécurité

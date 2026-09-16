@@ -30,15 +30,13 @@ class UserApiController extends Controller
             $data['last_name'] = $user->last_name;
             $data['niu'] = $user->niu;
             $data['account_level'] = $user->account_level; // pending, basic, verified
-            $data['verification_level'] = $user->verification_level; // none, email, video, document
+            $data['verification_level'] = $user->verification_level; // none, email, document
             $data['verification_status'] = $user->verification_status;
             // Si rejeté, inclure le motif depuis le dernier document de vérification
             if ($user->verification_status === 'rejected') {
                 $latestDoc = $user->verificationDocument;
                 $data['rejection_reason'] = $latestDoc?->rejection_reason;
             }
-            $data['video_status'] = $user->video_status; // none, pending, approved, rejected
-            $data['video_verified_at'] = $user->video_verified_at?->toDateString();
             $data['verified_at'] = $user->verified_at?->toDateString();
             $data['is_verified'] = $user->account_level === 'verified'; // Compte Verified
         }
@@ -111,8 +109,6 @@ class UserApiController extends Controller
                     'next_level' => $user->account_level === 'basic' ? 'verified' : 'basic',
                     'requirements' => $this->getUpgradeRequirements($user),
                     'progress' => [
-                        'video_submitted' => !empty($user->verification_video),
-                        'video_approved' => $user->video_status === 'approved',
                         'document_verified' => false,
                     ],
                 ],
@@ -160,10 +156,6 @@ class UserApiController extends Controller
      */
     private function getUpgradeRequirements($user): array
     {
-        if ($user->account_level === 'pending') {
-            return ['Soumettre une vidéo de vérification faciale'];
-        }
-
         if ($user->account_level === 'basic') {
             return ['Soumettre et faire vérifier un document d\'identité (CNI ou Passeport)'];
         }

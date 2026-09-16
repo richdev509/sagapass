@@ -45,8 +45,7 @@ class ApplicationRejectedMail extends Mailable
             with: [
                 'applicationName' => $this->application->name,
                 'reason' => $this->reason,
-                'dashboardUrl' => route('developers.dashboard'),
-                'editUrl' => route('developers.applications.edit', $this->application),
+                'dashboardUrl' => route('contact'),
             ],
         );
     }

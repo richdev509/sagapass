@@ -44,7 +44,7 @@ class ApplicationApprovedMail extends Mailable
                 'applicationName' => $this->application->name,
                 'clientId' => $this->application->client_id,
                 'approvedAt' => $this->application->approved_at,
-                'dashboardUrl' => route('developers.dashboard'),
+                'dashboardUrl' => route('contact'),
             ],
         );
     }

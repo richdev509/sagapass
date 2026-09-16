@@ -129,56 +129,6 @@
         </div>
     </div>
 
-    {{-- Alerte compte Pending : doit soumettre vidéo --}}
-    @if($user->account_level === 'pending' && $user->video_status === 'none')
-        <div class="alert alert-warning alert-dismissible fade show" role="alert">
-            <div class="d-flex align-items-start">
-                <i class="fas fa-video fa-2x me-3 text-warning"></i>
-                <div class="flex-grow-1">
-                    <h5 class="alert-heading mb-2">
-                        <i class="fas fa-exclamation-triangle me-2"></i>Compte en attente d'activation
-                    </h5>
-                    <p class="mb-2">
-                        Votre compte est en mode <strong>Pending</strong>. Pour passer au niveau <strong>Basic</strong>, vous devez soumettre une photo et une vidéo de vérification.
-                    </p>
-                    <a href="{{ route('video.recapture') }}" class="btn btn-warning">
-                        <i class="fas fa-video me-2"></i>Soumettre ma vidéo maintenant
-                    </a>
-                </div>
-            </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
-    @if($user->video_status === 'rejected')
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <div class="d-flex align-items-start">
-                <i class="fas fa-video-slash fa-2x me-3"></i>
-                <div class="flex-grow-1">
-                    <h5 class="alert-heading mb-2">
-                        <i class="fas fa-exclamation-triangle me-2"></i>Vidéo de vérification rejetée
-                    </h5>
-                    <p class="mb-2">
-                        <strong>Raison du rejet :</strong> {{ $user->video_rejection_reason ?? 'Non spécifiée' }}
-                    </p>
-                    <p class="mb-3">
-                        Votre vidéo de vérification n'a pas été approuvée. Veuillez en enregistrer une nouvelle en suivant les instructions.
-                    </p>
-                    <a href="{{ route('video.recapture') }}" class="btn btn-danger">
-                        <i class="fas fa-redo me-2"></i>Enregistrer une nouvelle vidéo
-                    </a>
-                </div>
-            </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @elseif($user->video_status === 'pending')
-        <div class="alert alert-info alert-dismissible fade show" role="alert">
-            <i class="fas fa-clock me-2"></i>
-            <strong>Vidéo de vérification en cours :</strong> Votre vidéo est en cours d'examen par notre équipe. Vous recevrez une notification dès qu'elle sera traitée.
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
     <!-- Statistiques rapides -->
     <div class="row mb-4">
         <div class="col-md-3 mb-3">
@@ -214,45 +164,9 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
-            <div class="card h-100">
-                <div class="card-body text-center">
-                    <div class="text-info mb-2">
-                        <i class="fas fa-plug fa-3x"></i>
-                    </div>
-                    <h3 class="mb-1">{{ $stats['connected_services'] }}</h3>
-                    <p class="text-muted mb-0">Services connectés</p>
-                </div>
-            </div>
-        </div>
     </div>
 
     <div class="row">
-        <!-- Badge Numérique -->
-        <div class="col-lg-6 mb-4">
-            @if($user->account_level === 'basic' || $user->account_level === 'verified')
-                @php
-                    // Générer ou récupérer le badge actif
-                    $activeBadge = \App\Models\DigitalBadge::where('user_id', $user->id)
-                        ->where('is_active', true)
-                        ->where('expires_at', '>', now())
-                        ->first();
-
-                    if (!$activeBadge) {
-                        $activeBadge = \App\Models\DigitalBadge::generateForUser($user, request()->ip(), request()->userAgent());
-                    }
-
-                    // Générer le QR code
-                    $validationUrl = $activeBadge->getValidationUrl();
-                    $writer = new \Endroid\QrCode\Writer\SvgWriter();
-                    $qrCode = new \Endroid\QrCode\QrCode($validationUrl);
-                    $result = $writer->write($qrCode);
-                    $qrCodeSvg = $result->getString();
-                @endphp
-                @include('components.digital-badge', ['badge' => $activeBadge, 'qrCode' => $qrCodeSvg, 'user' => $user])
-            @endif
-        </div>
-
         <!-- Derniers documents -->
         <div class="col-lg-6 mb-4">
             <div class="card h-100">
@@ -260,14 +174,10 @@
                     <h5 class="mb-0">
                         <i class="fas fa-file-alt me-2"></i>Mes Documents
                     </h5>
-                    @if($user->email_verified_at && $user->video_status === 'approved')
+                    @if($user->email_verified_at)
                         <a href="{{ route('documents.create') }}" class="btn btn-sm btn-primary-custom">
                             <i class="fas fa-plus"></i> Ajouter
                         </a>
-                    @elseif($user->video_status !== 'approved')
-                        <button class="btn btn-sm btn-secondary" disabled title="Votre vidéo doit être approuvée pour ajouter des documents">
-                            <i class="fas fa-lock"></i> Ajouter
-                        </button>
                     @else
                         <button class="btn btn-sm btn-secondary" disabled title="Vérifiez votre email pour ajouter des documents">
                             <i class="fas fa-lock"></i> Ajouter
@@ -279,15 +189,10 @@
                         <div class="text-center py-4 text-muted">
                             <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
                             <p>Aucun document pour le moment</p>
-                            @if($user->email_verified_at && $user->video_status === 'approved')
+                            @if($user->email_verified_at)
                                 <a href="{{ route('documents.create') }}" class="btn btn-primary-custom">
                                     Ajouter votre premier document
                                 </a>
-                            @elseif($user->video_status !== 'approved')
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    Votre vidéo doit être approuvée avant de pouvoir ajouter des documents.
-                                </div>
                             @else
                                 <button class="btn btn-secondary" disabled>
                                     <i class="fas fa-lock me-2"></i>Vérifiez votre email pour ajouter des documents
@@ -337,57 +242,6 @@
             </div>
         </div>
 
-        <!-- Services connectés -->
-        <div class="col-lg-6 mb-4">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-link me-2"></i>Services Connectés
-                    </h5>
-                </div>
-                <div class="card-body">
-                    @if($recentConsents->isEmpty())
-                        <div class="text-center py-4 text-muted">
-                            <i class="fas fa-unlink fa-3x mb-3 opacity-50"></i>
-                            <p>Aucun service connecté</p>
-                            <small>Vous n'avez pas encore autorisé d'applications tierces</small>
-                        </div>
-                    @else
-                        <div class="list-group list-group-flush">
-                            @foreach($recentConsents as $consent)
-                                <div class="list-group-item border-0 px-0">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div class="d-flex align-items-center">
-                                            @if($consent->application && $consent->application->logo_path)
-                                                <img src="{{ asset('storage/' . $consent->application->logo_path) }}"
-                                                     class="rounded me-3"
-                                                     style="width: 40px; height: 40px; object-fit: cover;">
-                                            @else
-                                                <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center"
-                                                     style="width: 40px; height: 40px;">
-                                                    <i class="fas fa-cube text-secondary"></i>
-                                                </div>
-                                            @endif
-                                            <div>
-                                                <h6 class="mb-0">{{ $consent->application->name ?? 'Service inconnu' }}</h6>
-                                                <small class="text-muted">
-                                                    Connecté le {{ $consent->granted_at->format('d/m/Y') }}
-                                                </small>
-                                            </div>
-                                        </div>
-                                        @if($consent->revoked_at)
-                                            <span class="badge bg-secondary">Révoqué</span>
-                                        @else
-                                            <span class="badge bg-success">Actif</span>
-                                        @endif
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Actions rapides -->
@@ -402,7 +256,7 @@
                 <div class="card-body">
                     <div class="row text-center">
                         <div class="col-md-4 mb-3 mb-md-0">
-                            @if($user->email_verified_at && $user->video_status === 'approved')
+                            @if($user->email_verified_at)
                                 <a href="{{ route('documents.create') }}" class="text-decoration-none">
                                     <div class="p-3 hover-shadow rounded">
                                         <i class="fas fa-upload fa-2x text-primary mb-2"></i>

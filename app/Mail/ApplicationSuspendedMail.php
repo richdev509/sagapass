@@ -45,7 +45,7 @@ class ApplicationSuspendedMail extends Mailable
             with: [
                 'applicationName' => $this->application->name,
                 'reason' => $this->reason,
-                'dashboardUrl' => route('developers.dashboard'),
+                'dashboardUrl' => route('contact'),
                 'supportEmail' => config('mail.from.address'),
             ],
         );

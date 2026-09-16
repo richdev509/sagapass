@@ -4,10 +4,6 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DocumentController;
-use App\Http\Controllers\BadgeController;
-use App\Http\Controllers\Developer\DeveloperController;
-use App\Http\Controllers\Developer\DeveloperAuthController;
-use App\Http\Controllers\OAuth\OAuthController;
 use App\Http\Controllers\Auth\RegisterBasicController;
 use App\Http\Controllers\PageController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
@@ -21,16 +17,6 @@ Route::get('/', function () {
 Route::get('/erreurs-connues', function () {
     return view('known-errors');
 })->name('known-errors');
-
-// Privacy Policy Page (required by Meta/WhatsApp)
-Route::get('/privacy-policy', function () {
-    return view('privacy-policy');
-})->name('privacy-policy');
-
-// Alias en français
-Route::get('/politique-de-confidentialite', function () {
-    return view('privacy-policy');
-})->name('politique-confidentialite');
 
 /*
 |--------------------------------------------------------------------------
@@ -59,7 +45,9 @@ Auth::routes();
 
 /*
 |--------------------------------------------------------------------------
-| Inscription Basic (3 étapes: infos → photo → vidéo)
+| Inscription Basic (2 étapes: infos → photo — l'étape vidéo a été retirée,
+| voir Admin\VerificationController et Services\FaceVerification\* pour la
+| vérification automatisée document+selfie qui la remplace)
 |--------------------------------------------------------------------------
 */
 Route::prefix('register/basic')->name('register.basic.')->group(function () {
@@ -74,13 +62,9 @@ Route::prefix('register/basic')->name('register.basic.')->group(function () {
         Route::get('/step1', [RegisterBasicController::class, 'showStep1'])->name('step1');
         Route::post('/step1', [RegisterBasicController::class, 'postStep1'])->name('step1.submit');
 
-        // Étape 2 : Photo de profil (webcam)
+        // Étape 2 : Photo de profil (webcam) — crée le compte à la soumission
         Route::get('/step2', [RegisterBasicController::class, 'showStep2'])->name('step2');
         Route::post('/step2', [RegisterBasicController::class, 'postStep2'])->name('step2.submit');
-
-        // Étape 3 : Vidéo de vérification
-        Route::get('/step3', [RegisterBasicController::class, 'showStep3'])->name('step3');
-        Route::post('/step3', [RegisterBasicController::class, 'postStep3'])->name('step3.submit');
     });
 
     // Page de confirmation
@@ -123,30 +107,14 @@ Route::middleware(['auth:web'])->group(function () {
     Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
     Route::post('/profile/photo', [ProfileController::class, 'uploadPhoto'])->name('profile.photo');
 
-    // Documents - Protégé : email vérifié + vidéo approuvée
-    Route::middleware('video.approved')->group(function () {
-        Route::resource('documents', DocumentController::class);
+    // Documents
+    Route::resource('documents', DocumentController::class);
 
-        // Route pour servir les images privées des documents
-        Route::get('/documents/{id}/image/{type}', [DocumentController::class, 'serveImage'])
-            ->name('documents.image')
-            ->where('type', 'front|back');
-    });
-
-    // Recapture de la vidéo de vérification
-    Route::get('/video/recapture', [DashboardController::class, 'recaptureVideo'])->name('video.recapture');
-    Route::post('/video/recapture', [DashboardController::class, 'submitRecaptureVideo'])->name('video.recapture.submit');
-
-    // Routes pour les badges numériques
-    Route::get('/badge', [BadgeController::class, 'generate'])->name('badge.generate');
-    Route::post('/badge/refresh', [BadgeController::class, 'refresh'])->name('badge.refresh');
-    Route::post('/badge/revoke', [BadgeController::class, 'revoke'])->name('badge.revoke');
+    // Route pour servir les images privées des documents
+    Route::get('/documents/{id}/image/{type}', [DocumentController::class, 'serveImage'])
+        ->name('documents.image')
+        ->where('type', 'front|back');
 });
-
-// Route publique de validation de badge (accessible sans authentification)
-Route::get('/badge/validate/{token}', [BadgeController::class, 'validateBadge'])
-    ->middleware('throttle:10,1') // ✅ Max 10 tentatives par minute
-    ->name('badge.validate');
 
 // Redirection de /home vers /dashboard
 Route::get('/home', function () {
@@ -155,85 +123,9 @@ Route::get('/home', function () {
 
 /*
 |--------------------------------------------------------------------------
-| Developer Dashboard Routes
+| (Portail développeur self-service, OAuth "Login with SagaID" et
+| "Services connectés" retirés — hors périmètre du cas d'usage
+| vérification document+selfie pour partenaires. La gestion admin des
+| DeveloperApplication pour l'API partenaire reste dans routes/admin.php.)
 |--------------------------------------------------------------------------
 */
-
-// Routes publiques pour développeurs (inscription et connexion)
-Route::prefix('developers')->name('developers.')->group(function () {
-    // Inscription développeur (accessible sans authentification)
-    Route::get('/register', [DeveloperAuthController::class, 'showRegisterForm'])->name('register');
-    Route::post('/register', [DeveloperAuthController::class, 'register'])->name('register.store');
-
-    // Connexion développeur
-    Route::get('/login', [DeveloperAuthController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [DeveloperAuthController::class, 'login'])->name('login.store');
-
-    // Déconnexion développeur
-    Route::post('/logout', [DeveloperAuthController::class, 'logout'])->name('logout');
-});
-
-// Routes protégées pour développeurs (require is_developer = true)
-Route::middleware(['auth:web', 'developer'])->prefix('developers')->name('developers.')->group(function () {
-    // Dashboard développeur
-    Route::get('/dashboard', [DeveloperController::class, 'dashboard'])->name('dashboard');
-
-    // Gestion des applications OAuth
-    Route::get('/applications', [DeveloperController::class, 'index'])->name('applications.index');
-    Route::get('/applications/create', [DeveloperController::class, 'create'])->name('applications.create');
-    Route::post('/applications', [DeveloperController::class, 'store'])->name('applications.store');
-    Route::get('/applications/{application}', [DeveloperController::class, 'show'])->name('applications.show');
-    Route::get('/applications/{application}/edit', [DeveloperController::class, 'edit'])->name('applications.edit');
-    Route::put('/applications/{application}', [DeveloperController::class, 'update'])->name('applications.update');
-    Route::delete('/applications/{application}', [DeveloperController::class, 'destroy'])->name('applications.destroy');
-
-    // Régénérer le client secret
-    Route::post('/applications/{application}/regenerate-secret', [DeveloperController::class, 'regenerateSecret'])->name('applications.regenerate-secret');
-
-    // Demande de scopes additionnels
-    Route::post('/applications/{application}/request-scopes', [DeveloperController::class, 'requestScopes'])->name('applications.request-scopes');
-
-    // Statistiques de l'application
-    Route::get('/applications/{application}/stats', [DeveloperController::class, 'stats'])->name('applications.stats');
-
-    // Documentation
-    Route::get('/documentation', [DeveloperController::class, 'documentation'])->name('documentation');
-});
-
-/*
-|--------------------------------------------------------------------------
-| OAuth2 Routes
-|--------------------------------------------------------------------------
-*/
-
-Route::prefix('oauth')->name('oauth.')->group(function () {
-    // Authorization endpoint web (écran de consentement) - Pour dev portal / navigateur
-    Route::get('/authorize', [OAuthController::class, 'showAuthorization'])->middleware(['auth:web', 'verified'])->name('authorize');
-    Route::post('/authorize', [OAuthController::class, 'approveOrDeny'])->middleware(['auth:web', 'verified'])->name('authorize.decision');
-
-    // Token endpoint (échange code contre access token) - Server-to-server
-    Route::post('/token', [OAuthController::class, 'issueToken'])->name('token');
-
-    // Revoke token
-    Route::post('/revoke', [OAuthController::class, 'revokeToken'])->name('revoke');
-
-    // Introspect token
-    Route::post('/introspect', [OAuthController::class, 'introspect'])->name('introspect');
-});
-
-/*
-|--------------------------------------------------------------------------
-| User Connected Services (Mes Connexions)
-|--------------------------------------------------------------------------
-*/
-
-Route::middleware(['auth:web', 'verified'])->prefix('profile')->name('profile.')->group(function () {
-    // Voir les services connectés
-    Route::get('/connected-services', [ProfileController::class, 'connectedServices'])->name('connected-services');
-
-    // Révoquer l'accès à un service
-    Route::delete('/connected-services/{authorization}', [ProfileController::class, 'revokeService'])->name('revoke-service');
-
-    // Historique des connexions
-    Route::get('/connection-history', [ProfileController::class, 'connectionHistory'])->name('connection-history');
-});

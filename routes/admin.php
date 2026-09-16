@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\VerificationController;
-use App\Http\Controllers\Admin\VideoVerificationController;
 use App\Http\Controllers\Admin\MobileVerificationController;
 use App\Http\Controllers\Admin\CitizenController;
 use App\Http\Controllers\Admin\AdminController;
@@ -104,37 +103,6 @@ Route::middleware(['auth:admin', 'ensure.2fa'])->prefix('admin')->name('admin.')
             ->name('reject');
     });
 
-    // Vérification des vidéos (comptes Basic)
-    Route::prefix('video-verification')->name('video-verification.')->group(function () {
-        Route::get('/', [VideoVerificationController::class, 'index'])
-            ->middleware('permission:verify-documents,admin')
-            ->name('index');
-
-        Route::get('/approved', [VideoVerificationController::class, 'approved'])
-            ->middleware('permission:verify-documents,admin')
-            ->name('approved');
-
-        Route::get('/rejected', [VideoVerificationController::class, 'rejected'])
-            ->middleware('permission:verify-documents,admin')
-            ->name('rejected');
-
-        Route::get('/{user}', [VideoVerificationController::class, 'show'])
-            ->middleware('permission:verify-documents,admin')
-            ->name('show');
-
-        Route::get('/{user}/video', [VideoVerificationController::class, 'serveVideo'])
-            ->middleware('permission:verify-documents,admin')
-            ->name('video');
-
-        Route::post('/{user}/approve', [VideoVerificationController::class, 'approve'])
-            ->middleware('permission:verify-documents,admin')
-            ->name('approve');
-
-        Route::post('/{user}/reject', [VideoVerificationController::class, 'reject'])
-            ->middleware('permission:verify-documents,admin')
-            ->name('reject');
-    });
-
     // Gestion des citoyens
     Route::prefix('citizens')->name('citizens.')->middleware('permission:view-users,admin')->group(function () {
         Route::get('/', [CitizenController::class, 'index'])->name('index');
@@ -196,19 +164,11 @@ Route::middleware(['auth:admin', 'ensure.2fa'])->prefix('admin')->name('admin.')
         ->middleware('role:Super Admin,admin')
         ->name('statistics');
 
-    // Gestion OAuth
+    // Gestion des applications partenaires (ex-"Gestion OAuth" — recentré sur
+    // la seule approbation/gestion des DeveloperApplication utilisées par
+    // l'API partenaire, voir Api\Partner\PartnerVerifyController).
     Route::prefix('oauth')->name('oauth.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'index'])->name('index');
-
-        // Création de compte développeur par l'admin
-        Route::get('/create-developer', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'createDeveloper'])->name('create-developer');
-        Route::post('/search-citizen', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'searchCitizen'])->name('search-citizen');
-        Route::post('/store-developer', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'storeDeveloper'])->name('store-developer');
-
-        // Demandes de scopes (AVANT les routes avec {application})
-        Route::get('/scope-requests', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'scopeRequests'])->name('scope-requests');
-        Route::post('/scope-requests/{scopeRequest}/approve', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'approveScopeRequest'])->name('approve-scope-request');
-        Route::post('/scope-requests/{scopeRequest}/reject', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'rejectScopeRequest'])->name('reject-scope-request');
 
         // Routes avec {application}
         Route::get('/{application}', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'show'])->name('show');
@@ -216,17 +176,11 @@ Route::middleware(['auth:admin', 'ensure.2fa'])->prefix('admin')->name('admin.')
         Route::post('/{application}/reject', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'reject'])->name('reject');
         Route::post('/{application}/suspend', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'suspend'])->name('suspend');
         Route::post('/{application}/reactivate', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'reactivate'])->name('reactivate');
-        Route::get('/{application}/users', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'users'])->name('users');
-        Route::post('/authorizations/{authorization}/revoke', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'revokeUserAuthorization'])->name('revoke-authorization');
 
-        // Gestion des scopes
-        Route::post('/{application}/scopes/add', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'addScope'])->name('add-scope');
-        Route::delete('/{application}/scopes/{scope}', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'removeScope'])->name('remove-scope');
-
-        // Configuration OAuth
-        Route::put('/{application}/config', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'updateConfig'])->name('update-config');
         Route::post('/{application}/regenerate-secret', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'regenerateSecret'])->name('regenerate-secret');
         Route::get('/{application}/secret', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'showSecret'])->name('show-secret');
+        Route::post('/{application}/regenerate-app-key', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'regenerateAppKey'])->name('regenerate-app-key');
+        Route::get('/{application}/app-key', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'showAppKey'])->name('show-app-key');
     });
 
     // Gestion des rôles et permissions

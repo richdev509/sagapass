@@ -168,20 +168,6 @@
                         @endif
                     </span>
                 </div>
-                <div class="info-row">
-                    <span class="info-label">Statut vidéo</span>
-                    <span>
-                        @if($document->user->video_status === 'approved')
-                        <span class="badge bg-success"><i class="fas fa-check-circle"></i> Approuvée</span>
-                        @elseif($document->user->video_status === 'pending')
-                        <span class="badge bg-warning"><i class="fas fa-clock"></i> En attente</span>
-                        @elseif($document->user->video_status === 'rejected')
-                        <span class="badge bg-danger"><i class="fas fa-times-circle"></i> Rejetée</span>
-                        @else
-                        <span class="badge bg-secondary"><i class="fas fa-minus-circle"></i> Aucune</span>
-                        @endif
-                    </span>
-                </div>
             </div>
         </div>
 
@@ -331,9 +317,83 @@
                              data-image-url="{{ route('admin.verification.image', [$document, 'back']) }}"
                              data-image-title="Verso du Document">
                     </div>
+                    @if($document->selfie_path)
+                    <div class="col-md-6">
+                        <h6 class="mb-2">Selfie</h6>
+                        <img src="{{ route('admin.verification.image', [$document, 'selfie']) }}"
+                             alt="Selfie"
+                             class="document-image"
+                             data-bs-toggle="modal"
+                             data-bs-target="#imageModal"
+                             data-image-url="{{ route('admin.verification.image', [$document, 'selfie']) }}"
+                             data-image-title="Selfie">
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>
+
+        <!-- Analyse automatisée (indicative uniquement — jamais une approbation) -->
+        @if($document->selfie_path)
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-robot me-2"></i>Analyse automatisée
+                <span class="badge bg-secondary float-end">Indicatif — l'admin décide toujours</span>
+            </div>
+            <div class="card-body p-0">
+                @if($document->automatedCheckNotRun())
+                <div class="p-3 text-muted"><i class="fas fa-hourglass-half me-1"></i> Pas encore lancée.</div>
+                @elseif($document->automated_check_status === 'processing')
+                <div class="p-3 text-muted"><i class="fas fa-spinner fa-spin me-1"></i> Analyse en cours…</div>
+                @elseif($document->automated_check_status === 'failed')
+                <div class="p-3">
+                    <span class="badge bg-secondary"><i class="fas fa-exclamation-triangle"></i> Échec technique de l'analyse</span>
+                    <p class="text-muted small mt-2 mb-0">L'analyse automatique n'a pas pu s'exécuter (voir logs) — la revue manuelle reste inchangée.</p>
+                </div>
+                @else
+                <div class="info-row">
+                    <span class="info-label">Vivacité (anti-usurpation)</span>
+                    <span>
+                        @if($document->liveness_passed === true)
+                        <span class="badge bg-success"><i class="fas fa-check-circle"></i> Vivant</span>
+                        @elseif($document->liveness_passed === false)
+                        <span class="badge bg-danger"><i class="fas fa-times-circle"></i> Suspect</span>
+                        @else
+                        <span class="badge bg-secondary">Indéterminé</span>
+                        @endif
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Correspondance visage ↔ pièce</span>
+                    <span class="info-value">
+                        @if(!is_null($document->face_match_score))
+                        {{ number_format($document->face_match_score * 100, 1) }}%
+                        @else
+                        —
+                        @endif
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Numéro extrait (OCR)</span>
+                    <span class="info-value">
+                        {{ $document->ocr_extracted_document_number ?? '—' }}
+                        @if($document->ocr_extracted_document_number && $document->ocr_extracted_document_number !== $document->document_number)
+                        <span class="badge bg-warning text-dark ms-1">Différent de la saisie</span>
+                        @endif
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Nom extrait (OCR)</span>
+                    <span class="info-value">{{ $document->ocr_extracted_full_name ?? '—' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Date de naissance extraite (OCR)</span>
+                    <span class="info-value">{{ $document->ocr_extracted_date_of_birth?->format('d/m/Y') ?? '—' }}</span>
+                </div>
+                @endif
+            </div>
+        </div>
+        @endif
 
         <!-- Historique du Document -->
         @if($document->histories->isNotEmpty())
@@ -418,41 +478,6 @@
         <div class="action-buttons">
             @if($document->verification_status === 'pending')
 
-            <!-- Alerte de vérification vidéo -->
-            @if(!$videoStatus['can_approve_document'])
-            <div class="alert alert-warning border-warning mb-3">
-                <h6 class="alert-heading">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Vérification vidéo requise
-                </h6>
-                <hr>
-                @if($videoStatus['is_none'] || !$videoStatus['has_video'])
-                    <p class="mb-2"><strong>Problème :</strong> L'utilisateur n'a pas encore soumis de vidéo de vérification.</p>
-                    <p class="mb-3 small">Un compte Basic doit avoir une vidéo approuvée avant de pouvoir uploader et faire approuver des documents.</p>
-                @elseif($videoStatus['is_pending'])
-                    <p class="mb-2"><strong>Problème :</strong> La vidéo de vérification est en attente.</p>
-                    <p class="mb-3 small">Vous devez d'abord vérifier et approuver la vidéo avant de pouvoir approuver ce document.</p>
-                    <a href="{{ route('admin.video-verification.index') }}" class="btn btn-sm btn-warning w-100 mb-2">
-                        <i class="fas fa-video me-2"></i>Aller vérifier la vidéo
-                    </a>
-                @elseif($videoStatus['is_rejected'])
-                    <p class="mb-2"><strong>Problème :</strong> La vidéo de vérification a été rejetée.</p>
-                    @if($videoStatus['rejection_reason'])
-                    <p class="mb-2 small"><strong>Raison :</strong> {{ $videoStatus['rejection_reason'] }}</p>
-                    @endif
-                    <p class="mb-3 small">L'utilisateur doit soumettre une nouvelle vidéo avant que ses documents puissent être approuvés.</p>
-                @endif
-                <div class="alert alert-danger mb-0">
-                    <i class="fas fa-lock me-2"></i><strong>Approbation bloquée</strong><br>
-                    <small>Vous ne pouvez pas approuver ce document tant que la vidéo n'est pas validée.</small>
-                </div>
-            </div>
-            @else
-            <div class="alert alert-success border-success mb-3">
-                <i class="fas fa-check-circle me-2"></i><strong>Vidéo approuvée</strong><br>
-                <small>L'utilisateur a une vidéo de vérification validée. Vous pouvez approuver ce document.</small>
-            </div>
-            @endif
-
             <!-- Approve Form -->
             <div class="card mb-3">
                 <div class="card-body">
@@ -460,9 +485,7 @@
                     <p class="text-muted small mb-3">Valider ce document comme authentique et conforme.</p>
                     <form method="POST" action="{{ route('admin.verification.approve', $document) }}" onsubmit="return confirm('Êtes-vous sûr de vouloir approuver ce document ?')">
                         @csrf
-                        <button type="submit"
-                                class="btn btn-success w-100"
-                                @if(!$videoStatus['can_approve_document']) disabled title="Vidéo non validée" @endif>
+                        <button type="submit" class="btn btn-success w-100">
                             <i class="fas fa-check me-2"></i>Approuver le Document
                         </button>
                     </form>

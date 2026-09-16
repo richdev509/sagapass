@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class DeveloperApplication extends Model
@@ -17,6 +16,7 @@ class DeveloperApplication extends Model
         'logo_path',
         'client_id',
         'client_secret',
+        'app_key',
         'redirect_uris',
         'allowed_scopes',
         'status',
@@ -34,6 +34,7 @@ class DeveloperApplication extends Model
 
     protected $hidden = [
         'client_secret',
+        'app_key',
     ];
 
     protected static function boot()
@@ -47,6 +48,10 @@ class DeveloperApplication extends Model
             if (!$app->client_secret) {
                 $plainSecret = Str::random(64);
                 $app->client_secret = encrypt($plainSecret);
+            }
+            if (!$app->app_key) {
+                $plainAppKey = Str::random(64);
+                $app->app_key = encrypt($plainAppKey);
             }
             if (!$app->allowed_scopes) {
                 $app->allowed_scopes = ['profile'];
@@ -71,51 +76,11 @@ class DeveloperApplication extends Model
     }
 
     /**
-     * Get authorization codes for this application.
-     */
-    public function authorizationCodes(): HasMany
-    {
-        return $this->hasMany(OAuthAuthorizationCode::class, 'application_id');
-    }
-
-    /**
-     * Get scope requests for this application.
-     */
-    public function scopeRequests(): HasMany
-    {
-        return $this->hasMany(ScopeRequest::class, 'application_id');
-    }
-
-    /**
-     * Get user authorizations for this application.
-     */
-    public function userAuthorizations(): HasMany
-    {
-        return $this->hasMany(UserAuthorization::class, 'application_id');
-    }
-
-    /**
      * Check if the application is approved.
      */
     public function isApproved(): bool
     {
         return $this->status === 'approved';
-    }
-
-    /**
-     * Check if a redirect URI is valid.
-     */
-    public function isValidRedirectUri(string $uri): bool
-    {
-        return in_array($uri, $this->redirect_uris ?? []);
-    }
-
-    /**
-     * Check if a scope is allowed.
-     */
-    public function hasScope(string $scope): bool
-    {
-        return in_array($scope, $this->allowed_scopes ?? []);
     }
 
     /**
@@ -151,6 +116,29 @@ class DeveloperApplication extends Model
         $this->client_secret = encrypt($plainSecret);
         $this->save();
         return $plainSecret;
+    }
+
+    /**
+     * Get the plaintext app_key (admin only).
+     */
+    public function getPlaintextAppKey(): ?string
+    {
+        try {
+            return $this->app_key ? decrypt($this->app_key) : null;
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Regenerate app_key and return the new plaintext value.
+     */
+    public function regenerateAppKey(): string
+    {
+        $plainAppKey = Str::random(64);
+        $this->app_key = encrypt($plainAppKey);
+        $this->save();
+        return $plainAppKey;
     }
 
     /**

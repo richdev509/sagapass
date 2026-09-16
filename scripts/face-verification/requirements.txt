@@ -1,0 +1,19 @@
+# Isolé du reste du projet Laravel (même principe que scripts/niu-lookup/ et
+# scripts/tron-verify/ côté SwapLajan) — dépendances lourdes, jamais mêlées au
+# reste. Installer dans un venv dédié (voir README.md de ce dossier).
+#
+# deepface : correspondance visage pièce <-> selfie, ET détection de vivacité
+# intégrée (anti_spoofing=True) — pas besoin d'une librairie anti-spoofing
+# séparée (Silent-Face-Anti-Spoofing), DeepFace embarque déjà un modèle
+# équivalent (MiniFASNet) pour ça depuis sa version 0.0.90+.
+deepface>=0.0.93
+
+# easyocr : extraction des champs texte de la pièce (numéro, nom, date de
+# naissance) — licence Apache 2.0, moins de dépendances système que
+# PaddleOCR, correct sur des photos de carte prises au téléphone (pas
+# seulement des scans plats).
+easyocr>=1.7
+
+# Utilisé en interne par deepface/easyocr, épinglé en version "headless"
+# (pas de dépendance GUI/X11 sur un serveur sans écran).
+opencv-python-headless>=4.9

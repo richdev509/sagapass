@@ -127,7 +127,7 @@ class MobileVerificationController extends Controller
         // Mettre à jour le statut de l'utilisateur
         $mobileVerification->user->update([
             'verification_status' => 'verified',
-            'account_level'       => 'basic',  // Accès confirmé, niveau de base
+            'account_level'       => 'verified',  // Approuvé par admin = compte vérifié
             'verification_level'  => 'document',
             'verified_at'         => now(),
         ]);

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\VideoVerification;
 use App\Services\EmailValidator;
 use App\Mail\EmailVerificationCode;
 use Illuminate\Auth\Events\Registered;
@@ -272,72 +271,17 @@ class RegisterBasicController extends Controller
     }
 
     /**
-     * Traiter l'étape 2 - Sauvegarder photo
+     * Traiter l'étape 2 - Sauvegarder la photo et créer le compte.
+     *
+     * L'étape 3 (vidéo de vérification) a été retirée — recentrage sur le
+     * seul flux document+selfie (voir Admin\VerificationController et
+     * Services\FaceVerification\*). Le compte est désormais créé directement
+     * ici, dès que la photo de profil est fournie, sans dépendre d'une vidéo.
      */
     public function postStep2(Request $request)
     {
-        if (!session()->has('registration.data')) {
-            return redirect()->route('register.basic.step1');
-        }
-
-        $request->validate([
-            'photo' => ['required', 'string'], // Base64 image
-        ]);
-
-        // Décoder l'image base64
-        $imageData = $request->input('photo');
-
-        if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $type)) {
-            $imageData = substr($imageData, strpos($imageData, ',') + 1);
-            $type = strtolower($type[1]);
-        } else {
-            return back()->withErrors(['photo' => 'Format d\'image invalide.']);
-        }
-
-        $imageData = base64_decode($imageData);
-
-        if ($imageData === false) {
-            return back()->withErrors(['photo' => 'Impossible de décoder l\'image.']);
-        }
-
-        // Générer un nom unique
-        $filename = 'temp_' . uniqid() . '.' . $type;
-        Storage::disk('local')->put('temp/photos/' . $filename, $imageData);
-
-        // Stocker le chemin en session
-        $registration = session('registration');
-        $registration['temp_photo_path'] = 'temp/photos/' . $filename;
-        $registration['step'] = 'video';
-        session(['registration' => $registration]);
-
-        return redirect()->route('register.basic.step3');
-    }
-
-    /**
-     * Afficher l'étape 3 - Vidéo de vérification
-     */
-    public function showStep3()
-    {
-        if (!session()->has('registration.data') || !session()->has('registration.temp_photo_path')) {
-            return redirect()->route('register.basic.step1')
-                ->with('error', 'Veuillez compléter toutes les étapes précédentes.');
-        }
-
-        $registration = session('registration');
-        $data = $registration['data'];
-
-        return view('auth.register-basic.step3', [
-            'userName' => $data['first_name'] . ' ' . $data['last_name']
-        ]);
-    }
-
-    /**
-     * Traiter l'étape 3 - Sauvegarder vidéo et créer compte
-     */
-    public function postStep3(Request $request)
-    {
         try {
-            if (!session()->has('registration.data') || !session()->has('registration.temp_photo_path')) {
+            if (!session()->has('registration.data')) {
                 if ($request->expectsJson()) {
                     return response()->json([
                         'success' => false,
@@ -348,13 +292,28 @@ class RegisterBasicController extends Controller
             }
 
             $request->validate([
-                'video' => ['required', 'file', 'mimetypes:video/mp4,video/webm,video/quicktime', 'max:10240'],
+                'photo' => ['required', 'string'], // Base64 image
                 'consent' => ['required', 'accepted'],
             ]);
 
             $registration = session('registration');
             $userData = $registration['data'];
-            $photoPath = $registration['temp_photo_path'];
+
+            // Décoder l'image base64
+            $imageData = $request->input('photo');
+
+            if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $type)) {
+                $imageData = substr($imageData, strpos($imageData, ',') + 1);
+                $type = strtolower($type[1]);
+            } else {
+                return back()->withErrors(['photo' => 'Format d\'image invalide.']);
+            }
+
+            $imageData = base64_decode($imageData);
+
+            if ($imageData === false) {
+                return back()->withErrors(['photo' => 'Impossible de décoder l\'image.']);
+            }
 
             // Créer l'utilisateur avec email déjà vérifié
             $user = User::create([
@@ -365,39 +324,15 @@ class RegisterBasicController extends Controller
                 'password' => Hash::make($userData['password']),
                 'date_of_birth' => $userData['date_of_birth'],
                 'phone' => $userData['phone'] ?? null,
-                'account_level' => 'pending',  // ✅ Compte en attente de validation vidéo
-                'verification_level' => 'email', // ✅ Email vérifié
-                'video_status' => 'pending',
-                'video_consent_at' => now(),
+                'account_level' => 'basic',
+                'verification_level' => 'email',
             ]);
 
-            // Déplacer la photo vers le dossier permanent
-            $finalPhotoPath = 'profile_pictures/' . $user->id . '_' . time() . '.jpg';
-            Storage::disk('public')->put(
-                $finalPhotoPath,
-                Storage::disk('local')->get($photoPath)
-            );
-            Storage::disk('local')->delete($photoPath);
+            // Sauvegarder la photo de profil définitive
+            $finalPhotoPath = 'profile_pictures/' . $user->id . '_' . time() . '.' . $type;
+            Storage::disk('public')->put($finalPhotoPath, $imageData);
+            $user->update(['profile_picture' => $finalPhotoPath]);
 
-            // Sauvegarder la vidéo dans storage/app/verification_videos
-            $videoPath = $request->file('video')->store('verification_videos/' . $user->id, 'local');
-
-            // Mettre à jour l'utilisateur
-            $user->update([
-                'profile_picture' => $finalPhotoPath,
-                'verification_video' => $videoPath,
-            ]);
-
-            // Créer l'entrée de vérification vidéo
-            VideoVerification::create([
-                'user_id' => $user->id,
-                'video_path' => $videoPath,
-                'status' => 'pending',
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ]);
-
-            // Log de succès
             Log::info('Inscription complétée avec email pré-vérifié', [
                 'user_id' => $user->id,
                 'email' => $user->email,
@@ -410,7 +345,6 @@ class RegisterBasicController extends Controller
             // Nettoyer la session
             session()->forget('registration');
 
-            // Retourner JSON pour le JavaScript
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => true,
@@ -431,7 +365,7 @@ class RegisterBasicController extends Controller
             }
             throw $e;
         } catch (\Exception $e) {
-            Log::error('Erreur inscription step3', [
+            Log::error('Erreur inscription step2', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);

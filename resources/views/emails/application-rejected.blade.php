@@ -88,13 +88,12 @@
             <p><strong>Que faire maintenant ?</strong></p>
             <ul>
                 <li>Prenez connaissance de la raison du rejet ci-dessus</li>
-                <li>Modifiez votre application pour corriger les problèmes identifiés</li>
-                <li>Soumettez à nouveau votre application pour révision</li>
-                <li>Consultez notre guide des bonnes pratiques</li>
+                <li>Contactez-nous pour corriger les problèmes identifiés</li>
+                <li>Nous pourrons réexaminer votre demande de partenariat</li>
             </ul>
 
             <div style="text-align: center;">
-                <a href="{{ $editUrl }}" class="button">Modifier mon application</a>
+                <a href="{{ $dashboardUrl }}" class="button">Nous contacter</a>
             </div>
 
             <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d;">

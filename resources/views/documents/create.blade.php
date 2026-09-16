@@ -246,6 +246,27 @@
                             <div id="backPreview" class="mt-2"></div>
                         </div>
 
+                        <!-- Selfie (optionnel — active la vérification automatique) -->
+                        <div class="mb-4">
+                            <label for="selfie" class="form-label">
+                                Selfie (visage dégagé, sans lunettes ni masque)
+                            </label>
+                            <input type="file"
+                                   class="form-control @error('selfie') is-invalid @enderror"
+                                   id="selfie"
+                                   name="selfie"
+                                   accept="image/jpeg,image/jpg,image/png"
+                                   capture="user"
+                                   onchange="previewImage(this, 'selfiePreview')">
+                            @error('selfie')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> Optionnel pour l'instant, mais accélère la vérification (correspondance automatique avec la photo de la pièce). JPG, PNG (max 5MB).
+                            </small>
+                            <div id="selfiePreview" class="mt-2"></div>
+                        </div>
+
                         <!-- Conseils -->
                         <div class="alert alert-light border mb-4">
                             <h6 class="mb-2"><i class="fas fa-lightbulb me-2 text-warning"></i>Conseils pour une bonne photo :</h6>

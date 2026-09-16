@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Jobs\AnalyzeDocumentJob;
 use App\Models\Document;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
@@ -99,6 +100,10 @@ class DocumentController extends Controller
             'issue_date' => ['required', 'date', 'before_or_equal:today'],
             'expiry_date' => ['required', 'date', 'after:issue_date', 'after:today'],
             'front_photo' => ['required', 'image', 'mimes:jpeg,jpg,png', 'max:5120'],
+            // Optionnel pour ne pas casser le flux existant : sans selfie, le
+            // document suit exactement le chemin 100% manuel d'aujourd'hui
+            // (automated_check_status reste 'not_run', voir Document::$fillable).
+            'selfie' => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:5120'],
         ];
 
         // Pour NIU (carte nationale): exactement 10 chiffres + numéro de carte + verso obligatoire
@@ -130,6 +135,9 @@ class DocumentController extends Controller
         $backPath = $request->hasFile('back_photo')
             ? $request->file('back_photo')->store($userFolder, 'private')
             : null;
+        $selfiePath = $request->hasFile('selfie')
+            ? $request->file('selfie')->store($userFolder, 'private')
+            : null;
 
         // Créer le document
         $document = $user->documents()->create([
@@ -140,8 +148,13 @@ class DocumentController extends Controller
             'expiry_date' => $validated['expiry_date'],
             'front_photo_path' => $frontPath,
             'back_photo_path' => $backPath,
+            'selfie_path' => $selfiePath,
             'verification_status' => 'pending',
         ]);
+
+        if ($selfiePath) {
+            AnalyzeDocumentJob::dispatch($document->id);
+        }
 
         return redirect()->route('documents.index')
             ->with('success', 'Document ajouté avec succès ! Il sera vérifié prochainement.');

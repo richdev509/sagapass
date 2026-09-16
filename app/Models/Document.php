@@ -22,6 +22,14 @@ class Document extends Model
         'rejection_reason',
         'verified_by',
         'verified_at',
+        'selfie_path',
+        'automated_analysis_raw',
+        'ocr_extracted_document_number',
+        'ocr_extracted_full_name',
+        'ocr_extracted_date_of_birth',
+        'face_match_score',
+        'liveness_passed',
+        'automated_check_status',
     ];
 
     protected function casts(): array
@@ -30,7 +38,19 @@ class Document extends Model
             'issue_date' => 'date',
             'expiry_date' => 'date',
             'verified_at' => 'datetime',
+            'automated_analysis_raw' => 'array',
+            'ocr_extracted_date_of_birth' => 'date',
+            'liveness_passed' => 'boolean',
         ];
+    }
+
+    /**
+     * Le moteur automatisé n'a pas encore analysé ce document (aucun selfie
+     * fourni, ou pas encore traité par AnalyzeDocumentJob).
+     */
+    public function automatedCheckNotRun(): bool
+    {
+        return $this->automated_check_status === 'not_run';
     }
 
     /**

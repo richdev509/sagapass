@@ -32,21 +32,11 @@ class User extends Authenticatable implements MustVerifyEmail
         'profile_photo',
         'verification_status',
         'account_status',
-        'is_developer',
-        'company_name',
-        'developer_bio',
-        'developer_website',
-        'developer_verified_at',
         // Nouveaux champs pour système à 2 niveaux
         'account_level',
         'verification_level',
         'verified_at',
         'profile_picture',
-        'verification_video',
-        'video_verified_at',
-        'video_status',
-        'video_rejection_reason',
-        'video_consent_at',
     ];
 
     /**
@@ -70,12 +60,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'date_of_birth' => 'date',
-            'is_developer' => 'boolean',
-            'developer_verified_at' => 'datetime',
             // Nouveaux casts
             'verified_at' => 'datetime',
-            'video_verified_at' => 'datetime',
-            'video_consent_at' => 'datetime',
         ];
     }
 
@@ -97,50 +83,6 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isVerifiedAccount(): bool
     {
         return $this->account_level === 'verified';
-    }
-
-    /**
-     * Check if video verification is pending.
-     */
-    public function isVideoPending(): bool
-    {
-        return $this->video_status === 'pending';
-    }
-
-    /**
-     * Check if video has been approved.
-     */
-    public function isVideoApproved(): bool
-    {
-        return $this->video_status === 'approved';
-    }
-
-    /**
-     * Check if video has been rejected.
-     */
-    public function isVideoRejected(): bool
-    {
-        return $this->video_status === 'rejected';
-    }
-
-    /**
-     * Check if user needs video verification.
-     */
-    public function needsVideoVerification(): bool
-    {
-        return empty($this->verification_video) ||
-               $this->video_status === 'none' ||
-               $this->video_status === 'rejected';
-    }
-
-    /**
-     * Check if user can upgrade to Verified account.
-     */
-    public function canUpgradeToVerified(): bool
-    {
-        return $this->isBasicAccount() &&
-               $this->isVideoApproved() &&
-               $this->email_verified_at !== null;
     }
 
     /**
@@ -166,49 +108,6 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Get allowed OAuth scopes based on account level.
-     */
-    public function getAllowedScopes(): array
-    {
-        if ($this->isVerifiedAccount()) {
-            return [
-                'profile',
-                'email',
-                'documents',
-                'documents:verified',
-                'address',
-                'phone',
-            ];
-        }
-
-        // Scopes limités pour compte Basic
-        return [
-            'profile:basic',
-            'email',
-        ];
-    }
-
-    /**
-     * Get user badge based on account level and video status.
-     */
-    public function getBadgeAttribute(): string
-    {
-        if ($this->isVerifiedAccount()) {
-            return 'verified';
-        }
-
-        if ($this->isVideoApproved()) {
-            return 'basic-video';
-        }
-
-        if ($this->isVideoPending()) {
-            return 'basic-pending';
-        }
-
-        return 'basic';
-    }
-
-    /**
      * Get profile picture URL.
      */
     public function getProfilePictureUrlAttribute(): ?string
@@ -223,14 +122,6 @@ class User extends Authenticatable implements MustVerifyEmail
     // ============================================
     // RELATIONS
     // ============================================
-
-    /**
-     * Get all video verifications for the user.
-     */
-    public function videoVerifications()
-    {
-        return $this->hasMany(VideoVerification::class);
-    }
 
     /**
      * Get all documents for the user.
@@ -265,46 +156,6 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Get all access tokens for the user.
-     */
-    public function accessTokens()
-    {
-        return $this->hasMany(OAuthAccessToken::class);
-    }
-
-    /**
-     * Get all developer applications owned by this user.
-     */
-    public function developerApplications()
-    {
-        return $this->hasMany(DeveloperApplication::class);
-    }
-
-    /**
-     * Get the developer profile for this user.
-     */
-    public function developer()
-    {
-        return $this->hasOne(Developer::class);
-    }
-
-    /**
-     * Get all OAuth authorizations (consents) for this user.
-     */
-    public function oauthAuthorizations()
-    {
-        return $this->hasMany(UserAuthorization::class);
-    }
-
-    /**
-     * Get active OAuth authorizations (not revoked).
-     */
-    public function activeOAuthAuthorizations()
-    {
-        return $this->oauthAuthorizations()->whereNull('revoked_at');
-    }
-
-    /**
      * Check if user's identity is verified.
      */
     public function isVerified(): bool
@@ -318,30 +169,6 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isActive(): bool
     {
         return $this->account_status === 'active';
-    }
-
-    /**
-     * Check if user is a developer.
-     */
-    public function isDeveloper(): bool
-    {
-        return $this->developer()->exists();
-    }
-
-    /**
-     * Check if developer account is verified.
-     */
-    public function isDeveloperVerified(): bool
-    {
-        return $this->developer && $this->developer->isVerified();
-    }
-
-    /**
-     * Check if developer account is active.
-     */
-    public function isDeveloperActive(): bool
-    {
-        return $this->developer && $this->developer->isActive();
     }
 
     /**

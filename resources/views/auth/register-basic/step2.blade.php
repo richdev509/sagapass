@@ -8,9 +8,9 @@
                 <div class="card-header">
                     <h4 class="mb-0">Créer votre SagaPass Basic</h4>
                     <div class="progress mt-3" style="height: 5px;">
-                        <div class="progress-bar bg-primary" role="progressbar" style="width: 66%"></div>
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: 100%"></div>
                     </div>
-                    <small class="text-muted">Étape 2/3 : Photo de profil</small>
+                    <small class="text-muted">Étape 2/2 : Photo de profil</small>
                 </div>
 
                 <div class="card-body">
@@ -63,6 +63,16 @@
                             <h5 class="mb-3">Aperçu de votre photo</h5>
                             <canvas id="photo-canvas" style="max-width: 500px; width: 100%; border-radius: 10px; border: 3px solid #28a745;"></canvas>
 
+                            <!-- Consentement RGPD -->
+                            <div class="form-check text-start mt-4 mx-auto" style="max-width: 500px;">
+                                <input class="form-check-input" type="checkbox" id="consent-checkbox">
+                                <label class="form-check-label" for="consent-checkbox">
+                                    J'accepte que ma photo soit stockée pour vérifier mon identité.
+                                    Je peux demander sa suppression à tout moment via mon profil.
+                                    <a href="{{ route('privacy') }}" target="_blank">Politique de confidentialité</a>
+                                </label>
+                            </div>
+
                             <div class="mt-3">
                                 <button type="button" class="btn btn-success btn-lg" id="validate-photo-btn">
                                     <i class="fas fa-check"></i> Valider cette photo
@@ -78,6 +88,7 @@
                     <form method="POST" action="{{ route('register.basic.step2.submit') }}" id="photo-form" style="display: none;">
                         @csrf
                         <input type="hidden" name="photo" id="photo-data">
+                        <input type="hidden" name="consent" id="consent-data" value="0">
                     </form>
                 </div>
             </div>
@@ -188,7 +199,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Bouton valider
     document.getElementById('validate-photo-btn').addEventListener('click', () => {
+        if (!document.getElementById('consent-checkbox').checked) {
+            alert('Veuillez accepter le consentement pour continuer.');
+            return;
+        }
         document.getElementById('photo-data').value = photoData;
+        document.getElementById('consent-data').value = '1';
         document.getElementById('photo-form').submit();
     });
 
