@@ -305,7 +305,10 @@
 
         function showState(id) {
             document.querySelectorAll('.state-panel').forEach(el => el.classList.remove('is-visible'));
-            document.getElementById('captureScreen').style.display = 'none';
+            // id === null signifie "revenir à l'écran de capture principal" —
+            // il faut explicitement lui redonner son display (jamais restauré
+            // sinon, une fois masqué pour afficher le panneau de permission).
+            document.getElementById('captureScreen').style.display = id ? 'none' : 'flex';
             if (id) document.getElementById(id).classList.add('is-visible');
         }
 
