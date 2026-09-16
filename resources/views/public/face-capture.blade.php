@@ -426,7 +426,11 @@
                 );
                 faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
                     baseOptions: {
-                        modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+                        // Auto-hébergé (public/models/) plutôt que le bucket
+                        // Google public : la CSP de l'app n'autorise que
+                        // 'self'/cdn.jsdelivr.net en connect-src, et ça évite
+                        // une dépendance à un chemin non versionné côté Google.
+                        modelAssetPath: '{{ asset('models/face_landmarker.task') }}',
                         delegate: 'CPU',
                     },
                     runningMode: 'VIDEO',
