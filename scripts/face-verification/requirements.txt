@@ -15,5 +15,8 @@ deepface>=0.0.93
 easyocr>=1.7
 
 # Utilisé en interne par deepface/easyocr, épinglé en version "headless"
-# (pas de dépendance GUI/X11 sur un serveur sans écran).
-opencv-python-headless>=4.9
+# (pas de dépendance GUI/X11 sur un serveur sans écran). Plafonné à <5 : la
+# branche 5.x a retiré les fichiers de cascades Haar (cv2/data/*.xml) que le
+# détecteur de visage par défaut de DeepFace ("opencv") attend encore —
+# confirmé en échouant en conditions réelles avec opencv-python-headless 5.0.
+opencv-python-headless>=4.9,<5
