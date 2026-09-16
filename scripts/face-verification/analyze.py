@@ -68,12 +68,229 @@ def _load_image_for_ocr(image_path: str):
     return np.array(image)
 
 
-def extract_ocr_fields(document_type: str, front_photo_path: str) -> dict:
-    """Retourne {"document_number": ?str, "full_name": ?str, "date_of_birth": ?str}.
+def _ocr_line_boxes(raw_results) -> list:
+    """Convertit la sortie brute d'EasyOCR en une liste de dicts
+    {x_min,y_min,x_max,y_max,text}, un par ligne détectée."""
+    boxes = []
+    for bbox, text, _confidence in raw_results:
+        text = text.strip()
+        if not text:
+            continue
+        xs = [p[0] for p in bbox]
+        ys = [p[1] for p in bbox]
+        boxes.append({"x_min": min(xs), "y_min": min(ys), "x_max": max(xs), "y_max": max(ys), "text": text})
+    return boxes
 
-    Champ "date_of_birth" toujours normalisé en YYYY-MM-DD si trouvé.
+
+# Vocabulaire de TOUTES les étiquettes de la carte (français + créole,
+# fragments tolérants à la casse/aux accents/au garbling OCR) — utilisé pour
+# qu'une recherche de valeur ne prenne jamais par erreur une AUTRE étiquette
+# empilée juste en dessous. Très fréquent sur cette carte : chaque champ a sa
+# version française puis créole l'une sous l'autre, et laquelle des deux
+# s'aligne horizontalement avec la vraie valeur varie d'un champ à l'autre
+# (parfois la française, parfois la créole) — confirmé en traçant un vrai
+# échantillon. Exclure tout texte "qui ressemble à une étiquette connue" est
+# plus robuste que de deviner un ordre fixe.
+_CNI_LABEL_KEYWORDS = [
+    "naissa", "lieu", "kote", "identification", "idantifikasyon", "identifikasyon",
+    "énom", "non", "siyati", "sexe", "seks", "nationalit", "nasyonal",
+    "emission", "émission", "expiration", "signature", "titulaire", "kat",
+]
+
+
+def _looks_like_label(text: str) -> bool:
+    normalized = text.lower()
+    return any(kw in normalized for kw in _CNI_LABEL_KEYWORDS)
+
+
+def _find_label_line(lines: list, must_contain: list, must_not_contain: list = (), prefer_last: bool = False):
+    """Ligne (texte normalisé : minuscule) contenant au moins un des mots-clés
+    de must_contain et aucun de must_not_contain — la première par défaut, la
+    dernière si prefer_last (nécessaire pour "identification" : le titre du
+    document, "CARTE D'IDENTIFICATION NATIONALE", contient aussi ce mot et
+    apparaît AVANT la vraie étiquette du champ NIU plus bas sur la carte)."""
+    match = None
+    for line in lines:
+        normalized = line["text"].lower()
+        if any(bad in normalized for bad in must_not_contain):
+            continue
+        if any(kw in normalized for kw in must_contain):
+            if not prefer_last:
+                return line
+            match = line
+    return match
+
+
+def _value_candidates_below(lines: list, label_line: dict, max_y_gap: float = 150) -> list:
+    """Lignes EN DESSOUS de label_line, dans la même colonne (chevauchement
+    horizontal), triées par proximité verticale — jamais une autre étiquette
+    connue (voir _looks_like_label).
+
+    Nécessaire car l'ordre de détection d'EasyOCR suit grossièrement la
+    position verticale sur toute la largeur de l'image, PAS l'ordre de
+    lecture visuel d'une mise en page à deux colonnes : sur un vrai
+    échantillon de CIN haïtienne, l'étiquette et sa valeur ne sont presque
+    jamais des lignes adjacentes dans la liste brute (une ou deux lignes de
+    l'autre colonne — ou l'étiquette créole du même champ — s'intercalent
+    presque toujours entre les deux).
+
+    Tolère un léger chevauchement vertical négatif (jusqu'à -20px) entre
+    l'étiquette et sa valeur : les boîtes EasyOCR de deux lignes empilées se
+    chevauchent souvent de quelques pixels en pratique, confirmé sur un vrai
+    échantillon (jamais un écart net positif).
     """
-    fields = {"document_number": None, "full_name": None, "date_of_birth": None}
+    candidates = []
+    for line in lines:
+        if line is label_line or _looks_like_label(line["text"]):
+            continue
+        overlap = min(line["x_max"], label_line["x_max"]) - max(line["x_min"], label_line["x_min"])
+        if overlap <= 0:
+            continue
+        y_gap = line["y_min"] - label_line["y_max"]
+        if -20 <= y_gap <= max_y_gap:
+            candidates.append((y_gap, line))
+
+    candidates.sort(key=lambda c: c[0])
+    return [c[1] for c in candidates]
+
+
+def _find_value_below(lines: list, label_line: dict):
+    candidates = _value_candidates_below(lines, label_line)
+    return candidates[0]["text"] if candidates else None
+
+
+def _find_row_below(lines: list, label_line: dict, row_tolerance: float = 20):
+    """Comme _find_value_below, mais rassemble TOUTES les lignes de la même
+    "rangée" (écart vertical proche du plus proche trouvé) et les joint de
+    gauche à droite — pour une valeur écrite sur plusieurs morceaux côte à
+    côte (ex. "OUEST" + "PORT-AU-PRINCE" pour le lieu de naissance, détectés
+    comme deux lignes séparées à la même hauteur)."""
+    candidates = _value_candidates_below(lines, label_line)
+    if not candidates:
+        return None
+
+    closest_gap = candidates[0]["y_min"] - label_line["y_max"]
+    same_row = [
+        c for c in candidates
+        if abs((c["y_min"] - label_line["y_max"]) - closest_gap) <= row_tolerance
+    ]
+    same_row.sort(key=lambda l: l["x_min"])
+    return " ".join(l["text"] for l in same_row)
+
+
+def _parse_date(value: str):
+    """jj-mm-aaaa / jj/mm/aaaa / jj.mm.aaaa -> aaaa-mm-jj, ou None."""
+    if not value:
+        return None
+    match = re.search(r"(\d{2})[./-](\d{2})[./-](\d{4})", value)
+    if not match:
+        return None
+    day, month, year = match.groups()
+    return f"{year}-{month}-{day}"
+
+
+def _extract_cni_fields(lines: list) -> dict:
+    """Carte d'identification nationale haïtienne — étiquettes bilingues
+    (français/créole) ancrées par position, calibré sur un vrai échantillon
+    (voir le plan associé). Les LIGNES d'étiquette sont souvent mal lues par
+    l'OCR (accents, mots tronqués) ; les VALEURS elles-mêmes (dates, nom,
+    numéro) se sont lues avec une précision parfaite sur l'échantillon testé
+    — d'où des mots-clés d'étiquette volontairement tolérants (sous-chaînes
+    courtes) plutôt que des libellés exacts.
+    """
+    fields = {
+        "document_number": None,
+        "full_name": None,
+        "date_of_birth": None,
+        "sex": None,
+        "place_of_birth": None,
+        "date_of_issue": None,
+        "date_of_expiry": None,
+    }
+
+    # "Lieu de Naissance" contient aussi "naissance" — exclu explicitement
+    # pour ne pas confondre les deux champs.
+    dob_label = _find_label_line(lines, must_contain=["naissa"], must_not_contain=["lieu"])
+    if dob_label:
+        fields["date_of_birth"] = _parse_date(_find_value_below(lines, dob_label))
+
+    # "identification" seul (pas "identification unique") : sur l'échantillon
+    # testé, l'OCR a lu "unique" en "unicue" — "identification" reste lisible
+    # tel quel. Le mot-clé apparaît aussi dans le titre du document ("CARTE
+    # D'IDENTIFICATION NATIONALE"), plus haut sur la carte, mais son
+    # étiquette de champ (au singulier "identification" comme sous-chaîne)
+    # n'a pas de valeur alignée juste en dessous à cet endroit — sans effet.
+    niu_label = _find_label_line(
+        lines,
+        must_contain=["identification", "idantifikasyon", "identifikasyon"],
+        prefer_last=True,
+    )
+    if niu_label:
+        value = _find_value_below(lines, niu_label)
+        if value:
+            digits = re.sub(r"\D", "", value)
+            if len(digits) == 10:
+                fields["document_number"] = digits
+
+    # "Non" (créole, "Prénom") et "Siyati" (créole, "Nom") : mots-clés
+    # distinctifs qui n'apparaissent nulle part ailleurs sur la carte,
+    # contrairement à "nom"/"prénom" en français (collisions : "Prénom"
+    # contient "nom" comme sous-chaîne, "Nationalité" est proche de "nom").
+    first_name_label = _find_label_line(lines, must_contain=["énom", "non"])
+    last_name_label = _find_label_line(lines, must_contain=["siyati"])
+    first_name = _find_value_below(lines, first_name_label) if first_name_label else None
+    last_name = _find_value_below(lines, last_name_label) if last_name_label else None
+
+    name_parts = [part for part in (first_name, last_name) if part]
+    if name_parts:
+        fields["full_name"] = " ".join(name_parts).upper()
+
+    sex_label = _find_label_line(lines, must_contain=["sexe", "seks"])
+    if sex_label:
+        value = _find_value_below(lines, sex_label)
+        if value and value.strip().upper() in ("M", "F"):
+            fields["sex"] = value.strip().upper()
+
+    place_label = _find_label_line(lines, must_contain=["lieu", "kote"])
+    if place_label:
+        value = _find_row_below(lines, place_label)
+        if value:
+            fields["place_of_birth"] = value.upper()
+
+    # "emission"/"émission" : sans ambiguïté avec "expiration" (mots
+    # distincts) — pas besoin d'exclusion supplémentaire au-delà du
+    # vocabulaire d'étiquettes déjà filtré dans _value_candidates_below.
+    issue_label = _find_label_line(lines, must_contain=["emission", "émission"])
+    if issue_label:
+        fields["date_of_issue"] = _parse_date(_find_value_below(lines, issue_label))
+
+    expiry_label = _find_label_line(lines, must_contain=["expiration"])
+    if expiry_label:
+        fields["date_of_expiry"] = _parse_date(_find_value_below(lines, expiry_label))
+
+    return fields
+
+
+def extract_ocr_fields(document_type: str, front_photo_path: str) -> dict:
+    """Retourne {"document_number": ?str, "full_name": ?str, "date_of_birth": ?str,
+    "sex": ?str, "place_of_birth": ?str, "date_of_issue": ?str, "date_of_expiry": ?str}.
+
+    Champs de date toujours normalisés en YYYY-MM-DD si trouvés. Pour un
+    passeport (pas encore de vrai échantillon pour calibrer une extraction
+    ancrée par position, voir _extract_cni_fields), seuls document_number/
+    full_name/date_of_birth peuvent être renseignés — les 4 champs
+    supplémentaires (sex, place_of_birth, date_of_issue, date_of_expiry)
+    restent toujours null dans ce cas.
+    """
+    fields = {
+        "document_number": None,
+        "full_name": None,
+        "date_of_birth": None,
+        "sex": None,
+        "place_of_birth": None,
+        "date_of_issue": None,
+        "date_of_expiry": None,
+    }
 
     try:
         import easyocr
@@ -90,32 +307,24 @@ def extract_ocr_fields(document_type: str, front_photo_path: str) -> dict:
         log(f"echec OCR: {exc}")
         return fields
 
+    if document_type == "cni":
+        return _extract_cni_fields(_ocr_line_boxes(raw_results))
+
+    # Passeport : pas encore de vrai échantillon pour calibrer une extraction
+    # ancrée par position (voir _extract_cni_fields) — heuristique large sur
+    # le texte brut en attendant, comme avant.
     lines = [text.strip() for (_bbox, text, _confidence) in raw_results if text.strip()]
     full_text = " ".join(lines)
 
-    # --- Numéro de document ---
-    if document_type == "cni":
-        # NIU : exactement 10 chiffres consécutifs (même règle que côté SagaID/SwapLajan).
-        match = re.search(r"\b\d{10}\b", full_text.replace(" ", ""))
-        if match:
-            fields["document_number"] = match.group(0)
-    else:
-        # Passeport : bloc alphanumérique 6-20 caractères, en majuscules — heuristique
-        # large, à affiner une fois de vrais passeports haïtiens disponibles.
-        match = re.search(r"\b[A-Z0-9]{6,20}\b", full_text.upper())
-        if match:
-            fields["document_number"] = match.group(0)
+    match = re.search(r"\b[A-Z0-9]{6,20}\b", full_text.upper())
+    if match:
+        fields["document_number"] = match.group(0)
 
-    # --- Date de naissance --- (formats jj/mm/aaaa, jj-mm-aaaa, jj.mm.aaaa)
     date_match = re.search(r"\b(\d{2})[./-](\d{2})[./-](\d{4})\b", full_text)
     if date_match:
         day, month, year = date_match.groups()
         fields["date_of_birth"] = f"{year}-{month}-{day}"
 
-    # --- Nom complet --- heuristique grossière : la ligne la plus longue composée
-    # uniquement de lettres/espaces en majuscules (typique d'un nom imprimé en
-    # capitales sur une pièce d'identité). À revoir avec de vrais échantillons :
-    # la position/le préfixe ("NOM:", "PRENOM:") sera probablement plus fiable.
     name_candidates = [
         line for line in lines
         if re.fullmatch(r"[A-ZÀ-Ÿ' -]{4,}", line.upper()) and not re.search(r"\d", line)
