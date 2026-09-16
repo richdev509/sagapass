@@ -22,7 +22,11 @@ easyocr>=1.7
 opencv-python-headless>=4.9,<5
 
 # mediapipe : landmarks faciaux (FaceMesh, TFLite — léger) pour la vivacité
-# active (rotation de tête gauche/centre/droite, flux session partenaire QR).
-# Volontairement pas de modèle TensorFlow additionnel lourd — voir l'incident
-# OOM avec VGG-Face plus haut, même contrainte RAM ici.
-mediapipe>=0.10
+# active (rotation de tête gauche/centre/droite) ET la détection de main sur
+# le visage (flux session partenaire QR). Volontairement pas de modèle
+# TensorFlow additionnel lourd — voir l'incident OOM avec VGG-Face plus haut,
+# même contrainte RAM ici. Plafonné à <1 : la branche 1.x a retiré l'API
+# legacy mediapipe.solutions (face_mesh/hands) utilisée ici — confirmé en
+# échouant en conditions réelles avec mediapipe 1.0.1 ("module 'mediapipe'
+# has no attribute 'solutions'").
+mediapipe>=0.10,<1
