@@ -127,6 +127,22 @@
         }
         .camera-turn-arrow.right { animation-direction: reverse; }
 
+        .hold-progress {
+            width: min(78vw, 320px);
+            height: 0.3rem;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.12);
+            overflow: hidden;
+            margin-top: 0.75rem;
+        }
+        .hold-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--primary);
+            border-radius: 999px;
+            transition: width 0.08s linear;
+        }
+
         .thumbs {
             display: flex;
             gap: 0.6rem;
@@ -201,6 +217,16 @@
         }
         .btn-primary-soft:hover { background: var(--primary-dark); }
 
+        .manual-fallback {
+            border: none;
+            background: transparent;
+            color: rgba(255,255,255,0.55);
+            font-size: 0.8rem;
+            text-decoration: underline;
+            cursor: pointer;
+            padding: 0.4rem;
+        }
+
         .spinner {
             width: 2.5rem;
             height: 2.5rem;
@@ -238,6 +264,8 @@
                 <i class="fa-solid fa-chevron-right camera-turn-arrow right" id="arrowRight"></i>
             </div>
 
+            <div class="hold-progress" id="holdProgress"><div class="hold-progress-fill" id="holdProgressFill"></div></div>
+
             <div class="thumbs">
                 <div class="thumb" id="thumb0"><i class="fa-solid fa-arrow-left"></i></div>
                 <div class="thumb" id="thumb1"><i class="fa-solid fa-face-smile"></i></div>
@@ -245,8 +273,9 @@
             </div>
         </div>
 
-        <div style="display:flex; flex-direction:column; align-items:center; gap:1rem;">
-            <button type="button" class="capture-btn" id="captureBtn" disabled></button>
+        <div style="display:flex; flex-direction:column; align-items:center; gap:0.6rem;">
+            <button type="button" class="capture-btn" id="captureBtn" disabled hidden></button>
+            <button type="button" class="manual-fallback" id="manualFallbackBtn" hidden>Ça ne fonctionne pas ? Touchez pour capturer manuellement</button>
             <p class="footer-note">Vos photos servent uniquement à vérifier votre identité pour {{ config('app.name', 'notre partenaire') }} et sont supprimées après analyse.</p>
         </div>
     </div>
@@ -255,6 +284,12 @@
         <i class="fa-solid fa-camera" style="color: rgba(255,255,255,0.5);"></i>
         <h2>Autorisez l'accès à la caméra</h2>
         <p>Votre navigateur va vous demander la permission d'utiliser la caméra avant-plant pour la vérification de vivacité.</p>
+    </div>
+
+    <div class="state-panel" id="stateModelLoading">
+        <div class="spinner"></div>
+        <h2>Préparation de la caméra…</h2>
+        <p>Quelques secondes, le temps de charger la détection de visage.</p>
     </div>
 
     <div class="state-panel" id="stateDenied">
@@ -286,22 +321,50 @@
         <input type="file" name="selfie_right" id="fileRight">
     </form>
 
-    <script>
+    <script type="module">
+        import { FaceLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+
+        // Mêmes seuils et mêmes indices de landmarks que le calcul serveur
+        // (scripts/face-verification/analyze.py, check_active_liveness) —
+        // cohérence entre la détection "à l'oeil" côté navigateur (qui ne
+        // fait que déclencher la capture automatique) et la vérification
+        // faisant foi côté serveur (qui rejoue la même mesure sur les 3
+        // photos réellement envoyées).
+        const TURN_THRESHOLD = 0.12;
+        const CENTER_THRESHOLD = 0.08;
+        const LEFT_FACE_EDGE = 234;
+        const RIGHT_FACE_EDGE = 454;
+        const NOSE_TIP = 1;
+        const HOLD_DURATION_MS = 550;
+        const DETECTION_INTERVAL_MS = 100;
+
+        // Sens déterminé par l'orientation "brute" (non miroir) du flux
+        // caméra : une rotation vers la gauche DE LA PERSONNE déplace son
+        // nez vers la droite de l'image brute (comme sur une photo, pas
+        // comme dans un miroir) → décalage positif. Vérifié en test manuel
+        // réel ; à inverser ici si jamais l'un des deux se trompe de sens.
         const STEPS = [
-            { key: 'left', title: 'Tournez la tête vers la gauche', subtitle: 'Gardez votre visage dans le cadre', arrow: 'arrowLeft' },
-            { key: 'center', title: 'Regardez bien la caméra', subtitle: 'Visage centré, sans lunettes ni masque', arrow: null },
-            { key: 'right', title: 'Tournez la tête vers la droite', subtitle: 'Gardez votre visage dans le cadre', arrow: 'arrowRight' },
+            { key: 'left', title: 'Tournez la tête vers la gauche', subtitle: 'Gardez votre visage dans le cadre', arrow: 'arrowLeft', target: (offset) => offset > TURN_THRESHOLD },
+            { key: 'center', title: 'Regardez bien la caméra', subtitle: 'Visage centré, sans lunettes ni masque', arrow: null, target: (offset) => Math.abs(offset) < CENTER_THRESHOLD },
+            { key: 'right', title: 'Tournez la tête vers la droite', subtitle: 'Gardez votre visage dans le cadre', arrow: 'arrowRight', target: (offset) => offset < -TURN_THRESHOLD },
         ];
 
         let currentStep = 0;
         const capturedBlobs = { left: null, center: null, right: null };
         let stream = null;
+        let faceLandmarker = null;
+        let detectionTimer = null;
+        let holdStartedAt = null;
+        let capturing = false;
+        let autoDetectionAvailable = true;
 
         const video = document.getElementById('video');
         const captureBtn = document.getElementById('captureBtn');
+        const manualFallbackBtn = document.getElementById('manualFallbackBtn');
         const cameraGuide = document.getElementById('cameraGuide');
         const instructionTitle = document.getElementById('instructionTitle');
         const instructionSubtitle = document.getElementById('instructionSubtitle');
+        const holdProgressFill = document.getElementById('holdProgressFill');
 
         function showState(id) {
             document.querySelectorAll('.state-panel').forEach(el => el.classList.remove('is-visible'));
@@ -326,6 +389,8 @@
             document.getElementById('arrowRight').classList.toggle('is-visible', step.arrow === 'arrowRight');
             cameraGuide.classList.remove('is-captured');
             cameraGuide.classList.add('is-ready');
+            holdStartedAt = null;
+            holdProgressFill.style.width = '0%';
         }
 
         async function startCamera() {
@@ -336,11 +401,108 @@
                     audio: false,
                 });
                 video.srcObject = stream;
-                showState(null);
-                captureBtn.disabled = false;
-                updateStepUi();
+                await video.play();
             } catch (err) {
                 showState('stateDenied');
+                return;
+            }
+
+            await initFaceLandmarker();
+            showState(null);
+            updateStepUi();
+
+            if (autoDetectionAvailable) {
+                startDetectionLoop();
+            } else {
+                enableManualMode();
+            }
+        }
+
+        async function initFaceLandmarker() {
+            showState('stateModelLoading');
+            try {
+                const vision = await FilesetResolver.forVisionTasks(
+                    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+                );
+                faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+                        delegate: 'CPU',
+                    },
+                    runningMode: 'VIDEO',
+                    numFaces: 1,
+                });
+            } catch (err) {
+                // Pas de détection auto possible (réseau, navigateur trop
+                // ancien...) — on retombe sur la capture manuelle plutôt que
+                // de bloquer complètement l'utilisateur.
+                autoDetectionAvailable = false;
+            }
+        }
+
+        function enableManualMode() {
+            captureBtn.hidden = false;
+            captureBtn.disabled = false;
+            manualFallbackBtn.hidden = true;
+            instructionSubtitle.textContent = 'Touchez le bouton pour capturer chaque photo';
+        }
+
+        function horizontalNoseOffset(landmarks) {
+            const leftX = landmarks[LEFT_FACE_EDGE].x;
+            const rightX = landmarks[RIGHT_FACE_EDGE].x;
+            const noseX = landmarks[NOSE_TIP].x;
+            const faceWidth = rightX - leftX;
+
+            if (faceWidth === 0) return null;
+
+            return (noseX - (leftX + rightX) / 2) / faceWidth;
+        }
+
+        function startDetectionLoop() {
+            detectionTimer = setInterval(runDetectionTick, DETECTION_INTERVAL_MS);
+            // Après 6s sans détection auto exploitable, propose la bascule
+            // manuelle sans bloquer l'utilisateur indéfiniment.
+            setTimeout(() => {
+                if (currentStep === 0 && holdStartedAt === null && !capturing) {
+                    manualFallbackBtn.hidden = false;
+                }
+            }, 6000);
+        }
+
+        function runDetectionTick() {
+            if (capturing || !faceLandmarker || video.readyState < 2) return;
+
+            const result = faceLandmarker.detectForVideo(video, performance.now());
+            const landmarks = result.faceLandmarks && result.faceLandmarks[0];
+
+            if (!landmarks) {
+                cameraGuide.classList.remove('is-ready');
+                holdStartedAt = null;
+                holdProgressFill.style.width = '0%';
+                return;
+            }
+
+            const offset = horizontalNoseOffset(landmarks);
+            const step = STEPS[currentStep];
+            const aligned = offset !== null && step.target(offset);
+
+            cameraGuide.classList.toggle('is-ready', aligned);
+
+            if (!aligned) {
+                holdStartedAt = null;
+                holdProgressFill.style.width = '0%';
+                return;
+            }
+
+            if (holdStartedAt === null) {
+                holdStartedAt = performance.now();
+            }
+
+            const elapsed = performance.now() - holdStartedAt;
+            holdProgressFill.style.width = Math.min(100, (elapsed / HOLD_DURATION_MS) * 100) + '%';
+
+            if (elapsed >= HOLD_DURATION_MS) {
+                triggerCapture();
             }
         }
 
@@ -358,10 +520,13 @@
             return new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.9));
         }
 
-        captureBtn.addEventListener('click', async () => {
-            captureBtn.disabled = true;
+        async function triggerCapture() {
+            if (capturing) return;
+            capturing = true;
+
             cameraGuide.classList.add('is-captured');
             cameraGuide.classList.remove('is-ready');
+            holdProgressFill.style.width = '100%';
 
             const blob = await captureFrame();
             const step = STEPS[currentStep];
@@ -378,8 +543,17 @@
                 return;
             }
 
-            updateStepUi();
-            setTimeout(() => { captureBtn.disabled = false; }, 400);
+            setTimeout(() => {
+                updateStepUi();
+                capturing = false;
+            }, 500);
+        }
+
+        captureBtn.addEventListener('click', () => triggerCapture());
+
+        manualFallbackBtn.addEventListener('click', () => {
+            if (detectionTimer) clearInterval(detectionTimer);
+            enableManualMode();
         });
 
         function blobToFile(blob, name) {
@@ -387,6 +561,7 @@
         }
 
         function submitCapture() {
+            if (detectionTimer) clearInterval(detectionTimer);
             showState('stateUploading');
 
             if (stream) {
