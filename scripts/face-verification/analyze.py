@@ -440,10 +440,18 @@ def analyze_face_active(
     ])
     face_match_score, match_warnings = check_face_match(front_photo_path, selfie_center_path)
 
-    if passive_passed is None or active_passed is None:
+    if occlusion_detected:
+        # Priorité absolue : une main détectée sur le visage rejette la
+        # vivacité quoi qu'il arrive, même si un autre contrôle échoue par
+        # ailleurs pour une raison technique (ex. la main elle-même gêne la
+        # détection du visage sur un autre frame, laissant active_passed à
+        # None) — un résultat "inconclusif" ne doit jamais masquer un rejet
+        # explicite déjà constaté.
+        liveness_passed = False
+    elif passive_passed is None or active_passed is None:
         liveness_passed = None
     else:
-        liveness_passed = bool(passive_passed and active_passed and not occlusion_detected)
+        liveness_passed = bool(passive_passed and active_passed)
 
     return (
         face_match_score,

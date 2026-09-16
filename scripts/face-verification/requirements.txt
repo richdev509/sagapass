@@ -14,12 +14,16 @@ deepface>=0.0.93
 # seulement des scans plats).
 easyocr>=1.7
 
-# Utilisé en interne par deepface/easyocr, épinglé en version "headless"
-# (pas de dépendance GUI/X11 sur un serveur sans écran). Plafonné à <5 : la
-# branche 5.x a retiré les fichiers de cascades Haar (cv2/data/*.xml) que le
-# détecteur de visage par défaut de DeepFace ("opencv") attend encore —
-# confirmé en échouant en conditions réelles avec opencv-python-headless 5.0.
-opencv-python-headless>=4.9,<5
+# "contrib" (pas juste opencv-python-headless) : le modèle SFace utilisé pour
+# la correspondance visage (voir check_face_match, model_name="SFace") a
+# besoin de cv2.FaceRecognizerSF, qui vit dans les modules "contrib" d'OpenCV
+# — confirmé en échouant en conditions réelles avec opencv-python-headless
+# seul ("This is an optional dependency. You can install it as pip install
+# opencv-contrib-python."). Toujours "headless" (pas de GUI/X11 sur un
+# serveur sans écran) et plafonné à <5 (la branche 5.x a retiré les fichiers
+# de cascades Haar cv2/data/*.xml qu'attend le détecteur de visage par défaut
+# de DeepFace — confirmé séparément en échouant avec la 5.0).
+opencv-contrib-python-headless>=4.9,<5
 
 # mediapipe : landmarks faciaux (FaceMesh, TFLite — léger) pour la vivacité
 # active (rotation de tête gauche/centre/droite) ET la détection de main sur
