@@ -30,6 +30,7 @@ raisonnables, à ajuster une fois testés en conditions réelles.
 """
 
 import sys
+import os
 import json
 import re
 import traceback
@@ -200,21 +201,24 @@ ACTIVE_LIVENESS_TURN_THRESHOLD = 0.12
 # frontal (tête non tournée) pour servir de référence de correspondance.
 ACTIVE_LIVENESS_CENTER_THRESHOLD = 0.08
 
-# Indices de landmarks mediapipe FaceMesh (topologie 468 points) : bord du
-# visage côté gauche/droite de l'image et pointe du nez.
+# Indices de landmarks mediapipe FaceLandmarker (topologie 468 points) : bord
+# du visage côté gauche/droite de l'image et pointe du nez.
 _MEDIAPIPE_LEFT_FACE_EDGE = 234
 _MEDIAPIPE_RIGHT_FACE_EDGE = 454
 _MEDIAPIPE_NOSE_TIP = 1
 
+# Modèles .task auto-hébergés (voir scripts/face-verification/models/,
+# commités dans le repo) — l'API "legacy" mediapipe.solutions.* n'existe plus
+# dans les wheels mediapipe récentes (confirmé en conditions réelles : même
+# avec mediapipe épinglé <1, le paquet installé n'a ni mediapipe.solutions ni
+# mediapipe.python, seulement mediapipe.tasks). On utilise donc directement
+# l'API "Tasks", plus moderne, la seule fiable.
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_FACE_LANDMARKER_MODEL_PATH = os.path.join(_SCRIPT_DIR, "models", "face_landmarker.task")
+_HAND_LANDMARKER_MODEL_PATH = os.path.join(_SCRIPT_DIR, "models", "hand_landmarker.task")
 
-def _estimate_horizontal_nose_offset(image_path: str):
-    """Retourne un flottant (proxy de rotation de tête, signe arbitraire mais
-    cohérent d'un appel à l'autre) ou None si aucun visage n'est détecté.
 
-    Calcule la position du nez par rapport au centre du visage, normalisée par
-    la largeur du visage : proche de 0 quand la personne fait face à la
-    caméra, s'éloigne de 0 (signe selon le sens) quand la tête est tournée.
-    """
+def _load_mp_image(image_path: str):
     import cv2
     import mediapipe as mp
 
@@ -223,26 +227,65 @@ def _estimate_horizontal_nose_offset(image_path: str):
         return None
 
     rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    return mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
 
-    with mp.solutions.face_mesh.FaceMesh(
-        static_image_mode=True,
-        max_num_faces=1,
-        refine_landmarks=False,
-        min_detection_confidence=0.5,
-    ) as face_mesh:
-        result = face_mesh.process(rgb_image)
 
-    if not result.multi_face_landmarks:
+def _create_face_landmarker():
+    import mediapipe as mp
+    from mediapipe.tasks.python import BaseOptions
+    from mediapipe.tasks.python.vision import FaceLandmarker, FaceLandmarkerOptions, RunningMode
+
+    options = FaceLandmarkerOptions(
+        base_options=BaseOptions(model_asset_path=_FACE_LANDMARKER_MODEL_PATH),
+        running_mode=RunningMode.IMAGE,
+        num_faces=1,
+        min_face_detection_confidence=0.5,
+    )
+    return FaceLandmarker.create_from_options(options)
+
+
+def _create_hand_landmarker():
+    from mediapipe.tasks.python import BaseOptions
+    from mediapipe.tasks.python.vision import HandLandmarker, HandLandmarkerOptions, RunningMode
+
+    options = HandLandmarkerOptions(
+        base_options=BaseOptions(model_asset_path=_HAND_LANDMARKER_MODEL_PATH),
+        running_mode=RunningMode.IMAGE,
+        num_hands=2,
+        min_hand_detection_confidence=0.5,
+    )
+    return HandLandmarker.create_from_options(options)
+
+
+def _detect_face_landmarks(face_landmarker, image_path: str):
+    """Landmarks du premier visage détecté (liste d'objets avec .x/.y/.z), ou
+    None si aucun visage. Réutilise un FaceLandmarker déjà créé — le créer une
+    fois par lot d'images, pas une fois par image (coût de chargement du
+    modèle).
+    """
+    mp_image = _load_mp_image(image_path)
+    if mp_image is None:
         return None
 
-    landmarks = result.multi_face_landmarks[0].landmark
+    result = face_landmarker.detect(mp_image)
+    if not result.face_landmarks:
+        return None
+
+    return result.face_landmarks[0]
+
+
+def _horizontal_nose_offset(landmarks) -> float:
+    """Calcule la position du nez par rapport au centre du visage, normalisée
+    par la largeur du visage : proche de 0 quand la personne fait face à la
+    caméra, s'éloigne de 0 (signe selon le sens) quand la tête est tournée.
+    """
     left_x = landmarks[_MEDIAPIPE_LEFT_FACE_EDGE].x
     right_x = landmarks[_MEDIAPIPE_RIGHT_FACE_EDGE].x
     nose_x = landmarks[_MEDIAPIPE_NOSE_TIP].x
 
     face_width = right_x - left_x
     if face_width == 0:
-        return None
+        return 0.0
 
     center_x = (left_x + right_x) / 2
     return (nose_x - center_x) / face_width
@@ -267,18 +310,20 @@ def check_active_liveness(selfie_left_path: str, selfie_center_path: str, selfie
         return None, warnings
 
     offsets = {}
-    for label, path in (("left", selfie_left_path), ("center", selfie_center_path), ("right", selfie_right_path)):
-        try:
-            offset = _estimate_horizontal_nose_offset(path)
-        except Exception as exc:  # noqa: BLE001
-            warnings.append(f"active_liveness_error_{label}: {exc}")
-            return None, warnings
 
-        if offset is None:
-            warnings.append(f"active_liveness_no_face_in_{label}_frame")
-            return None, warnings
+    try:
+        with _create_face_landmarker() as face_landmarker:
+            for label, path in (("left", selfie_left_path), ("center", selfie_center_path), ("right", selfie_right_path)):
+                landmarks = _detect_face_landmarks(face_landmarker, path)
 
-        offsets[label] = offset
+                if landmarks is None:
+                    warnings.append(f"active_liveness_no_face_in_{label}_frame")
+                    return None, warnings
+
+                offsets[label] = _horizontal_nose_offset(landmarks)
+    except Exception as exc:  # noqa: BLE001
+        warnings.append(f"active_liveness_error: {exc}")
+        return None, warnings
 
     center_ok = abs(offsets["center"]) < ACTIVE_LIVENESS_CENTER_THRESHOLD
     left_turned = abs(offsets["left"]) > ACTIVE_LIVENESS_TURN_THRESHOLD
@@ -293,57 +338,25 @@ def check_active_liveness(selfie_left_path: str, selfie_center_path: str, selfie
     return active_liveness_passed, warnings
 
 
-def _face_bounding_box(image_path: str):
-    """(min_x, min_y, max_x, max_y) normalisé 0-1, ou None si aucun visage détecté."""
-    import cv2
-    import mediapipe as mp
-
-    image = cv2.imread(image_path)
-    if image is None:
-        return None
-
-    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-    with mp.solutions.face_mesh.FaceMesh(
-        static_image_mode=True,
-        max_num_faces=1,
-        refine_landmarks=False,
-        min_detection_confidence=0.5,
-    ) as face_mesh:
-        result = face_mesh.process(rgb_image)
-
-    if not result.multi_face_landmarks:
-        return None
-
-    landmarks = result.multi_face_landmarks[0].landmark
+def _face_bounding_box(landmarks):
+    """(min_x, min_y, max_x, max_y) normalisé 0-1 à partir de landmarks déjà
+    détectés (voir _detect_face_landmarks)."""
     xs = [lm.x for lm in landmarks]
     ys = [lm.y for lm in landmarks]
 
     return min(xs), min(ys), max(xs), max(ys)
 
 
-def _detect_hand_landmarks(image_path: str) -> list:
-    """Une liste de jeux de landmarks (un par main détectée), vide si aucune —
-    mediapipe.solutions.hands, même famille "legacy" que face_mesh : modèles
-    embarqués dans le paquet, pas de fichier .task à télécharger séparément.
-    """
-    import cv2
-    import mediapipe as mp
-
-    image = cv2.imread(image_path)
-    if image is None:
+def _detect_hand_landmarks(hand_landmarker, image_path: str) -> list:
+    """Une liste de jeux de landmarks (un par main détectée), vide si aucune.
+    Réutilise un HandLandmarker déjà créé, même principe que
+    _detect_face_landmarks."""
+    mp_image = _load_mp_image(image_path)
+    if mp_image is None:
         return []
 
-    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-    with mp.solutions.hands.Hands(
-        static_image_mode=True,
-        max_num_hands=2,
-        min_detection_confidence=0.5,
-    ) as hands:
-        result = hands.process(rgb_image)
-
-    return result.multi_hand_landmarks or []
+    result = hand_landmarker.detect(mp_image)
+    return result.hand_landmarks or []
 
 
 # Une main est considérée comme "sur le visage" seulement si une bonne partie
@@ -375,29 +388,30 @@ def check_hand_occlusion(labeled_paths: list) -> tuple:
         warnings.append("hand_occlusion_check_unavailable")
         return False, warnings
 
-    for label, path in labeled_paths:
-        try:
-            face_box = _face_bounding_box(path)
-            if face_box is None:
-                continue  # absence de visage déjà signalée ailleurs
+    try:
+        with _create_face_landmarker() as face_landmarker, _create_hand_landmarker() as hand_landmarker:
+            for label, path in labeled_paths:
+                landmarks = _detect_face_landmarks(face_landmarker, path)
+                if landmarks is None:
+                    continue  # absence de visage déjà signalée ailleurs
 
-            min_x, min_y, max_x, max_y = face_box
-            margin_x = (max_x - min_x) * HAND_OCCLUSION_BOX_MARGIN_RATIO
-            margin_y = (max_y - min_y) * HAND_OCCLUSION_BOX_MARGIN_RATIO
-            min_x, max_x = min_x + margin_x, max_x - margin_x
-            min_y, max_y = min_y + margin_y, max_y - margin_y
+                min_x, min_y, max_x, max_y = _face_bounding_box(landmarks)
+                margin_x = (max_x - min_x) * HAND_OCCLUSION_BOX_MARGIN_RATIO
+                margin_y = (max_y - min_y) * HAND_OCCLUSION_BOX_MARGIN_RATIO
+                min_x, max_x = min_x + margin_x, max_x - margin_x
+                min_y, max_y = min_y + margin_y, max_y - margin_y
 
-            for hand_landmarks in _detect_hand_landmarks(path):
-                points_inside = sum(
-                    1 for lm in hand_landmarks.landmark
-                    if min_x <= lm.x <= max_x and min_y <= lm.y <= max_y
-                )
-                if points_inside >= HAND_OCCLUSION_MIN_POINTS_INSIDE:
-                    occlusion_detected = True
-                    warnings.append(f"hand_occlusion_detected_in_{label}_frame")
-                    break
-        except Exception as exc:  # noqa: BLE001 - jamais crasher tout le script pour ce contrôle seul
-            warnings.append(f"hand_occlusion_check_error_{label}: {exc}")
+                for hand_landmarks in _detect_hand_landmarks(hand_landmarker, path):
+                    points_inside = sum(
+                        1 for lm in hand_landmarks
+                        if min_x <= lm.x <= max_x and min_y <= lm.y <= max_y
+                    )
+                    if points_inside >= HAND_OCCLUSION_MIN_POINTS_INSIDE:
+                        occlusion_detected = True
+                        warnings.append(f"hand_occlusion_detected_in_{label}_frame")
+                        break
+    except Exception as exc:  # noqa: BLE001 - jamais crasher tout le script pour ce contrôle seul
+        warnings.append(f"hand_occlusion_check_error: {exc}")
 
     return occlusion_detected, warnings
 
