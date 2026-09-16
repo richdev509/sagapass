@@ -33,6 +33,7 @@ import sys
 import json
 import re
 import traceback
+import contextlib
 
 
 def log(message: str) -> None:
@@ -329,19 +330,31 @@ def main() -> int:
 
     document_type, front_photo_path, _back_photo_path, selfie_path = sys.argv[1:5]
 
-    try:
-        ocr_fields = extract_ocr_fields(document_type, front_photo_path)
-    except Exception:  # noqa: BLE001 - jamais crasher sur l'OCR seul
-        log(traceback.format_exc())
-        ocr_fields = {"document_number": None, "full_name": None, "date_of_birth": None}
+    # Le contrat d'E/S exige un stdout composé d'UNE seule ligne JSON (voir
+    # docstring en tête de fichier) — mais deepface/easyocr/mediapipe
+    # impriment parfois eux-mêmes sur stdout (ex. progression de
+    # téléchargement d'un modèle au premier lancement, comme MiniFASNet pour
+    # l'anti-spoofing), ce qui corrompt la sortie et casse le parsing JSON
+    # côté PHP (FaceVerificationScriptClient). Plutôt que de compter sur le
+    # bon comportement de chaque dépendance, on redirige explicitement stdout
+    # vers stderr pendant toute la durée de l'analyse, et on ne réutilise le
+    # vrai stdout que pour l'unique print() final ci-dessous.
+    real_stdout = sys.stdout
 
-    if len(sys.argv) == 7:
-        selfie_left_path, selfie_right_path = sys.argv[5:7]
-        face_match_score, liveness_passed, warnings = analyze_face_active(
-            front_photo_path, selfie_left_path, selfie_path, selfie_right_path
-        )
-    else:
-        face_match_score, liveness_passed, warnings = analyze_face(front_photo_path, selfie_path)
+    with contextlib.redirect_stdout(sys.stderr):
+        try:
+            ocr_fields = extract_ocr_fields(document_type, front_photo_path)
+        except Exception:  # noqa: BLE001 - jamais crasher sur l'OCR seul
+            log(traceback.format_exc())
+            ocr_fields = {"document_number": None, "full_name": None, "date_of_birth": None}
+
+        if len(sys.argv) == 7:
+            selfie_left_path, selfie_right_path = sys.argv[5:7]
+            face_match_score, liveness_passed, warnings = analyze_face_active(
+                front_photo_path, selfie_left_path, selfie_path, selfie_right_path
+            )
+        else:
+            face_match_score, liveness_passed, warnings = analyze_face(front_photo_path, selfie_path)
 
     output = {
         "ocr": ocr_fields,
@@ -350,7 +363,7 @@ def main() -> int:
         "warnings": warnings,
     }
 
-    print(json.dumps(output))
+    print(json.dumps(output), file=real_stdout)
     return 0
 
 
