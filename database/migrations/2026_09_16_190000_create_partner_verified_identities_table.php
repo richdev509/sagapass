@@ -42,9 +42,12 @@ return new class extends Migration
             // DeveloperApplication n'ayant pas de webhook par défaut.
             $table->string('webhook_url')->nullable();
 
+            // Nom de contrainte explicite et court : le nom par défaut généré
+            // par Laravel (table+colonne+"_foreign") dépasse la limite MySQL
+            // de 64 caractères pour ces deux noms longs.
             $table->foreignId('last_partner_verification_session_id')
                 ->nullable()
-                ->constrained('partner_verification_sessions')
+                ->constrained('partner_verification_sessions', 'id', 'pvi_last_session_fk')
                 ->nullOnDelete();
 
             // Empêche d'envoyer l'alerte d'expiration plus d'une fois.
@@ -52,7 +55,8 @@ return new class extends Migration
 
             $table->timestamps();
 
-            $table->unique(['developer_application_id', 'document_number']);
+            // Nom explicite : le nom par défaut dépasse aussi la limite MySQL de 64 caractères.
+            $table->unique(['developer_application_id', 'document_number'], 'pvi_partner_document_unique');
             $table->index(['status', 'valid_until']);
         });
 
@@ -60,7 +64,7 @@ return new class extends Migration
             $table->foreignId('partner_verified_identity_id')
                 ->nullable()
                 ->after('warnings')
-                ->constrained('partner_verified_identities')
+                ->constrained('partner_verified_identities', 'id', 'pvs_verified_identity_fk')
                 ->nullOnDelete();
         });
     }
@@ -71,7 +75,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('partner_verification_sessions', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('partner_verified_identity_id');
+            $table->dropForeign('pvs_verified_identity_fk');
+            $table->dropColumn('partner_verified_identity_id');
         });
 
         Schema::dropIfExists('partner_verified_identities');
