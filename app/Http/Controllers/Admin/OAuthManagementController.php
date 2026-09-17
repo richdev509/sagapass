@@ -332,4 +332,57 @@ class OAuthManagementController extends Controller
             'app_key' => $appKey ?? 'Impossible de déchiffrer l\'app_key. Veuillez le régénérer.',
         ]);
     }
+
+    /**
+     * Régénère le secret dédié à la signature des webhooks sortants (voir
+     * NotifyPartnerSessionWebhook) — distinct de client_secret, pour ne pas
+     * coupler leurs rotations.
+     */
+    public function regenerateWebhookSecret(Request $request, DeveloperApplication $application)
+    {
+        if (!auth('admin')->user()->can('view-oauth-apps')) {
+            abort(403, 'Accès refusé.');
+        }
+
+        $newWebhookSecret = $application->regenerateWebhookSecret();
+
+        AuditLog::create([
+            'admin_id' => Auth::guard('admin')->id(),
+            'user_id' => $application->user_id,
+            'action' => 'partner_webhook_secret_regenerated',
+            'description' => "Secret webhook régénéré pour l'application '{$application->name}'",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return redirect()
+            ->route('admin.oauth.show', $application)
+            ->with('success', 'Secret webhook régénéré avec succès.')
+            ->with('new_webhook_secret', $newWebhookSecret);
+    }
+
+    /**
+     * Return the plaintext webhook_secret (AJAX).
+     */
+    public function showWebhookSecret(DeveloperApplication $application)
+    {
+        if (!auth('admin')->user()->can('view-oauth-apps')) {
+            abort(403, 'Accès refusé.');
+        }
+
+        $webhookSecret = $application->getPlaintextWebhookSecret();
+
+        AuditLog::create([
+            'admin_id' => Auth::guard('admin')->id(),
+            'user_id' => $application->user_id,
+            'action' => 'partner_webhook_secret_viewed',
+            'description' => "Secret webhook consulté pour l'application '{$application->name}'",
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        return response()->json([
+            'webhook_secret' => $webhookSecret ?? 'Impossible de déchiffrer le secret webhook. Veuillez le régénérer.',
+        ]);
+    }
 }

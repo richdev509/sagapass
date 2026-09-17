@@ -194,6 +194,8 @@ Route::middleware(['auth:admin', 'ensure.2fa'])->prefix('admin')->name('admin.')
         Route::get('/{application}/secret', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'showSecret'])->name('show-secret');
         Route::post('/{application}/regenerate-app-key', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'regenerateAppKey'])->name('regenerate-app-key');
         Route::get('/{application}/app-key', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'showAppKey'])->name('show-app-key');
+        Route::post('/{application}/regenerate-webhook-secret', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'regenerateWebhookSecret'])->name('regenerate-webhook-secret');
+        Route::get('/{application}/webhook-secret', [\App\Http\Controllers\Admin\OAuthManagementController::class, 'showWebhookSecret'])->name('show-webhook-secret');
     });
 
     // Gestion des rôles et permissions

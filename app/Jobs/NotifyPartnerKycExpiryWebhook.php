@@ -105,10 +105,11 @@ class NotifyPartnerKycExpiryWebhook implements ShouldQueue
 
     private function generateSignature(array $payload): string
     {
-        $secret = config('services.sagaid_webhook.secret');
+        $secret = $this->identity->developerApplication?->getPlaintextWebhookSecret()
+            ?? config('services.sagaid_webhook.secret');
 
         if (empty($secret)) {
-            Log::warning('NotifyPartnerKycExpiryWebhook - services.sagaid_webhook.secret non configuré, fallback app.key', [
+            Log::warning('NotifyPartnerKycExpiryWebhook - aucun secret webhook disponible, fallback app.key', [
                 'kyc_id' => $this->identity->kyc_id,
             ]);
             $secret = config('app.key');

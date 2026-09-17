@@ -190,6 +190,40 @@
                             </td>
                         </tr>
                         <tr>
+                            <th>Webhook Secret <small class="text-muted">(signature des notifications)</small></th>
+                            <td>
+                                @if(session('new_webhook_secret'))
+                                    <div class="alert alert-success p-2 mb-2">
+                                        <small><strong><i class="fas fa-exclamation-triangle"></i> Nouveau secret webhook généré !</strong></small>
+                                    </div>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" class="form-control font-monospace" value="{{ session('new_webhook_secret') }}" readonly id="newWebhookSecretField">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('newWebhookSecretField')" title="Copier">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                @else
+                                    <div class="input-group input-group-sm">
+                                        <input type="password" class="form-control font-monospace" value="••••••••••••••••" readonly id="webhookSecretField">
+                                        <button class="btn btn-outline-secondary" type="button" id="toggleWebhookSecretBtn" onclick="toggleWebhookSecret({{ $application->id }})" title="Afficher/Masquer">
+                                            <i class="fas fa-eye" id="webhookSecretEyeIcon"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('webhookSecretField')" title="Copier" id="copyWebhookSecretBtn" style="display:none;">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                @endif
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#regenerateWebhookSecretModal">
+                                        <i class="fas fa-sync-alt me-1"></i> Régénérer
+                                    </button>
+                                    <small class="text-muted d-block mt-1">
+                                        <i class="fas fa-info-circle"></i> Utilisé pour signer (HMAC) les webhooks de résultat de vérification envoyés à ce partenaire — distinct du client_secret.
+                                    </small>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
                             <th>Site web</th>
                             <td>
                                 @if($application->website)
@@ -401,6 +435,45 @@
     </div>
 </div>
 
+{{-- Regenerate Webhook Secret Modal --}}
+<div class="modal fade" id="regenerateWebhookSecretModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ route('admin.oauth.regenerate-webhook-secret', $application) }}" method="POST">
+                @csrf
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="fas fa-sync-alt me-2"></i>
+                        Régénérer le Webhook Secret
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <strong><i class="fas fa-exclamation-triangle me-2"></i> Attention !</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>L'ancien secret webhook sera <strong>immédiatement invalidé</strong></li>
+                            <li>Le partenaire ne pourra plus vérifier la signature des webhooks <strong>jusqu'à mise à jour</strong> de sa configuration</li>
+                            <li>Le nouveau secret sera affiché <strong>une seule fois</strong> — copiez-le immédiatement</li>
+                            <li>Communiquez la nouvelle clé au partenaire de manière sécurisée</li>
+                        </ul>
+                    </div>
+                    <p>Êtes-vous sûr de vouloir régénérer le secret webhook pour <strong>{{ $application->name }}</strong> ?</p>
+                    <p class="text-muted small mb-0">
+                        <i class="fas fa-info-circle"></i> Utilisé pour signer (HMAC-SHA256) les webhooks de résultat de vérification envoyés à ce partenaire.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-sync-alt me-1"></i> Régénérer le secret webhook
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')
@@ -481,6 +554,48 @@
             })
             .catch(() => {
                 alert('Erreur lors du chargement de l\'app_key.');
+                icon.className = 'fas fa-eye';
+            })
+            .finally(() => {
+                toggleBtn.disabled = false;
+            });
+        }
+    }
+
+    let webhookSecretVisible = false;
+
+    function toggleWebhookSecret(appId) {
+        const field = document.getElementById('webhookSecretField');
+        const icon = document.getElementById('webhookSecretEyeIcon');
+        const copyBtn = document.getElementById('copyWebhookSecretBtn');
+        const toggleBtn = document.getElementById('toggleWebhookSecretBtn');
+
+        if (webhookSecretVisible) {
+            field.type = 'password';
+            field.value = '••••••••••••••••';
+            icon.className = 'fas fa-eye';
+            copyBtn.style.display = 'none';
+            webhookSecretVisible = false;
+        } else {
+            toggleBtn.disabled = true;
+            icon.className = 'fas fa-spinner fa-spin';
+
+            fetch(`{{ url('/admin/oauth') }}/${appId}/webhook-secret`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                field.type = 'text';
+                field.value = data.webhook_secret;
+                icon.className = 'fas fa-eye-slash';
+                copyBtn.style.display = '';
+                webhookSecretVisible = true;
+            })
+            .catch(() => {
+                alert('Erreur lors du chargement du secret webhook.');
                 icon.className = 'fas fa-eye';
             })
             .finally(() => {

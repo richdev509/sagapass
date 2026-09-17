@@ -17,6 +17,7 @@ class DeveloperApplication extends Model
         'client_id',
         'client_secret',
         'app_key',
+        'webhook_secret',
         'redirect_uris',
         'allowed_scopes',
         'status',
@@ -35,6 +36,7 @@ class DeveloperApplication extends Model
     protected $hidden = [
         'client_secret',
         'app_key',
+        'webhook_secret',
     ];
 
     protected static function boot()
@@ -52,6 +54,10 @@ class DeveloperApplication extends Model
             if (!$app->app_key) {
                 $plainAppKey = Str::random(64);
                 $app->app_key = encrypt($plainAppKey);
+            }
+            if (!$app->webhook_secret) {
+                $plainWebhookSecret = Str::random(64);
+                $app->webhook_secret = encrypt($plainWebhookSecret);
             }
             if (!$app->allowed_scopes) {
                 $app->allowed_scopes = ['profile'];
@@ -139,6 +145,30 @@ class DeveloperApplication extends Model
         $this->app_key = encrypt($plainAppKey);
         $this->save();
         return $plainAppKey;
+    }
+
+    /**
+     * Get the plaintext webhook_secret (admin only) — utilisé pour signer les
+     * webhooks sortants (voir NotifyPartnerSessionWebhook).
+     */
+    public function getPlaintextWebhookSecret(): ?string
+    {
+        try {
+            return $this->webhook_secret ? decrypt($this->webhook_secret) : null;
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Regenerate webhook_secret and return the new plaintext value.
+     */
+    public function regenerateWebhookSecret(): string
+    {
+        $plainWebhookSecret = Str::random(64);
+        $this->webhook_secret = encrypt($plainWebhookSecret);
+        $this->save();
+        return $plainWebhookSecret;
     }
 
     /**

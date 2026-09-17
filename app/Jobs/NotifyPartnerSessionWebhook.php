@@ -138,10 +138,14 @@ class NotifyPartnerSessionWebhook implements ShouldQueue
 
     private function generateSignature(array $payload): string
     {
-        $secret = config('services.sagaid_webhook.secret');
+        // Secret dédié au partenaire (voir DeveloperApplication::webhook_secret,
+        // régénérable indépendamment de client_secret) — repli sur l'ancien
+        // secret global partagé, puis sur app.key, si jamais absent.
+        $secret = $this->session->developerApplication?->getPlaintextWebhookSecret()
+            ?? config('services.sagaid_webhook.secret');
 
         if (empty($secret)) {
-            Log::warning('NotifyPartnerSessionWebhook - services.sagaid_webhook.secret non configuré, fallback app.key', [
+            Log::warning('NotifyPartnerSessionWebhook - aucun secret webhook disponible, fallback app.key', [
                 'session_id' => $this->session->id,
             ]);
             $secret = config('app.key');
