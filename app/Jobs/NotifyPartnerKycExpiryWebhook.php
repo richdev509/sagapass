@@ -25,7 +25,13 @@ class NotifyPartnerKycExpiryWebhook implements ShouldQueue
 
     public array $backoff = [30, 120, 300];
 
-    public function __construct(protected PartnerVerifiedIdentity $identity) {}
+    public function __construct(protected PartnerVerifiedIdentity $identity)
+    {
+        // Réutilise le worker 'cv-analysis' déjà déployé (queue:work redis
+        // --queue=cv-analysis) plutôt que la queue 'default', qu'aucun worker
+        // ne consomme actuellement en production.
+        $this->onQueue('cv-analysis');
+    }
 
     public function handle(): void
     {

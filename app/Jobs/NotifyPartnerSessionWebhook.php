@@ -32,7 +32,12 @@ class NotifyPartnerSessionWebhook implements ShouldQueue
     public function __construct(
         protected PartnerVerificationSession $session,
         protected string $event,
-    ) {}
+    ) {
+        // Réutilise le worker 'cv-analysis' déjà déployé (queue:work redis
+        // --queue=cv-analysis) plutôt que la queue 'default', qu'aucun worker
+        // ne consomme actuellement en production.
+        $this->onQueue('cv-analysis');
+    }
 
     public function handle(): void
     {
