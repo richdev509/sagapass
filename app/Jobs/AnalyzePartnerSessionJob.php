@@ -6,6 +6,7 @@ use App\Models\PartnerVerificationSession;
 use App\Models\PartnerVerifiedIdentity;
 use App\Services\BlacklistScreeningService;
 use App\Services\FaceVerification\FaceVerificationService;
+use App\Services\SubmittedDataConsistencyChecker;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -38,7 +39,7 @@ class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQ
         return (string) $this->sessionId;
     }
 
-    public function handle(FaceVerificationService $service, BlacklistScreeningService $blacklist): void
+    public function handle(FaceVerificationService $service, BlacklistScreeningService $blacklist, SubmittedDataConsistencyChecker $consistency): void
     {
         $session = PartnerVerificationSession::query()->find($this->sessionId);
 
@@ -57,12 +58,36 @@ class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQ
             selfieRightPath: $disk->path($session->selfie_right_path),
         );
 
-        $session->purgePhotos();
-
         if (! $result->ranSuccessfully) {
+            // Échec technique (pas un verdict métier négatif) : les photos
+            // sont volontairement CONSERVÉES — jamais de purge ici — pour
+            // qu'un admin puisse trancher manuellement (voir
+            // Admin\PartnerSessionReviewController) plutôt que de rejeter à
+            // l'aveugle une vraie personne à cause d'un problème technique.
+            $session->forceFill([
+                'status' => 'awaiting_manual_review',
+                'analysis_raw' => ['error' => $result->errorMessage],
+            ])->save();
+
+            return;
+        }
+
+        // Les informations transmises par le partenaire à la création de la
+        // session ne correspondent pas à ce que l'OCR a réellement lu sur la
+        // pièce présentée : signe qu'une personne tente de créer un compte
+        // avec la pièce de quelqu'un d'autre — rejet direct, sans passer par
+        // le criblage liste de vigilance ni l'émission d'un KYC ID.
+        if ($consistency->isMismatch($session->partner_submitted_data, $result->ocr)) {
+            $session->purgePhotos();
+
             $session->forceFill([
                 'status' => 'failed',
-                'analysis_raw' => ['error' => $result->errorMessage],
+                'ocr_extracted_document_number' => $result->ocr['document_number'],
+                'ocr_extracted_full_name' => $result->ocr['full_name'],
+                'ocr_extracted_date_of_birth' => $result->ocr['date_of_birth'],
+                'analysis_raw' => $result->raw,
+                'warnings' => $result->warnings,
+                'rejection_reason' => 'data_mismatch',
                 'completed_at' => now(),
             ])->save();
 
@@ -70,6 +95,8 @@ class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQ
 
             return;
         }
+
+        $session->purgePhotos();
 
         $screening = $blacklist->screen($result->ocr['document_number'], $result->ocr['full_name']);
 

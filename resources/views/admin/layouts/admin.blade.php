@@ -367,6 +367,15 @@
             @endcan
 
             @can('verify-documents', 'admin')
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('admin.partner-sessions.*') ? 'active' : '' }}" href="{{ route('admin.partner-sessions.index') }}">
+                    <i class="fas fa-user-shield"></i>
+                    <span>Sessions Partenaire (Revue)</span>
+                </a>
+            </li>
+            @endcan
+
+            @can('verify-documents', 'admin')
             {{-- ============ INSCRIPTIONS MOBILES ============ --}}
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('admin.mobile-verification.*') ? 'active' : '' }}"

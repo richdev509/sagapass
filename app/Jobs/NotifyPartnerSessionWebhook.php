@@ -114,6 +114,9 @@ class NotifyPartnerSessionWebhook implements ShouldQueue
             // 'document_reject' (numéro de pièce en liste de vigilance) |
             // 'name_alert' (nom correspondant, signal faible) | null.
             'blacklist_hit' => $this->session->blacklist_hit,
+            // Court motif structuré sur un échec (ex. 'data_mismatch',
+            // 'manual_rejection') — complète les 4 champs ci-dessus.
+            'rejection_reason' => $this->session->rejection_reason,
             'status' => $this->session->status,
             'face_match_score' => $this->session->face_match_score,
             'liveness_passed' => $this->session->liveness_passed,

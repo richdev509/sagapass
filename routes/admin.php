@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\VerificationController;
+use App\Http\Controllers\Admin\PartnerSessionReviewController;
 use App\Http\Controllers\Admin\MobileVerificationController;
 use App\Http\Controllers\Admin\CitizenController;
 use App\Http\Controllers\Admin\AdminController;
@@ -101,6 +102,18 @@ Route::middleware(['auth:admin', 'ensure.2fa'])->prefix('admin')->name('admin.')
         Route::post('/{document}/reject', [VerificationController::class, 'reject'])
             ->middleware('permission:verify-documents,admin')
             ->name('reject');
+    });
+
+    // Revue manuelle des sessions partenaire (QR) dont l'analyse automatisée
+    // a échoué techniquement — voir AnalyzePartnerSessionJob et
+    // PartnerSessionReviewController. Middleware déjà appliqué dans le
+    // constructeur du contrôleur (auth:admin + permission:verify-documents).
+    Route::prefix('partner-sessions')->name('partner-sessions.')->group(function () {
+        Route::get('/', [PartnerSessionReviewController::class, 'index'])->name('index');
+        Route::get('/{partnerSession}', [PartnerSessionReviewController::class, 'show'])->name('show');
+        Route::get('/{partnerSession}/image/{type}', [PartnerSessionReviewController::class, 'serveImage'])->name('image');
+        Route::post('/{partnerSession}/approve', [PartnerSessionReviewController::class, 'approve'])->name('approve');
+        Route::post('/{partnerSession}/reject', [PartnerSessionReviewController::class, 'reject'])->name('reject');
     });
 
     // Gestion des citoyens

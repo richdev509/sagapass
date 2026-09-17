@@ -35,7 +35,12 @@ class PartnerVerificationSession extends Model
         'ocr_extracted_date_of_birth',
         'analysis_raw',
         'warnings',
+        'rejection_reason',
+        'reviewed_by',
+        'reviewed_at',
         'partner_verified_identity_id',
+        'blacklist_hit',
+        'blacklist_matched_identity_id',
         'ip_address',
         'user_agent',
         'expires_at',
@@ -52,6 +57,7 @@ class PartnerVerificationSession extends Model
             'partner_submitted_data' => 'array',
             'expires_at' => 'datetime',
             'completed_at' => 'datetime',
+            'reviewed_at' => 'datetime',
         ];
     }
 
@@ -63,6 +69,11 @@ class PartnerVerificationSession extends Model
     public function partnerVerifiedIdentity()
     {
         return $this->belongsTo(PartnerVerifiedIdentity::class);
+    }
+
+    public function reviewer()
+    {
+        return $this->belongsTo(Admin::class, 'reviewed_by');
     }
 
     public function isExpired(): bool
@@ -93,6 +104,18 @@ class PartnerVerificationSession extends Model
     public function isTerminal(): bool
     {
         return in_array($this->status, ['completed', 'failed', 'expired'], true);
+    }
+
+    /**
+     * L'analyse automatisée a échoué techniquement (OCR/vivacité/correspondance
+     * n'a pas pu tourner) — photos conservées (voir purgePhotos(), jamais
+     * appelée pour ce statut) pour qu'un admin tranche manuellement, plutôt
+     * que de rejeter à l'aveugle une vraie personne à cause d'un problème
+     * technique.
+     */
+    public function isAwaitingManualReview(): bool
+    {
+        return $this->status === 'awaiting_manual_review';
     }
 
     /**
