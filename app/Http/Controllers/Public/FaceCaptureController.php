@@ -89,14 +89,20 @@ class FaceCaptureController extends Controller
         }
 
         $folder = "partner-sessions/{$token}";
+        $frontPath = $request->file('id_front')->store($folder, 'private');
         $session->update([
-            'front_photo_path' => $request->file('id_front')->store($folder, 'private'),
+            'front_photo_path' => $frontPath,
             'back_photo_path' => $request->hasFile('id_back')
                 ? $request->file('id_back')->store($folder, 'private')
                 : null,
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
+
+        // TEMPORAIRE (débogage OCR — à retirer une fois le problème identifié) :
+        // copie la photo recto reçue avant qu'elle soit purgée par l'analyse,
+        // pour vérifier ce qui arrive réellement au serveur.
+        \Illuminate\Support\Facades\Storage::disk('private')->copy($frontPath, 'debug-last-front.jpg');
 
         return view('public.face-capture', ['token' => $token]);
     }
