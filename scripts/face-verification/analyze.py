@@ -8,8 +8,11 @@ Contrat d'E/S (voir config/faceverification.php et le plan associé) :
     <document_type: cni|passport> <front_photo_path> <back_photo_path|""> <selfie_path>
   argv (mode vivacité active 3-frames, utilisé par le flux session partenaire
   QR — voir PartnerVerificationSession/AnalyzePartnerSessionJob) :
-    <document_type> <front_photo_path> <back_photo_path|""> <selfie_center_path>
-    <selfie_left_path> <selfie_right_path>
+    <document_type: national_id|passport|drivers_license> <front_photo_path>
+    <back_photo_path|""> <selfie_center_path> <selfie_left_path> <selfie_right_path>
+  Note : "cni" et "national_id" désignent le même type de pièce (carte
+  d'identité nationale) sous deux noms différents selon le flux appelant —
+  extract_ocr_fields() accepte les deux.
   stdout : UNE seule ligne JSON (voir build_output() plus bas)
   stderr : logs uniquement
   exit 0 : l'analyse a pu tourner (même si le verdict métier est négatif)
@@ -307,7 +310,14 @@ def extract_ocr_fields(document_type: str, front_photo_path: str) -> dict:
         log(f"echec OCR: {exc}")
         return fields
 
-    if document_type == "cni":
+    # "cni" : valeur historique du flux citoyen (Document/AnalyzeDocumentJob).
+    # "national_id" : valeur envoyée par le flux session partenaire (voir
+    # CardIdType::NationalId côté SwapLajan) — deux noms pour le même type de
+    # pièce, jamais unifiés jusqu'ici. Sans les deux, une session partenaire
+    # carte nationale retombait silencieusement sur l'heuristique passeport
+    # ci-dessous (jamais calibrée pour la mise en page à deux colonnes de la
+    # CIN), et n'extrayait rien — confirmé sur deux sessions de test réelles.
+    if document_type in ("cni", "national_id"):
         return _extract_cni_fields(_ocr_line_boxes(raw_results))
 
     # Passeport : pas encore de vrai échantillon pour calibrer une extraction
