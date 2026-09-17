@@ -22,6 +22,8 @@
 /vendor
 __pycache__/
 *.pyc
+/scripts/face-verification/.deepface-cache
+/scripts/face-verification/.easyocr-cache
 Homestead.json
 Homestead.yaml
 Thumbs.db

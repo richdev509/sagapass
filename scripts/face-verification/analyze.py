@@ -304,7 +304,8 @@ def extract_ocr_fields(document_type: str, front_photo_path: str) -> dict:
     try:
         # Français (langue administrative d'Haïti) + anglais (souvent présent
         # sur les passeports, mentions bilingues).
-        reader = easyocr.Reader(["fr", "en"], gpu=False)
+        os.makedirs(_EASYOCR_MODEL_DIR, exist_ok=True)
+        reader = easyocr.Reader(["fr", "en"], gpu=False, model_storage_directory=_EASYOCR_MODEL_DIR)
         raw_results = reader.readtext(_load_image_for_ocr(front_photo_path), detail=1)
     except Exception as exc:  # noqa: BLE001 - on ne veut jamais crasher tout le script pour l'OCR seul
         log(f"echec OCR: {exc}")
@@ -469,6 +470,15 @@ _MEDIAPIPE_NOSE_TIP = 1
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _FACE_LANDMARKER_MODEL_PATH = os.path.join(_SCRIPT_DIR, "models", "face_landmarker.task")
 _HAND_LANDMARKER_MODEL_PATH = os.path.join(_SCRIPT_DIR, "models", "hand_landmarker.task")
+
+# Par défaut, EasyOCR télécharge/lit ses modèles dans ~/.EasyOCR — sur le
+# worker de production (utilisateur www-data), ce home n'est ni inscriptible
+# ni lisible, faisant échouer Reader() avec une PermissionError silencieuse
+# (avalée par le except Exception plus bas, jamais remontée) — confirmé sur
+# deux sessions de test réelles où l'OCR revenait entièrement vide sans
+# erreur visible. Même principe que DEEPFACE_HOME pour DeepFace : un cache
+# dédié dans le projet, hors du home utilisateur.
+_EASYOCR_MODEL_DIR = os.path.join(_SCRIPT_DIR, ".easyocr-cache")
 
 
 def _load_mp_image(image_path: str):
