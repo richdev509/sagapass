@@ -30,6 +30,14 @@ return [
     // SwapLajan.
     'model_cache_dir' => env('DEEPFACE_HOME', base_path('scripts/face-verification/.deepface-cache')),
 
+    // Extraction OCR via l'API de vision Claude (Anthropic), en test face à
+    // EasyOCR — voir extract_ocr_fields() dans analyze.py : essayée en
+    // premier si la clé est configurée, repli automatique sur EasyOCR sinon
+    // ou en cas d'échec de l'appel (jamais de dépendance dure à un service
+    // tiers). Aucune clé = comportement identique à avant (EasyOCR seul).
+    'anthropic_api_key' => env('ANTHROPIC_API_KEY'),
+    'anthropic_model' => env('ANTHROPIC_OCR_MODEL', 'claude-sonnet-5'),
+
     /*
     |--------------------------------------------------------------------------
     | Sessions de vérification partenaire (flux QR — voir

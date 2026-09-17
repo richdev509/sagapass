@@ -274,7 +274,115 @@ def _extract_cni_fields(lines: list) -> dict:
     return fields
 
 
-def extract_ocr_fields(document_type: str, front_photo_path: str) -> dict:
+_OCR_FIELD_KEYS = (
+    "document_number", "full_name", "date_of_birth",
+    "sex", "place_of_birth", "date_of_issue", "date_of_expiry",
+)
+
+
+def _empty_ocr_fields() -> dict:
+    return {key: None for key in _OCR_FIELD_KEYS}
+
+
+def _extract_ocr_fields_via_claude(document_type: str, front_photo_path: str) -> dict | None:
+    """Extraction OCR via l'API de vision Claude (Anthropic) — en test face à
+    EasyOCR/_extract_cni_fields (ancrage par étiquette/position, fragile face
+    aux erreurs de lecture de l'étiquette elle-même). Retourne None (jamais
+    d'exception) si la clé n'est pas configurée ou si l'appel échoue, pour un
+    repli transparent sur EasyOCR — jamais de dépendance dure à un service
+    tiers pour une fonctionnalité déjà existante.
+    """
+    import base64
+    import urllib.request
+    import urllib.error
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
+        return None
+
+    model = os.environ.get("ANTHROPIC_OCR_MODEL", "claude-sonnet-5").strip() or "claude-sonnet-5"
+
+    try:
+        with open(front_photo_path, "rb") as f:
+            image_b64 = base64.b64encode(f.read()).decode("ascii")
+    except OSError as exc:
+        log(f"Claude OCR: lecture image impossible: {exc}")
+        return None
+
+    doc_label = "carte d'identification nationale haïtienne (recto)" if document_type in ("cni", "national_id") else "passeport"
+
+    prompt = (
+        f"Voici la photo d'une {doc_label}. Extrais EXACTEMENT les champs suivants tels "
+        "qu'imprimés sur le document, sans les traduire ni les reformater au-delà du format "
+        "demandé. Réponds UNIQUEMENT avec un objet JSON valide, aucun texte autour, aucun bloc "
+        "de code — juste le JSON brut, avec exactement ces clés :\n"
+        '{"document_number": "numéro d\'identification unique (NIU) — pas le numéro de carte",'
+        ' "full_name": "prénom + nom en majuscules",'
+        ' "date_of_birth": "YYYY-MM-DD",'
+        ' "sex": "M ou F",'
+        ' "place_of_birth": "lieu de naissance",'
+        ' "date_of_issue": "YYYY-MM-DD",'
+        ' "date_of_expiry": "YYYY-MM-DD"}\n'
+        "Mets null (pas la chaîne \"null\") pour tout champ absent, illisible, ou dont tu n'es "
+        "pas raisonnablement sûr — ne devine jamais une valeur plausible à la place d'une "
+        "valeur réellement lue sur le document."
+    )
+
+    payload = json.dumps({
+        "model": model,
+        "max_tokens": 1024,
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": image_b64}},
+                {"type": "text", "text": prompt},
+            ],
+        }],
+    }).encode("utf-8")
+
+    request = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=payload,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=45) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as exc:
+        log(f"Claude OCR: appel API échoué: {exc}")
+        return None
+    except Exception as exc:  # noqa: BLE001 - jamais crasher tout le script pour un appel externe
+        log(f"Claude OCR: erreur inattendue: {exc}")
+        return None
+
+    try:
+        text = body["content"][0]["text"].strip()
+        # Au cas où le modèle encadrerait quand même sa réponse d'un bloc de
+        # code malgré la consigne — tolérance, pas une hypothèse de départ.
+        if text.startswith("```"):
+            text = text.strip("`")
+            text = text[4:] if text.lower().startswith("json") else text
+        parsed = json.loads(text)
+    except (KeyError, IndexError, json.JSONDecodeError) as exc:
+        log(f"Claude OCR: réponse inexploitable: {exc}")
+        return None
+
+    fields = _empty_ocr_fields()
+    for key in _OCR_FIELD_KEYS:
+        value = parsed.get(key)
+        if isinstance(value, str) and value.strip():
+            fields[key] = value.strip()
+
+    return fields
+
+
+def _extract_ocr_fields_via_easyocr(document_type: str, front_photo_path: str) -> dict:
     """Retourne {"document_number": ?str, "full_name": ?str, "date_of_birth": ?str,
     "sex": ?str, "place_of_birth": ?str, "date_of_issue": ?str, "date_of_expiry": ?str}.
 
@@ -285,15 +393,7 @@ def extract_ocr_fields(document_type: str, front_photo_path: str) -> dict:
     supplémentaires (sex, place_of_birth, date_of_issue, date_of_expiry)
     restent toujours null dans ce cas.
     """
-    fields = {
-        "document_number": None,
-        "full_name": None,
-        "date_of_birth": None,
-        "sex": None,
-        "place_of_birth": None,
-        "date_of_issue": None,
-        "date_of_expiry": None,
-    }
+    fields = _empty_ocr_fields()
 
     try:
         # EASYOCR_MODULE_PATH doit être fixée AVANT l'import : easyocr/config.py
@@ -351,6 +451,21 @@ def extract_ocr_fields(document_type: str, front_photo_path: str) -> dict:
         fields["full_name"] = max(name_candidates, key=len).upper()
 
     return fields
+
+
+def extract_ocr_fields(document_type: str, front_photo_path: str) -> dict:
+    """Point d'entrée OCR — essaie l'API de vision Claude en premier si
+    ANTHROPIC_API_KEY est configurée (voir _extract_ocr_fields_via_claude),
+    repli automatique et transparent sur EasyOCR
+    (_extract_ocr_fields_via_easyocr) si la clé est absente ou si l'appel
+    échoue pour quelque raison que ce soit — jamais de dépendance dure à un
+    service tiers pour une fonctionnalité qui marchait déjà en local.
+    """
+    claude_fields = _extract_ocr_fields_via_claude(document_type, front_photo_path)
+    if claude_fields is not None:
+        return claude_fields
+
+    return _extract_ocr_fields_via_easyocr(document_type, front_photo_path)
 
 
 def check_passive_liveness(selfie_path: str) -> tuple:

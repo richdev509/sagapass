@@ -20,6 +20,8 @@ class AppServiceProvider extends ServiceProvider
                 modelCacheDir: (string) $config['model_cache_dir'],
                 timeoutSeconds: (int) $config['timeout_seconds'],
                 pythonBinary: (string) $config['python_binary'],
+                anthropicApiKey: (string) ($config['anthropic_api_key'] ?? ''),
+                anthropicModel: (string) $config['anthropic_model'],
             );
         });
     }

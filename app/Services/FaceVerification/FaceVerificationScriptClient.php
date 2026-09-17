@@ -19,6 +19,8 @@ class FaceVerificationScriptClient
         private readonly string $modelCacheDir,
         private readonly int $timeoutSeconds,
         private readonly string $pythonBinary = 'python3',
+        private readonly string $anthropicApiKey = '',
+        private readonly string $anthropicModel = 'claude-sonnet-5',
     ) {}
 
     /**
@@ -78,6 +80,11 @@ class FaceVerificationScriptClient
                 // de laisser matplotlib échouer puis retomber sur /tmp à
                 // chaque appel.
                 'MPLCONFIGDIR' => $this->modelCacheDir,
+                // Extraction OCR via l'API de vision Claude, en test face à
+                // EasyOCR — vide = comportement inchangé (EasyOCR seul), voir
+                // extract_ocr_fields() dans analyze.py.
+                'ANTHROPIC_API_KEY' => $this->anthropicApiKey,
+                'ANTHROPIC_OCR_MODEL' => $this->anthropicModel,
             ])
             ->run([
                 $this->pythonBinary,
