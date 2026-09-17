@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\PartnerVerificationSession;
 use App\Models\PartnerVerifiedIdentity;
+use App\Services\BlacklistScreeningService;
 use App\Services\FaceVerification\FaceVerificationService;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -37,7 +38,7 @@ class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQ
         return (string) $this->sessionId;
     }
 
-    public function handle(FaceVerificationService $service): void
+    public function handle(FaceVerificationService $service, BlacklistScreeningService $blacklist): void
     {
         $session = PartnerVerificationSession::query()->find($this->sessionId);
 
@@ -70,6 +71,8 @@ class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQ
             return;
         }
 
+        $screening = $blacklist->screen($result->ocr['document_number'], $result->ocr['full_name']);
+
         $session->forceFill([
             'status' => 'completed',
             'ocr_extracted_document_number' => $result->ocr['document_number'],
@@ -80,6 +83,8 @@ class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQ
             'analysis_raw' => $result->raw,
             'warnings' => $result->warnings,
             'partner_verified_identity_id' => $this->upsertVerifiedIdentity($session, $result)?->id,
+            'blacklist_hit' => $screening['hit'],
+            'blacklist_matched_identity_id' => $screening['identity']?->id,
             'completed_at' => now(),
         ])->save();
 

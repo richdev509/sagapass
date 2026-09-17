@@ -111,6 +111,9 @@ class NotifyPartnerSessionWebhook implements ShouldQueue
             'partner_reference' => $this->session->partner_reference,
             'kyc_id' => $this->session->partnerVerifiedIdentity?->kyc_id,
             'kyc_valid_until' => $this->session->partnerVerifiedIdentity?->valid_until?->toIso8601String(),
+            // 'document_reject' (numéro de pièce en liste de vigilance) |
+            // 'name_alert' (nom correspondant, signal faible) | null.
+            'blacklist_hit' => $this->session->blacklist_hit,
             'status' => $this->session->status,
             'face_match_score' => $this->session->face_match_score,
             'liveness_passed' => $this->session->liveness_passed,
