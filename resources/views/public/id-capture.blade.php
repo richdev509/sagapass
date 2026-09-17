@@ -200,6 +200,8 @@
                 <video id="video" class="camera-video" autoplay playsinline muted></video>
                 <canvas id="overlayCanvas" class="overlay-canvas"></canvas>
                 <div class="card-guide" id="cardGuide"></div>
+                {{-- TEMPORAIRE (débogage détection de contour — à retirer une fois fiabilisée) --}}
+                <div id="debugInfo" style="position:absolute;bottom:8px;left:8px;right:8px;background:rgba(0,0,0,0.65);color:#0f0;font:11px monospace;padding:4px 6px;border-radius:4px;z-index:20;pointer-events:none;"></div>
             </div>
 
             <div class="review-photo" id="reviewPhoto" hidden>
@@ -298,6 +300,7 @@
         const video = document.getElementById('video');
         const overlayCanvas = document.getElementById('overlayCanvas');
         const cardGuide = document.getElementById('cardGuide');
+        const debugInfo = document.getElementById('debugInfo'); // TEMPORAIRE
         const cameraWrap = document.getElementById('cameraWrap');
         const reviewPhoto = document.getElementById('reviewPhoto');
         const reviewImg = document.getElementById('reviewImg');
@@ -407,9 +410,18 @@
             captureCanvas.height = video.videoHeight;
             captureCanvas.getContext('2d').drawImage(video, 0, 0);
 
-            const quad = detectDocumentQuad(captureCanvas);
+            const detection = detectDocumentQuad(captureCanvas);
+            const quad = detection.quad;
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // TEMPORAIRE (débogage) : affiche la meilleure zone/nb de
+            // quadrilatères trouvés à chaque cycle, pour voir pourquoi la
+            // détection auto ne se déclenche pas sans avoir à deviner.
+            if (debugInfo) {
+                const pct = (detection.bestAreaRatio * 100).toFixed(1);
+                debugInfo.textContent = `contours 4pts convexes: ${detection.convexQuadCount} | meilleure zone: ${pct}% (seuil ${(MIN_QUAD_AREA_RATIO * 100).toFixed(0)}%) | stable: ${stableTicks}/${STABLE_TICKS_REQUIRED}`;
+            }
 
             if (!quad) {
                 stableTicks = 0;
@@ -449,6 +461,8 @@
 
             let bestPoints = null;
             let bestArea = 0;
+            let bestAreaSeen = 0; // TEMPORAIRE (débogage) : meilleure zone même sous le seuil
+            let convexQuadCount = 0; // TEMPORAIRE (débogage)
             const frameArea = canvas.width * canvas.height;
 
             try {
@@ -464,7 +478,9 @@
                     cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
 
                     if (approx.rows === 4 && cv.isContourConvex(approx)) {
+                        convexQuadCount++;
                         const area = cv.contourArea(approx);
+                        if (area > bestAreaSeen) bestAreaSeen = area;
                         if (area > frameArea * MIN_QUAD_AREA_RATIO && area > bestArea) {
                             bestArea = area;
                             bestPoints = [];
@@ -485,7 +501,11 @@
                 hierarchy.delete();
             }
 
-            return bestPoints;
+            return {
+                quad: bestPoints,
+                bestAreaRatio: frameArea > 0 ? bestAreaSeen / frameArea : 0, // TEMPORAIRE (débogage)
+                convexQuadCount, // TEMPORAIRE (débogage)
+            };
         }
 
         function triggerCapture(captureCanvas) {
