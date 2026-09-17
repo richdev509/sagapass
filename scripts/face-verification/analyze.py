@@ -296,6 +296,14 @@ def extract_ocr_fields(document_type: str, front_photo_path: str) -> dict:
     }
 
     try:
+        # EASYOCR_MODULE_PATH doit être fixée AVANT l'import : easyocr/config.py
+        # résout son BASE_PATH ("~/.EasyOCR/" par défaut) au niveau module, à
+        # l'import — passer model_storage_directory au constructeur Reader()
+        # ne suffit pas, une autre partie de l'initialisation retombe quand
+        # même sur ce chemin par défaut (confirmé : même erreur reproduite
+        # avec le seul model_storage_directory).
+        os.makedirs(_EASYOCR_MODEL_DIR, exist_ok=True)
+        os.environ.setdefault("EASYOCR_MODULE_PATH", _EASYOCR_MODEL_DIR)
         import easyocr
     except ImportError:
         log("easyocr n'est pas installé — extraction OCR ignorée.")
@@ -304,7 +312,6 @@ def extract_ocr_fields(document_type: str, front_photo_path: str) -> dict:
     try:
         # Français (langue administrative d'Haïti) + anglais (souvent présent
         # sur les passeports, mentions bilingues).
-        os.makedirs(_EASYOCR_MODEL_DIR, exist_ok=True)
         reader = easyocr.Reader(["fr", "en"], gpu=False, model_storage_directory=_EASYOCR_MODEL_DIR)
         raw_results = reader.readtext(_load_image_for_ocr(front_photo_path), detail=1)
     except Exception as exc:  # noqa: BLE001 - on ne veut jamais crasher tout le script pour l'OCR seul
