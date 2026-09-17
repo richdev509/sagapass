@@ -39,4 +39,9 @@ return [
 
     'session_ttl_minutes' => (int) env('FACE_VERIFICATION_SESSION_TTL_MINUTES', 15),
 
+    // Durée de validité du KYC ID durable (PartnerVerifiedIdentity) une fois
+    // une session complétée avec succès — renouvelée automatiquement à chaque
+    // nouvelle session complétée pour le même document/partenaire.
+    'kyc_validity_days' => (int) env('FACE_VERIFICATION_KYC_VALIDITY_DAYS', 90),
+
 ];

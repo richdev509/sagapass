@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Session de capture faciale à jeton, initiée par un partenaire (voir
@@ -34,6 +35,7 @@ class PartnerVerificationSession extends Model
         'ocr_extracted_date_of_birth',
         'analysis_raw',
         'warnings',
+        'partner_verified_identity_id',
         'ip_address',
         'user_agent',
         'expires_at',
@@ -58,6 +60,11 @@ class PartnerVerificationSession extends Model
         return $this->belongsTo(DeveloperApplication::class);
     }
 
+    public function partnerVerifiedIdentity()
+    {
+        return $this->belongsTo(PartnerVerifiedIdentity::class);
+    }
+
     public function isExpired(): bool
     {
         return $this->expires_at->isPast();
@@ -71,5 +78,43 @@ class PartnerVerificationSession extends Model
     public function isAwaitingSelfieCapture(): bool
     {
         return $this->status === 'awaiting_selfie_capture' && ! $this->isExpired();
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === 'completed';
+    }
+
+    public function isFailed(): bool
+    {
+        return $this->status === 'failed';
+    }
+
+    public function isTerminal(): bool
+    {
+        return in_array($this->status, ['completed', 'failed', 'expired'], true);
+    }
+
+    /**
+     * Supprime les photos (pièce + selfies) du disque privé. Appelé après
+     * analyse (succès ou échec) et par la commande de nettoyage des sessions
+     * expirées — aucune raison de conserver ces fichiers une fois la session
+     * terminée d'une manière ou d'une autre.
+     */
+    public function purgePhotos(): void
+    {
+        $disk = Storage::disk('private');
+
+        foreach ([
+            $this->front_photo_path,
+            $this->back_photo_path,
+            $this->selfie_left_path,
+            $this->selfie_center_path,
+            $this->selfie_right_path,
+        ] as $path) {
+            if ($path) {
+                $disk->delete($path);
+            }
+        }
     }
 }

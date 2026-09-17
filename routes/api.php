@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\UserApiController;
 use App\Http\Controllers\Api\Mobile\MobileAuthController;
+use App\Http\Controllers\Api\Partner\PartnerKycIdentityController;
 use App\Http\Controllers\Api\Partner\PartnerVerificationSessionController;
 use Illuminate\Support\Facades\Route;
 
@@ -44,4 +45,5 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
 Route::prefix('partner/v1')->middleware('throttle:30,1')->group(function () {
     Route::post('/verification-sessions', [PartnerVerificationSessionController::class, 'store']);
     Route::get('/verification-sessions/{token}/status', [PartnerVerificationSessionController::class, 'status']);
+    Route::get('/kyc-identities/{kycId}/status', [PartnerKycIdentityController::class, 'status']);
 });

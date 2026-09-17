@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\PartnerVerificationSession;
+use App\Models\PartnerVerifiedIdentity;
 use App\Services\FaceVerification\FaceVerificationService;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -16,9 +17,6 @@ use Illuminate\Support\Facades\Storage;
  * (couplé à un Document/User SagaID permanent), les photos sont purgées du
  * disque immédiatement après analyse — aucun compte SagaID n'est créé ici,
  * aucune raison de les conserver.
- *
- * TODO (round "système en profondeur") : dispatcher NotifyPartnerSessionWebhook
- * pour notifier le partenaire — pas encore branché dans cette première passe.
  */
 class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 {
@@ -58,7 +56,7 @@ class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQ
             selfieRightPath: $disk->path($session->selfie_right_path),
         );
 
-        $this->purgePhotos($session);
+        $session->purgePhotos();
 
         if (! $result->ranSuccessfully) {
             $session->forceFill([
@@ -66,6 +64,8 @@ class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQ
                 'analysis_raw' => ['error' => $result->errorMessage],
                 'completed_at' => now(),
             ])->save();
+
+            NotifyPartnerSessionWebhook::dispatch($session, 'verification.failed');
 
             return;
         }
@@ -79,24 +79,48 @@ class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQ
             'liveness_passed' => $result->livenessPassed,
             'analysis_raw' => $result->raw,
             'warnings' => $result->warnings,
+            'partner_verified_identity_id' => $this->upsertVerifiedIdentity($session, $result)?->id,
             'completed_at' => now(),
         ])->save();
+
+        NotifyPartnerSessionWebhook::dispatch($session, 'verification.completed');
     }
 
-    private function purgePhotos(PartnerVerificationSession $session): void
+    /**
+     * Émet ou renouvelle le KYC ID durable de cette personne — dès qu'une
+     * session se termine avec une analyse exécutée sans erreur, quel que soit
+     * le résultat (score de correspondance / vivacité indicatifs, laissés au
+     * partenaire). Une seule ligne par (partenaire, numéro de document) :
+     * une nouvelle session pour le même document prolonge sa validité au lieu
+     * d'en créer une autre. Aucun KYC ID n'est émis si l'OCR n'a pas réussi à
+     * extraire de numéro de document — limite connue de l'OCR, pas un bug.
+     */
+    private function upsertVerifiedIdentity(PartnerVerificationSession $session, $result): ?PartnerVerifiedIdentity
     {
-        $disk = Storage::disk('private');
+        $documentNumber = $result->ocr['document_number'] ?? null;
 
-        foreach ([
-            $session->front_photo_path,
-            $session->back_photo_path,
-            $session->selfie_left_path,
-            $session->selfie_center_path,
-            $session->selfie_right_path,
-        ] as $path) {
-            if ($path) {
-                $disk->delete($path);
-            }
+        if (! $documentNumber) {
+            return null;
         }
+
+        return PartnerVerifiedIdentity::updateOrCreate(
+            [
+                'developer_application_id' => $session->developer_application_id,
+                'document_number' => $documentNumber,
+            ],
+            [
+                'document_type' => $session->document_type,
+                'full_name' => $result->ocr['full_name'] ?? null,
+                'date_of_birth' => $result->ocr['date_of_birth'] ?? null,
+                'face_match_score' => $result->faceMatchScore,
+                'liveness_passed' => $result->livenessPassed,
+                'status' => 'valid',
+                'verified_at' => now(),
+                'valid_until' => now()->addDays((int) config('faceverification.kyc_validity_days', 90)),
+                'webhook_url' => $session->webhook_url,
+                'last_partner_verification_session_id' => $session->id,
+                'expired_notified_at' => null,
+            ],
+        );
     }
 }

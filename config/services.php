@@ -40,4 +40,12 @@ return [
         'api_key' => env('SAGALOTO_API_KEY'),
     ],
 
+    // Secret dédié à la signature HMAC des webhooks sortants vers les
+    // partenaires (NotifyPartnerSessionWebhook / NotifyPartnerKycExpiryWebhook)
+    // — volontairement distinct du client_secret de chaque DeveloperApplication
+    // pour ne pas coupler la rotation de l'un à celle de l'autre.
+    'sagaid_webhook' => [
+        'secret' => env('SAGAID_WEBHOOK_SECRET'),
+    ],
+
 ];

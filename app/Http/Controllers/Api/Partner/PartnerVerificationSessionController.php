@@ -121,6 +121,7 @@ class PartnerVerificationSessionController extends Controller
         return response()->json([
             'success' => true,
             'status' => $session->status,
+            'kyc_id' => $session->partnerVerifiedIdentity?->kyc_id,
             'face_match_score' => $session->face_match_score,
             'liveness_passed' => $session->liveness_passed,
             'ocr' => [
