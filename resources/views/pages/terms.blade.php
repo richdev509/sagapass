@@ -8,7 +8,7 @@
                 <h1 class="display-4 fw-bold mb-3">
                     <i class="fas fa-file-contract text-primary me-3"></i>Conditions Générales d'Utilisation
                 </h1>
-                <p class="text-muted">Dernière mise à jour : {{ date('d F Y') }}</p>
+                <p class="text-muted">Dernière mise à jour : 18 septembre 2026</p>
             </div>
 
             <div class="alert alert-info">
@@ -108,14 +108,66 @@
                     </p>
                     <p>
                         Vous pouvez également fermer votre compte à tout moment depuis votre profil.
-                        Vos données seront supprimées dans un délai de 30 jours.
+                        Vos données de compte seront supprimées dans un délai de 30 jours, à l'exception
+                        des données de vérification d'identité décrites à l'article 9.
+                    </p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-4" id="verification-identite">
+                <div class="card-body p-5">
+                    <h2 class="h4 mb-3">9. Vérification d'identité et données biométriques</h2>
+                    <p>
+                        Lorsque vous passez une vérification d'identité avec SAGAPASS, y compris à la demande
+                        d'un partenaire, nous collectons :
+                    </p>
+                    <ul>
+                        <li>les photos de votre pièce d'identité (passeport, carte d'identification nationale ou permis de conduire) ;</li>
+                        <li>des images de votre visage, prises en direct avec votre caméra ;</li>
+                        <li>les informations lues sur votre pièce (nom, date de naissance, numéro de pièce) ;</li>
+                        <li>une empreinte numérique de votre visage, qui est une donnée biométrique.</li>
+                    </ul>
+                    <p>
+                        <strong>À quoi cela sert.</strong> Ces données servent à confirmer votre identité, à vérifier
+                        que vous êtes bien présent devant la caméra, et à prévenir la fraude et l'usurpation d'identité.
+                    </p>
+                    <p>
+                        <strong>Comparaison avec les autres vérifications.</strong> Pour détecter les fraudes, SAGAPASS
+                        compare votre visage aux vérifications déjà effectuées sur sa plateforme, quel que soit le
+                        partenaire concerné. Vous pouvez posséder une pièce de chaque type (un passeport, une carte
+                        nationale et un permis), mais pas deux pièces du même type, ni une identité différente
+                        avec le même visage. En cas de doute, un membre de notre équipe examine le dossier :
+                        aucune décision définitive n'est prise automatiquement.
+                    </p>
+                    <p>
+                        <strong>Ce que reçoivent les partenaires.</strong> SAGAPASS ne partage ni vos photos ni
+                        l'empreinte de votre visage avec les partenaires, et ne leur révèle rien des vérifications
+                        effectuées pour d'autres partenaires. Le partenaire à l'origine de votre demande reçoit
+                        le résultat de la vérification et les informations lues sur votre pièce dont il a besoin
+                        (par exemple votre nom, votre date de naissance et votre numéro de pièce).
+                    </p>
+                    <p>
+                        <strong>Conservation.</strong> Pour protéger les utilisateurs contre l'usurpation d'identité,
+                        les photos de vérification et l'empreinte du visage sont conservées sans limite de durée,
+                        y compris après la fermeture de votre compte. L'empreinte est chiffrée et l'accès à ces
+                        données est réservé aux personnes autorisées de SAGAPASS.
+                    </p>
+                    <p>
+                        <strong>Vos droits.</strong> Vous pouvez demander l'accès, la correction ou l'effacement de
+                        ces données en écrivant à
+                        <a href="mailto:sagapass@sagapass.com">sagapass@sagapass.com</a>, sous réserve de nos
+                        obligations légales et de la nécessité de prévenir la fraude.
+                    </p>
+                    <p class="mb-0">
+                        <strong>Votre consentement.</strong> Avant toute capture, nous vous demandons de cocher une
+                        case pour confirmer que vous avez lu ces conditions et que vous consentez à ce traitement.
                     </p>
                 </div>
             </div>
 
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-body p-5">
-                    <h2 class="h4 mb-3">9. Évolution du service</h2>
+                    <h2 class="h4 mb-3">10. Évolution du service</h2>
                     <p>
                         Nous améliorons constamment SAGAPASS. Ces conditions peuvent être mises à jour
                         pour refléter les nouvelles fonctionnalités. Vous serez informé des changements
@@ -126,7 +178,7 @@
 
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-body p-5">
-                    <h2 class="h4 mb-3">10. Nous contacter</h2>
+                    <h2 class="h4 mb-3">11. Nous contacter</h2>
                     <p>
                         Des questions sur ces conditions ? Notre équipe est là pour vous aider !
                     </p>

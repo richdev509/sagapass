@@ -70,7 +70,7 @@ return [
     // Version des conditions d'utilisation acceptées sur la page de capture —
     // enregistrée avec la session comme preuve de consentement. À changer quand
     // les conditions (/terms, /privacy) sont modifiées.
-    'consent_terms_version' => env('FACE_VERIFICATION_TERMS_VERSION', '2026-09'),
+    'consent_terms_version' => env('FACE_VERIFICATION_TERMS_VERSION', '2026-09-18'),
 
     // Page TEMPORAIRE de test du moteur facial, sans connexion (voir
     // Public\FaceTestController). Désactivée par défaut ; accessible seulement
