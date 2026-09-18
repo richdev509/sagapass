@@ -1,11 +1,17 @@
-@extends('admin.layouts.admin')
-
-@section('title', 'Test reconnaissance faciale')
-@section('page-title', 'Test de reconnaissance faciale')
-@section('page-subtitle', "Comparez une photo de référence à votre caméra — rien n'est enregistré")
-
-@section('styles')
-<style>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Test reconnaissance faciale - SAGAPASS</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #F2F2F7; color: #1c1c1e; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 16px; }
+        .ft-wrap { max-width: 460px; margin: 0 auto; }
+        h1 { font-size: 20px; margin: 4px 0 4px; }
+        .ft-sub { font-size: 13px; color: #636366; margin: 0 0 16px; }
     .ft-card {
         background: #fff;
         border-radius: 18px;
@@ -31,12 +37,13 @@
     .ft-history { font-size: 13px; width: 100%; }
     .ft-history td, .ft-history th { padding: 6px 4px; border-bottom: 1px solid rgba(60,60,67,.12); }
     .ft-warn { font-size: 12px; color: #b26a00; margin-top: 10px; word-break: break-word; }
-</style>
-@endsection
-
-@section('content')
-<div class="row justify-content-center">
-    <div class="col-lg-6">
+    </style>
+</head>
+<body>
+    <h1>Test de reconnaissance faciale</h1>
+    <p class="ft-sub" style="max-width:460px;margin-left:auto;margin-right:auto;">Comparez une photo de référence à votre caméra. Rien n'est enregistré.</p>
+<div class="ft-wrap">
+    <div>
 
         <div class="ft-card">
             <h6>1. Photo de référence</h6>
@@ -76,9 +83,7 @@
         </p>
     </div>
 </div>
-@endsection
 
-@section('scripts')
 <script>
 (function () {
     const refInput = document.getElementById('refInput');
@@ -191,7 +196,7 @@
             form.append('reference', referenceFile, referenceFile.name || 'reference.jpg');
             form.append('probe', blob, 'probe.jpg');
 
-            const response = await fetch(@json(route('admin.face-test.compare')), {
+            const response = await fetch(@json(route('face-test.compare', $token)), {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -210,4 +215,5 @@
     });
 })();
 </script>
-@endsection
+</body>
+</html>

@@ -72,4 +72,12 @@ return [
     // les conditions (/terms, /privacy) sont modifiées.
     'consent_terms_version' => env('FACE_VERIFICATION_TERMS_VERSION', '2026-09'),
 
+    // Page TEMPORAIRE de test du moteur facial, sans connexion (voir
+    // Public\FaceTestController). Désactivée par défaut ; accessible seulement
+    // par /face-test/<token>.
+    'face_test' => [
+        'enabled' => (bool) env('FACE_TEST_ENABLED', false),
+        'token' => env('FACE_TEST_TOKEN'),
+    ],
+
 ];

@@ -7,6 +7,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\Auth\RegisterBasicController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\Public\FaceCaptureController;
+use App\Http\Controllers\Public\FaceTestController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
 
@@ -22,6 +23,14 @@ Route::middleware('throttle:20,1')->group(function () {
     Route::get('/capture/{token}', [FaceCaptureController::class, 'show'])->name('capture.show');
     Route::post('/capture/{token}/id', [FaceCaptureController::class, 'submitId'])->name('capture.submit-id');
     Route::post('/capture/{token}/selfie', [FaceCaptureController::class, 'submitSelfie'])->name('capture.submit-selfie');
+});
+
+// Page TEMPORAIRE de test du moteur facial, sans connexion (lien secret +
+// désactivée par défaut) — voir Public\FaceTestController. À désactiver
+// (FACE_TEST_ENABLED=false) une fois les tests terminés.
+Route::middleware('throttle:10,1')->group(function () {
+    Route::get('/face-test/{token}', [FaceTestController::class, 'show'])->name('face-test.show');
+    Route::post('/face-test/{token}/compare', [FaceTestController::class, 'compare'])->name('face-test.compare');
 });
 
 // Known Errors Page (public)

@@ -376,15 +376,6 @@
             @endcan
 
             @can('verify-documents', 'admin')
-            <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('admin.face-test.*') ? 'active' : '' }}" href="{{ route('admin.face-test.index') }}">
-                    <i class="fas fa-camera"></i>
-                    <span>Test reconnaissance faciale</span>
-                </a>
-            </li>
-            @endcan
-
-            @can('verify-documents', 'admin')
             {{-- ============ INSCRIPTIONS MOBILES ============ --}}
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('admin.mobile-verification.*') ? 'active' : '' }}"
