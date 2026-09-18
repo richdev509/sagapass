@@ -3,6 +3,7 @@
 namespace App\Services\FaceVerification;
 
 use App\Models\DeveloperApplication;
+use App\Models\Document;
 use App\Models\FaceEmbedding;
 use App\Models\PartnerVerificationSession;
 use App\Models\PartnerVerifiedIdentity;
@@ -104,6 +105,7 @@ class FaceDuplicateService
             'document_type' => $s['row']->document_type,
             'document_number' => $s['row']->document_number,
             'partner_verification_session_id' => $s['row']->partner_verification_session_id,
+            'document_id' => $s['row']->document_id,
             'enrolled_at' => $s['row']->created_at?->toDateTimeString(),
         ], $suspects);
 
@@ -111,21 +113,49 @@ class FaceDuplicateService
     }
 
     /**
-     * Enregistre l'empreinte d'une session vérifiée. Ne double pas une ligne
-     * existante pour la même pièce et le même visage (revérification).
+     * Enregistre l'empreinte d'une session partenaire vérifiée.
      *
      * @param list<float> $embedding
      * @param array{document_number?: ?string, full_name?: ?string, date_of_birth?: ?string} $ocr
      */
     public function remember(array $embedding, PartnerVerificationSession $session, ?PartnerVerifiedIdentity $identity, array $ocr): void
     {
+        $this->store($embedding, $session->document_type, $ocr, [
+            'developer_application_id' => $session->developer_application_id,
+            'partner_verification_session_id' => $session->id,
+            'partner_verified_identity_id' => $identity?->id,
+        ]);
+    }
+
+    /**
+     * Enregistre l'empreinte d'un Document (compte SagaPass) approuvé par un admin.
+     *
+     * @param list<float> $embedding
+     * @param array{document_number?: ?string, full_name?: ?string, date_of_birth?: ?string} $identity
+     */
+    public function rememberDocument(array $embedding, Document $document, array $identity): void
+    {
+        $this->store($embedding, $document->document_type, $identity, ['document_id' => $document->id]);
+    }
+
+    /**
+     * Ne double pas une ligne existante pour la même pièce et le même visage
+     * (revérification) : elle garde son origine et ne reçoit que les liens
+     * qui lui manquaient.
+     *
+     * @param list<float> $embedding
+     * @param array{document_number?: ?string, full_name?: ?string, date_of_birth?: ?string} $identity
+     * @param array<string, int|null> $links
+     */
+    private function store(array $embedding, ?string $documentType, array $identity, array $links): void
+    {
         $threshold = (float) config('faceverification.duplicate_similarity_threshold');
-        $type = $this->normalizeType($session->document_type);
-        $number = $this->normalizeNumber($ocr['document_number'] ?? null);
+        $type = $this->normalizeType($documentType);
+        $number = $this->normalizeNumber($identity['document_number'] ?? null);
 
         if ($number !== null) {
             $existing = FaceEmbedding::query()
-                ->where('document_number', $ocr['document_number'])
+                ->where('document_number', $identity['document_number'])
                 ->get()
                 ->first(fn (FaceEmbedding $row) => $this->normalizeType($row->document_type) === $type
                     && is_array($row->embedding)
@@ -133,7 +163,12 @@ class FaceDuplicateService
                     && $this->cosineSimilarity($embedding, $row->embedding) >= $threshold);
 
             if ($existing) {
-                $existing->update(['partner_verified_identity_id' => $identity?->id ?? $existing->partner_verified_identity_id]);
+                foreach ($links as $column => $value) {
+                    if ($value !== null && $existing->{$column} === null) {
+                        $existing->{$column} = $value;
+                    }
+                }
+                $existing->save();
 
                 return;
             }
@@ -141,13 +176,11 @@ class FaceDuplicateService
 
         FaceEmbedding::query()->create([
             'embedding' => $embedding,
-            'document_type' => $type ?? (string) $session->document_type,
-            'document_number' => $ocr['document_number'] ?? null,
-            'full_name' => $ocr['full_name'] ?? null,
-            'date_of_birth' => $ocr['date_of_birth'] ?? null,
-            'developer_application_id' => $session->developer_application_id,
-            'partner_verification_session_id' => $session->id,
-            'partner_verified_identity_id' => $identity?->id,
+            'document_type' => $type ?? (string) $documentType,
+            'document_number' => $identity['document_number'] ?? null,
+            'full_name' => $identity['full_name'] ?? null,
+            'date_of_birth' => $identity['date_of_birth'] ?? null,
+            ...$links,
         ]);
     }
 

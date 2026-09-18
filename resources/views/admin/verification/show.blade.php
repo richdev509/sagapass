@@ -395,6 +395,55 @@
         </div>
         @endif
 
+        <!-- Doublon de visage (indicatif — jamais bloquant) -->
+        @php $duplicate = $document->duplicate_check; @endphp
+        @if(!empty($duplicate['verdict']) && !in_array($duplicate['verdict'], ['none', 'unchecked'], true))
+        @php
+            $strong = ($duplicate['severity'] ?? null) === 'strong';
+            $verdictLabels = [
+                'duplicate_same_type' => 'Même visage, même type de pièce, numéro différent',
+                'identity_conflict' => 'Même visage, mais nom ou date de naissance différents',
+                'document_face_mismatch' => 'Même numéro de pièce déjà enregistré, mais visage différent',
+            ];
+        @endphp
+        <div class="card mt-4 border-{{ $strong ? 'danger' : 'warning' }}">
+            <div class="card-header">
+                <i class="fas fa-people-arrows me-2"></i>Doublon de visage suspect
+                <span class="badge bg-{{ $strong ? 'danger' : 'warning text-dark' }} float-end">{{ $strong ? 'Signal fort' : 'À vérifier' }}</span>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">
+                    <strong>{{ $verdictLabels[$duplicate['verdict']] ?? $duplicate['verdict'] }}.</strong>
+                    Vérifiez visuellement : des jumeaux ou une fausse correspondance sont possibles, tout comme
+                    un renouvellement légitime de pièce. Cette alerte est indicative, vous décidez.
+                </p>
+                @foreach($duplicate['matches'] as $match)
+                    @php
+                        $matchedSession = $matchedSessions[$match['partner_verification_session_id'] ?? 0] ?? null;
+                        $matchedDocument = $matchedDocuments[$match['document_id'] ?? 0] ?? null;
+                    @endphp
+                    <div class="border-top pt-3 mt-3">
+                        <div class="row">
+                            <div class="col-md-7">
+                                <div>Similarité : <strong>{{ number_format($match['similarity'], 3) }}</strong></div>
+                                <div>Identité existante : <strong>{{ $match['full_name'] ?? '—' }}</strong> ({{ $match['date_of_birth'] ?? '—' }})</div>
+                                <div>Pièce existante : <strong>{{ $match['document_type'] }} · {{ $match['document_number'] ?? '—' }}</strong></div>
+                                <div>Origine : <strong>{{ $match['partner_name'] ?? ($match['document_id'] ? 'Compte SagaPass' : '—') }}</strong>, enregistrée le {{ $match['enrolled_at'] ?? '—' }}</div>
+                            </div>
+                            <div class="col-md-5 d-flex gap-2">
+                                @if($matchedSession && $matchedSession->selfie_center_path)
+                                    <img src="{{ route('admin.partner-sessions.image', [$matchedSession, 'selfie_center']) }}" alt="Selfie existant" class="img-fluid rounded" style="max-height:140px;">
+                                @elseif($matchedDocument && $matchedDocument->selfie_path)
+                                    <img src="{{ route('admin.verification.image', [$matchedDocument, 'selfie']) }}" alt="Selfie existant" class="img-fluid rounded" style="max-height:140px;">
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
         <!-- Historique du Document -->
         @if($document->histories->isNotEmpty())
         <div class="card mt-4">

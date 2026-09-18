@@ -23,6 +23,15 @@ use Tests\TestCase;
 class AnalyzeDocumentJobTest extends TestCase
 {
     use DatabaseTransactions;
+    use BuildsFaceVerificationSchema;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Schéma minimal SQLite (voir le trait) : sans lui, ces tests échouent
+        // en local ("no such table: users") faute de base MySQL migrée.
+        $this->buildFaceVerificationSchema();
+    }
 
     private function makeDocumentWithSelfie(): Document
     {
@@ -62,7 +71,7 @@ class AnalyzeDocumentJobTest extends TestCase
         $document = $this->makeDocumentWithSelfie();
 
         Process::fake([
-            'python3 analyze.py*' => Process::result(output: json_encode([
+            '*analyze.py*' => Process::result(output: json_encode([
                 'ocr' => [
                     'document_number' => '1234567890',
                     'full_name' => 'JEAN BAPTISTE',
@@ -74,7 +83,7 @@ class AnalyzeDocumentJobTest extends TestCase
             ])),
         ]);
 
-        (new AnalyzeDocumentJob($document->id))->handle(app(\App\Services\FaceVerification\FaceVerificationService::class));
+        (new AnalyzeDocumentJob($document->id))->handle(app(\App\Services\FaceVerification\FaceVerificationService::class), app(\App\Services\FaceVerification\FaceDuplicateService::class));
 
         $document->refresh();
 
@@ -93,10 +102,10 @@ class AnalyzeDocumentJobTest extends TestCase
         $document = $this->makeDocumentWithSelfie();
 
         Process::fake([
-            'python3 analyze.py*' => Process::result(output: '', errorOutput: 'ModuleNotFoundError: deepface', exitCode: 1),
+            '*analyze.py*' => Process::result(output: '', errorOutput: 'ModuleNotFoundError: deepface', exitCode: 1),
         ]);
 
-        (new AnalyzeDocumentJob($document->id))->handle(app(\App\Services\FaceVerification\FaceVerificationService::class));
+        (new AnalyzeDocumentJob($document->id))->handle(app(\App\Services\FaceVerification\FaceVerificationService::class), app(\App\Services\FaceVerification\FaceDuplicateService::class));
 
         $document->refresh();
 
@@ -112,7 +121,7 @@ class AnalyzeDocumentJobTest extends TestCase
 
         Process::fake();
 
-        (new AnalyzeDocumentJob($document->id))->handle(app(\App\Services\FaceVerification\FaceVerificationService::class));
+        (new AnalyzeDocumentJob($document->id))->handle(app(\App\Services\FaceVerification\FaceVerificationService::class), app(\App\Services\FaceVerification\FaceDuplicateService::class));
 
         $document->refresh();
 

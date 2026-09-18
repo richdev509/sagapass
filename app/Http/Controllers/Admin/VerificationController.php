@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Document;
 use App\Models\AuditLog;
 use App\Models\DocumentHistory;
+use App\Models\PartnerVerificationSession;
+use App\Services\FaceVerification\FaceDuplicateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
@@ -209,13 +211,24 @@ class VerificationController extends Controller
     {
         $document->load(['user', 'verifiedBy', 'histories.admin']);
 
-        return view('admin.verification.show', compact('document'));
+        // Photos conservées des correspondances suspectes (contrôle de doublons
+        // de visage), pour comparer visuellement — sessions partenaire et
+        // documents de comptes SagaPass.
+        $matches = collect($document->duplicate_check['matches'] ?? []);
+        $matchedSessions = PartnerVerificationSession::query()
+            ->whereIn('id', $matches->pluck('partner_verification_session_id')->filter())
+            ->get()->keyBy('id');
+        $matchedDocuments = Document::query()
+            ->whereIn('id', $matches->pluck('document_id')->filter())
+            ->get()->keyBy('id');
+
+        return view('admin.verification.show', compact('document', 'matchedSessions', 'matchedDocuments'));
     }
 
     /**
      * Approuver un document
      */
-    public function approve(Request $request, Document $document)
+    public function approve(Request $request, Document $document, FaceDuplicateService $duplicates)
     {
         if ($document->verification_status !== 'pending') {
             return redirect()
@@ -231,6 +244,16 @@ class VerificationController extends Controller
             'verified_at' => now(),
             'rejection_reason' => null,
         ]);
+
+        // Le visage de ce document approuvé entre dans le registre global de
+        // doublons (sauf vivacité explicitement échouée), puis l'empreinte en
+        // attente est effacée du document.
+        if ($document->pending_face_embedding) {
+            if ($document->liveness_passed !== false) {
+                $duplicates->rememberDocument($document->pending_face_embedding, $document, $document->identityForDuplicateCheck());
+            }
+            $document->forceFill(['pending_face_embedding' => null])->save();
+        }
 
         // Vérifier si l'utilisateur a tous ses documents vérifiés
         $totalDocuments = $user->documents()->count();
@@ -310,6 +333,7 @@ class VerificationController extends Controller
             'verified_by' => Auth::guard('admin')->id(),
             'verified_at' => now(),
             'rejection_reason' => $request->rejection_reason,
+            'pending_face_embedding' => null,
         ]);
 
         // Mettre à jour le statut de l'utilisateur

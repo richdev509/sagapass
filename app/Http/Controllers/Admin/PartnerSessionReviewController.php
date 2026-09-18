@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\NotifyPartnerSessionWebhook;
+use App\Models\Document;
 use App\Models\PartnerVerificationSession;
 use App\Services\FaceVerification\PartnerSessionFinalizer;
 use Illuminate\Http\Request;
@@ -48,9 +49,15 @@ class PartnerSessionReviewController extends Controller
             ->get()
             ->keyBy('id');
 
+        $matchedDocuments = Document::query()
+            ->whereIn('id', collect($partnerSession->duplicate_check['matches'] ?? [])->pluck('document_id')->filter())
+            ->get()
+            ->keyBy('id');
+
         return view('admin.partner-sessions.show', [
             'session' => $partnerSession,
             'matchedSessions' => $matchedSessions,
+            'matchedDocuments' => $matchedDocuments,
         ]);
     }
 

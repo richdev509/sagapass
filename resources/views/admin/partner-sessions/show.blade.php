@@ -175,14 +175,32 @@
                 </p>
 
                 @foreach ($duplicate['matches'] as $match)
-                    @php $matched = $matchedSessions[$match['partner_verification_session_id']] ?? null; @endphp
+                    @php
+                        $matched = $matchedSessions[$match['partner_verification_session_id'] ?? 0] ?? null;
+                        $matchedDocument = $matchedDocuments[$match['document_id'] ?? 0] ?? null;
+                    @endphp
                     <div style="border-top: 1px solid var(--ios-border); padding-top: 14px; margin-top: 14px;">
                         <div class="ios-field-row"><span class="ios-field-label">Similarité</span><span class="ios-field-value">{{ number_format($match['similarity'], 3) }}</span></div>
                         <div class="ios-field-row"><span class="ios-field-label">Identité existante</span><span class="ios-field-value">{{ $match['full_name'] ?? '—' }}</span></div>
                         <div class="ios-field-row"><span class="ios-field-label">Date de naissance</span><span class="ios-field-value">{{ $match['date_of_birth'] ?? '—' }}</span></div>
                         <div class="ios-field-row"><span class="ios-field-label">Pièce existante</span><span class="ios-field-value">{{ $match['document_type'] }} · {{ $match['document_number'] ?? '—' }}</span></div>
-                        <div class="ios-field-row"><span class="ios-field-label">Partenaire d'origine</span><span class="ios-field-value">{{ $match['partner_name'] ?? '—' }}</span></div>
+                        <div class="ios-field-row"><span class="ios-field-label">Origine</span><span class="ios-field-value">{{ $match['partner_name'] ?? ($match['document_id'] ? 'Compte SagaPass' : '—') }}</span></div>
                         <div class="ios-field-row"><span class="ios-field-label">Enregistrée le</span><span class="ios-field-value">{{ $match['enrolled_at'] ?? '—' }}</span></div>
+
+                        @if ($matchedDocument && $matchedDocument->selfie_path)
+                            <div class="ios-photo-grid" style="margin-top: 12px;">
+                                <div class="ios-photo">
+                                    <img src="{{ route('admin.verification.image', [$matchedDocument, 'selfie']) }}" alt="Selfie existant">
+                                    <span>Selfie existant</span>
+                                </div>
+                                @if ($matchedDocument->front_photo_path)
+                                    <div class="ios-photo">
+                                        <img src="{{ route('admin.verification.image', [$matchedDocument, 'front']) }}" alt="Pièce existante">
+                                        <span>Pièce existante</span>
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
 
                         @if ($matched && $matched->selfie_center_path)
                             <div class="ios-photo-grid" style="margin-top: 12px;">

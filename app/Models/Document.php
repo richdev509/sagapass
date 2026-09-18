@@ -30,6 +30,8 @@ class Document extends Model
         'face_match_score',
         'liveness_passed',
         'automated_check_status',
+        'duplicate_check',
+        'pending_face_embedding',
     ];
 
     protected function casts(): array
@@ -41,6 +43,8 @@ class Document extends Model
             'automated_analysis_raw' => 'array',
             'ocr_extracted_date_of_birth' => 'date',
             'liveness_passed' => 'boolean',
+            'duplicate_check' => 'array',
+            'pending_face_embedding' => 'encrypted:array',
         ];
     }
 
@@ -51,6 +55,24 @@ class Document extends Model
     public function automatedCheckNotRun(): bool
     {
         return $this->automated_check_status === 'not_run';
+    }
+
+    /**
+     * Identité utilisée par le contrôle de doublons de visage : d'abord ce que
+     * l'OCR a lu sur la pièce, à défaut ce que l'utilisateur a déclaré.
+     *
+     * @return array{document_number: ?string, full_name: ?string, date_of_birth: ?string}
+     */
+    public function identityForDuplicateCheck(): array
+    {
+        $user = $this->user;
+        $declaredName = trim(($user?->first_name ?? '').' '.($user?->last_name ?? ''));
+
+        return [
+            'document_number' => $this->ocr_extracted_document_number ?: $this->document_number,
+            'full_name' => $this->ocr_extracted_full_name ?: ($declaredName !== '' ? $declaredName : null),
+            'date_of_birth' => ($this->ocr_extracted_date_of_birth ?? $user?->date_of_birth)?->toDateString(),
+        ];
     }
 
     /**

@@ -21,6 +21,7 @@ class FaceEmbedding extends Model
         'developer_application_id',
         'partner_verification_session_id',
         'partner_verified_identity_id',
+        'document_id',
     ];
 
     protected function casts(): array

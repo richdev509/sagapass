@@ -22,6 +22,7 @@ trait BuildsFaceVerificationSchema
                 $table->id();
                 $table->string('first_name')->nullable();
                 $table->string('last_name')->nullable();
+                $table->date('date_of_birth')->nullable();
                 $table->string('email')->nullable();
                 $table->timestamp('email_verified_at')->nullable();
                 $table->string('password')->nullable();
@@ -47,6 +48,35 @@ trait BuildsFaceVerificationSchema
                 $table->boolean('is_trusted')->default(false);
                 $table->timestamp('approved_at')->nullable();
                 $table->unsignedBigInteger('approved_by')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        if (! Schema::hasTable('documents')) {
+            Schema::create('documents', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('user_id');
+                $table->string('document_type');
+                $table->string('card_number')->nullable();
+                $table->string('document_number')->nullable();
+                $table->date('issue_date')->nullable();
+                $table->date('expiry_date')->nullable();
+                $table->string('front_photo_path')->nullable();
+                $table->string('back_photo_path')->nullable();
+                $table->string('selfie_path')->nullable();
+                $table->string('verification_status')->default('pending');
+                $table->string('rejection_reason')->nullable();
+                $table->unsignedBigInteger('verified_by')->nullable();
+                $table->timestamp('verified_at')->nullable();
+                $table->json('automated_analysis_raw')->nullable();
+                $table->string('ocr_extracted_document_number')->nullable();
+                $table->string('ocr_extracted_full_name')->nullable();
+                $table->date('ocr_extracted_date_of_birth')->nullable();
+                $table->float('face_match_score')->nullable();
+                $table->boolean('liveness_passed')->nullable();
+                $table->string('automated_check_status')->default('not_run');
+                $table->json('duplicate_check')->nullable();
+                $table->text('pending_face_embedding')->nullable();
                 $table->timestamps();
             });
         }
@@ -146,6 +176,7 @@ trait BuildsFaceVerificationSchema
                 $table->unsignedBigInteger('developer_application_id')->nullable();
                 $table->unsignedBigInteger('partner_verification_session_id')->nullable();
                 $table->unsignedBigInteger('partner_verified_identity_id')->nullable();
+                $table->unsignedBigInteger('document_id')->nullable();
                 $table->timestamps();
             });
         }

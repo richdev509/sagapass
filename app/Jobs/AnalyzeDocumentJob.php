@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Document;
+use App\Services\FaceVerification\FaceDuplicateService;
 use App\Services\FaceVerification\FaceVerificationService;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -21,6 +22,9 @@ use Illuminate\Support\Facades\Storage;
  * — ne touche JAMAIS verification_status, qui reste entièrement décidé par un
  * admin (voir Admin\VerificationController). Ce résultat est un signal
  * indicatif pour l'admin, pas une approbation automatique.
+ *
+ * Ajoute aussi le contrôle de doublons de visage (voir FaceDuplicateService),
+ * indicatif lui aussi.
  *
  * Aucun retry automatique de CE job (voir $tries) — un nouvel essai après un
  * échec technique est toujours un geste humain explicite (bouton admin, à
@@ -46,7 +50,7 @@ class AnalyzeDocumentJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
         return (string) $this->documentId;
     }
 
-    public function handle(FaceVerificationService $service): void
+    public function handle(FaceVerificationService $service, FaceDuplicateService $duplicates): void
     {
         $document = Document::query()->find($this->documentId);
 
@@ -80,6 +84,30 @@ class AnalyzeDocumentJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
             'face_match_score' => $result->faceMatchScore,
             'liveness_passed' => $result->livenessPassed,
             'automated_analysis_raw' => $result->raw,
+        ])->save();
+
+        // Contrôle de doublons de visage, INDICATIF comme le reste de cette
+        // analyse : un verdict suspect n'empêche rien, il s'affiche pour l'admin
+        // qui décide. L'empreinte reste en attente (chiffrée) et n'entre dans le
+        // registre global qu'à l'approbation.
+        if ($result->faceEmbedding === null) {
+            $document->forceFill(['duplicate_check' => ['verdict' => 'unchecked', 'severity' => null, 'matches' => []]])->save();
+
+            return;
+        }
+
+        $identity = $document->identityForDuplicateCheck();
+        $check = $duplicates->check(
+            $result->faceEmbedding,
+            $document->document_type,
+            $identity['document_number'],
+            $identity['full_name'],
+            $identity['date_of_birth'],
+        );
+
+        $document->forceFill([
+            'duplicate_check' => $check->toArray(),
+            'pending_face_embedding' => $result->faceEmbedding,
         ])->save();
     }
 }
