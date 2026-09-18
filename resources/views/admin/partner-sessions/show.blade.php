@@ -154,6 +154,55 @@
             </div>
         </div>
 
+        @if ($session->isDuplicateReview())
+            @php
+                $duplicate = $session->duplicate_check;
+                $strong = ($duplicate['severity'] ?? null) === 'strong';
+                $verdictLabels = [
+                    'duplicate_same_type' => 'Même visage, même type de pièce, numéro différent',
+                    'identity_conflict' => 'Même visage, mais nom ou date de naissance différents',
+                    'document_face_mismatch' => 'Même numéro de pièce déjà enregistré, mais visage différent',
+                ];
+            @endphp
+            <div class="ios-card" style="border-color: {{ $strong ? 'var(--ios-red)' : 'var(--ios-orange)' }};">
+                <h6 style="color: {{ $strong ? 'var(--ios-red)' : 'var(--ios-orange)' }};">
+                    Doublon de visage suspect — {{ $strong ? 'signal fort' : 'à vérifier' }}
+                </h6>
+                <p style="font-size: 14px; margin-bottom: 16px;">
+                    <strong>{{ $verdictLabels[$duplicate['verdict']] ?? $duplicate['verdict'] }}.</strong>
+                    Vérifiez visuellement : des jumeaux ou une fausse correspondance sont possibles.
+                    Un renouvellement légitime de pièce est aussi possible (même type, nouveau numéro).
+                </p>
+
+                @foreach ($duplicate['matches'] as $match)
+                    @php $matched = $matchedSessions[$match['partner_verification_session_id']] ?? null; @endphp
+                    <div style="border-top: 1px solid var(--ios-border); padding-top: 14px; margin-top: 14px;">
+                        <div class="ios-field-row"><span class="ios-field-label">Similarité</span><span class="ios-field-value">{{ number_format($match['similarity'], 3) }}</span></div>
+                        <div class="ios-field-row"><span class="ios-field-label">Identité existante</span><span class="ios-field-value">{{ $match['full_name'] ?? '—' }}</span></div>
+                        <div class="ios-field-row"><span class="ios-field-label">Date de naissance</span><span class="ios-field-value">{{ $match['date_of_birth'] ?? '—' }}</span></div>
+                        <div class="ios-field-row"><span class="ios-field-label">Pièce existante</span><span class="ios-field-value">{{ $match['document_type'] }} · {{ $match['document_number'] ?? '—' }}</span></div>
+                        <div class="ios-field-row"><span class="ios-field-label">Partenaire d'origine</span><span class="ios-field-value">{{ $match['partner_name'] ?? '—' }}</span></div>
+                        <div class="ios-field-row"><span class="ios-field-label">Enregistrée le</span><span class="ios-field-value">{{ $match['enrolled_at'] ?? '—' }}</span></div>
+
+                        @if ($matched && $matched->selfie_center_path)
+                            <div class="ios-photo-grid" style="margin-top: 12px;">
+                                <div class="ios-photo">
+                                    <img src="{{ route('admin.partner-sessions.image', [$matched, 'selfie_center']) }}" alt="Selfie existant">
+                                    <span>Selfie existant</span>
+                                </div>
+                                @if ($matched->front_photo_path)
+                                    <div class="ios-photo">
+                                        <img src="{{ route('admin.partner-sessions.image', [$matched, 'front']) }}" alt="Pièce existante">
+                                        <span>Pièce existante</span>
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        @endif
+
         @if ($session->analysis_raw['error'] ?? null)
             <div class="ios-card">
                 <h6>Erreur technique rencontrée</h6>

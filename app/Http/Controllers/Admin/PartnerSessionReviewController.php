@@ -5,16 +5,19 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Jobs\NotifyPartnerSessionWebhook;
 use App\Models\PartnerVerificationSession;
+use App\Services\FaceVerification\PartnerSessionFinalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Revue manuelle des PartnerVerificationSession dont l'analyse automatisée a
- * échoué techniquement (voir AnalyzePartnerSessionJob::handle() — photos
- * conservées exprès, jamais purgées, pour ce statut). Même squelette que
+ * Revue manuelle des PartnerVerificationSession : soit l'analyse automatisée a
+ * échoué techniquement, soit le contrôle de doublons de visage a signalé un cas
+ * suspect (voir AnalyzePartnerSessionJob::handle() et FaceDuplicateService —
+ * jumeaux et fausses correspondances possibles, d'où la décision humaine).
+ * Les photos sont conservées dans tous les cas. Même squelette que
  * Admin\VerificationController (flux Document/citoyen), très simplifié :
- * pas de compte SagaID rattaché ici, rien d'autre à mettre à jour.
+ * pas de compte SagaID rattaché ici.
  */
 class PartnerSessionReviewController extends Controller
 {
@@ -38,16 +41,48 @@ class PartnerSessionReviewController extends Controller
     {
         abort_unless($partnerSession->isAwaitingManualReview(), 404);
 
-        return view('admin.partner-sessions.show', ['session' => $partnerSession]);
+        // Sessions des correspondances suspectes, pour comparer visuellement
+        // leurs photos (conservées) avec celles de cette session.
+        $matchedSessions = PartnerVerificationSession::query()
+            ->whereIn('id', collect($partnerSession->duplicate_check['matches'] ?? [])->pluck('partner_verification_session_id')->filter())
+            ->get()
+            ->keyBy('id');
+
+        return view('admin.partner-sessions.show', [
+            'session' => $partnerSession,
+            'matchedSessions' => $matchedSessions,
+        ]);
     }
 
-    public function approve(PartnerVerificationSession $partnerSession)
+    public function approve(PartnerVerificationSession $partnerSession, PartnerSessionFinalizer $finalizer)
     {
         if (! $partnerSession->isAwaitingManualReview()) {
             return redirect()->route('admin.partner-sessions.index')->with('error', 'Cette session a déjà été traitée.');
         }
 
-        $partnerSession->purgePhotos();
+        if ($partnerSession->isDuplicateReview()) {
+            // L'analyse avait réussi : on termine ce que le job a suspendu
+            // (KYC ID, criblage, enregistrement de l'empreinte, webhook).
+            $finalizer->complete(
+                $partnerSession,
+                [
+                    'document_number' => $partnerSession->ocr_extracted_document_number,
+                    'full_name' => $partnerSession->ocr_extracted_full_name,
+                    'date_of_birth' => $partnerSession->ocr_extracted_date_of_birth?->toDateString(),
+                ],
+                $partnerSession->face_match_score,
+                $partnerSession->liveness_passed,
+                $partnerSession->pending_face_embedding,
+                enrollFace: $partnerSession->liveness_passed !== false,
+                attributes: [
+                    'reviewed_by' => Auth::guard('admin')->id(),
+                    'reviewed_at' => now(),
+                    'duplicate_check' => [...$partnerSession->duplicate_check, 'decision' => 'approved'],
+                ],
+            );
+
+            return redirect()->route('admin.partner-sessions.index')->with('success', 'Vérification approuvée — le partenaire a été notifié.');
+        }
 
         $partnerSession->forceFill([
             'status' => 'completed',
@@ -73,11 +108,25 @@ class PartnerSessionReviewController extends Controller
             'rejection_reason.required' => 'Veuillez indiquer la raison du rejet.',
         ]);
 
-        $partnerSession->purgePhotos();
+        $note = (string) $request->string('rejection_reason');
+
+        if ($partnerSession->isDuplicateReview()) {
+            // Motif générique côté partenaire : jamais les données d'une autre
+            // personne ni d'un autre partenaire. La note reste interne.
+            $partnerSession->forceFill([
+                'status' => 'failed',
+                'rejection_reason' => 'duplicate_identity',
+                'duplicate_check' => [...$partnerSession->duplicate_check, 'decision' => 'rejected', 'review_note' => $note],
+                'pending_face_embedding' => null,
+            ]);
+        } else {
+            $partnerSession->forceFill([
+                'status' => 'failed',
+                'rejection_reason' => 'manual_rejection: ' . $note,
+            ]);
+        }
 
         $partnerSession->forceFill([
-            'status' => 'failed',
-            'rejection_reason' => 'manual_rejection: ' . $request->string('rejection_reason'),
             'reviewed_by' => Auth::guard('admin')->id(),
             'reviewed_at' => now(),
             'completed_at' => now(),
@@ -90,8 +139,8 @@ class PartnerSessionReviewController extends Controller
 
     public function serveImage(PartnerVerificationSession $partnerSession, string $type)
     {
-        abort_unless($partnerSession->isAwaitingManualReview(), 404);
-
+        // Pas de restriction au statut "en revue" : l'admin compare aussi les
+        // photos conservées des correspondances (autres sessions déjà terminées).
         $path = match ($type) {
             'front' => $partnerSession->front_photo_path,
             'back' => $partnerSession->back_photo_path,

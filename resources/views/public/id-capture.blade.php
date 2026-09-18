@@ -155,6 +155,20 @@
         }
         .btn-capture:disabled { opacity: 0.45; cursor: not-allowed; }
 
+        .consent-box {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-start;
+            text-align: left;
+            max-width: 24rem;
+            font-size: 0.82rem;
+            line-height: 1.45;
+            color: rgba(255,255,255,0.8);
+            cursor: pointer;
+        }
+        .consent-box input { width: 1.25rem; height: 1.25rem; margin-top: 0.15rem; flex: none; accent-color: var(--primary); }
+        .consent-box a { color: #fff; text-decoration: underline; }
+
         .footer-note { font-size: 0.75rem; color: rgba(255,255,255,0.45); text-align: center; max-width: 22rem; }
 
         .state-panel {
@@ -232,6 +246,24 @@
         </div>
     </div>
 
+    <div class="state-panel" id="stateConsent">
+        <i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i>
+        <h2>Vérification d'identité</h2>
+        <p>Nous allons photographier votre pièce d'identité puis votre visage pour confirmer votre identité et vous protéger contre l'usurpation.</p>
+        <label class="consent-box">
+            <input type="checkbox" id="consentCheckbox">
+            <span>
+                J'ai lu et j'accepte les
+                <a href="{{ route('terms') }}" target="_blank" rel="noopener">conditions d'utilisation</a>
+                et la
+                <a href="{{ route('privacy') }}" target="_blank" rel="noopener">politique de confidentialité</a>.
+                Je consens à la capture de ma pièce d'identité et de mon visage, à leur conservation par SagaPass
+                et à leur comparaison avec d'autres vérifications pour prévenir la fraude.
+            </span>
+        </label>
+        <button type="button" class="btn-primary-soft btn-capture" id="consentStartBtn" disabled>Commencer</button>
+    </div>
+
     <div class="state-panel" id="statePermission">
         <i class="fa-solid fa-camera" style="color: rgba(255,255,255,0.5);"></i>
         <h2>Autorisez l'accès à la caméra</h2>
@@ -268,6 +300,7 @@
 
     <form id="idCaptureForm" method="POST" action="{{ route('capture.submit-id', $token) }}" enctype="multipart/form-data" hidden>
         @csrf
+        <input type="hidden" name="consent" id="consentField" value="">
         <input type="file" name="id_front" id="fileFront">
         @if ($documentType === 'national_id')
             <input type="file" name="id_back" id="fileBack">
@@ -576,10 +609,23 @@
             document.getElementById('idCaptureForm').submit();
         }
 
+        // Le consentement précède tout : la caméra ne démarre qu'après avoir
+        // coché la case et touché "Commencer".
+        const consentCheckbox = document.getElementById('consentCheckbox');
+        const consentStartBtn = document.getElementById('consentStartBtn');
+
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             showState('stateDenied');
         } else {
-            startCamera();
+            showState('stateConsent');
+            consentCheckbox.addEventListener('change', () => {
+                consentStartBtn.disabled = !consentCheckbox.checked;
+            });
+            consentStartBtn.addEventListener('click', () => {
+                if (!consentCheckbox.checked) return;
+                document.getElementById('consentField').value = '1';
+                startCamera();
+            });
         }
     </script>
 </body>

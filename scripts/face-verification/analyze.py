@@ -13,7 +13,8 @@ Contrat d'E/S (voir config/faceverification.php et le plan associé) :
   Note : "cni" et "national_id" désignent le même type de pièce (carte
   d'identité nationale) sous deux noms différents selon le flux appelant —
   extract_ocr_fields() accepte les deux.
-  stdout : UNE seule ligne JSON (voir build_output() plus bas)
+  stdout : UNE seule ligne JSON : ocr, liveness_passed, face_match_score,
+           face_embedding (empreinte SFace 128 valeurs ou null), warnings
   stderr : logs uniquement
   exit 0 : l'analyse a pu tourner (même si le verdict métier est négatif)
   exit != 0 : échec technique réel (dépendance manquante, image illisible...)
@@ -557,6 +558,44 @@ def check_face_match(front_photo_path: str, selfie_path: str) -> tuple:
     return face_match_score, warnings
 
 
+def get_face_embedding(selfie_path: str) -> tuple:
+    """Retourne (embedding: ?list[float], warnings: list[str]).
+
+    Empreinte faciale SFace (128 valeurs) du selfie — même modèle que
+    check_face_match(), donc aucune dépendance ni téléchargement de modèle en
+    plus. Sert à la détection de doublons de visage côté Laravel (voir
+    FaceDuplicateService) : c'est Laravel qui compare et décide, ce script
+    ne fait que produire l'empreinte. Ne lève jamais : un échec ici ne doit
+    pas casser l'analyse OCR/vivacité/correspondance déjà réussie.
+    """
+    warnings: list[str] = []
+
+    try:
+        from deepface import DeepFace
+    except ImportError:
+        warnings.append("deepface_unavailable")
+        return None, warnings
+
+    try:
+        representations = DeepFace.represent(
+            img_path=selfie_path,
+            model_name="SFace",
+            enforce_detection=True,
+        )
+        if not representations:
+            warnings.append("face_embedding_no_face")
+            return None, warnings
+        # Plusieurs visages détectés : on garde le plus grand (le sujet du selfie).
+        best = max(
+            representations,
+            key=lambda r: (r.get("facial_area") or {}).get("w", 0) * (r.get("facial_area") or {}).get("h", 0),
+        )
+        return [float(v) for v in best["embedding"]], warnings
+    except Exception as exc:  # noqa: BLE001
+        warnings.append(f"face_embedding_error: {exc}")
+        return None, warnings
+
+
 def analyze_face(front_photo_path: str, selfie_path: str) -> tuple:
     """Mode single-frame (flux Document/AnalyzeDocumentJob, inchangé).
 
@@ -893,10 +932,15 @@ def main() -> int:
         else:
             face_match_score, liveness_passed, warnings = analyze_face(front_photo_path, selfie_path)
 
+        # selfie_path est le frame "centre" en mode 3-frames (voir plus haut).
+        face_embedding, embedding_warnings = get_face_embedding(selfie_path)
+        warnings = warnings + embedding_warnings
+
     output = {
         "ocr": ocr_fields,
         "liveness_passed": liveness_passed,
         "face_match_score": face_match_score,
+        "face_embedding": face_embedding,
         "warnings": warnings,
     }
 

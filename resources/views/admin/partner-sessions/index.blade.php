@@ -2,7 +2,7 @@
 
 @section('title', 'Sessions Partenaire — Revue')
 @section('page-title', 'Sessions partenaire en revue manuelle')
-@section('page-subtitle', "L'analyse automatisée a échoué techniquement pour ces sessions — les photos sont conservées pour votre décision")
+@section('page-subtitle', "Échec technique de l'analyse ou doublon de visage suspect — examinez et décidez")
 
 @section('styles')
 <style>
@@ -104,6 +104,12 @@
                 <div class="ios-row-title">
                     {{ $session->developerApplication->name ?? 'Partenaire inconnu' }}
                     <span class="ios-badge"><i class="fas fa-circle"></i> En attente</span>
+                    @if ($session->isDuplicateReview())
+                        <span class="ios-badge" style="background: rgba(255,59,48,0.12); color: #FF3B30;">
+                            <i class="fas fa-circle"></i>
+                            {{ ($session->duplicate_check['severity'] ?? null) === 'strong' ? 'Doublon de visage — fort' : 'Doublon de visage — à vérifier' }}
+                        </span>
+                    @endif
                 </div>
                 <div class="ios-row-sub">
                     {{ $session->document_type === 'national_id' ? "Carte d'identification nationale" : ucfirst($session->document_type) }}

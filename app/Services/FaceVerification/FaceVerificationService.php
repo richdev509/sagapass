@@ -65,12 +65,20 @@ class FaceVerificationService
             'date_of_birth' => $decoded['ocr']['date_of_birth'] ?? null,
         ];
 
+        // L'empreinte faciale est une donnée biométrique : jamais recopiée dans
+        // $raw (persisté tel quel dans analysis_raw, en clair) — elle voyage
+        // à part, dans $faceEmbedding, et est stockée chiffrée par
+        // FaceDuplicateService/FaceEmbedding.
+        $embedding = $decoded['face_embedding'] ?? null;
+        unset($decoded['face_embedding']);
+
         return FaceVerificationResult::completed(
             ocr: $ocr,
             livenessPassed: $decoded['liveness_passed'] ?? null,
             faceMatchScore: isset($decoded['face_match_score']) ? (float) $decoded['face_match_score'] : null,
             warnings: $decoded['warnings'] ?? [],
             raw: $decoded,
+            faceEmbedding: is_array($embedding) && $embedding !== [] ? array_map('floatval', $embedding) : null,
         );
     }
 }

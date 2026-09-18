@@ -48,8 +48,8 @@ class CleanExpiredPartnerSessions extends Command
                 continue;
             }
 
-            $session->purgePhotos();
-
+            // Photos volontairement conservées (voir
+            // PartnerVerificationSession::purgePhotos()).
             $session->forceFill([
                 'status' => 'expired',
                 'completed_at' => now(),

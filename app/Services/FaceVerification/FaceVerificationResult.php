@@ -14,6 +14,7 @@ final readonly class FaceVerificationResult
     /**
      * @param array{document_number: ?string, full_name: ?string, date_of_birth: ?string} $ocr
      * @param list<string> $warnings
+     * @param ?list<float> $faceEmbedding empreinte faciale (128 valeurs), jamais dans $raw
      */
     private function __construct(
         public bool $ranSuccessfully,
@@ -23,16 +24,18 @@ final readonly class FaceVerificationResult
         public array $warnings,
         public ?string $errorMessage,
         public array $raw,
+        public ?array $faceEmbedding = null,
     ) {}
 
     /**
      * @param array{document_number: ?string, full_name: ?string, date_of_birth: ?string} $ocr
      * @param list<string> $warnings
      * @param array<string, mixed> $raw
+     * @param ?list<float> $faceEmbedding
      */
-    public static function completed(array $ocr, ?bool $livenessPassed, ?float $faceMatchScore, array $warnings, array $raw): self
+    public static function completed(array $ocr, ?bool $livenessPassed, ?float $faceMatchScore, array $warnings, array $raw, ?array $faceEmbedding = null): self
     {
-        return new self(true, $ocr, $livenessPassed, $faceMatchScore, $warnings, null, $raw);
+        return new self(true, $ocr, $livenessPassed, $faceMatchScore, $warnings, null, $raw, $faceEmbedding);
     }
 
     public static function failed(string $errorMessage): self

@@ -52,4 +52,24 @@ return [
     // nouvelle session complétée pour le même document/partenaire.
     'kyc_validity_days' => (int) env('FACE_VERIFICATION_KYC_VALIDITY_DAYS', 90),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Détection de doublons de visage (voir FaceDuplicateService)
+    |--------------------------------------------------------------------------
+    |
+    | Similarité cosinus minimale entre deux empreintes SFace pour considérer
+    | qu'il s'agit du même visage. 0.363 = seuil officiel du modèle SFace
+    | (OpenCV Zoo), le même que le projet Security_system. Point de départ :
+    | à recalibrer sur de vraies paires de visages (empreintes DeepFace, pas
+    | OpenCV). Une fausse alerte coûte une revue manuelle ; un doublon manqué
+    | coûte plus cher — d'où un seuil plutôt bas.
+    */
+
+    'duplicate_similarity_threshold' => (float) env('FACE_DUPLICATE_SIMILARITY_THRESHOLD', 0.363),
+
+    // Version des conditions d'utilisation acceptées sur la page de capture —
+    // enregistrée avec la session comme preuve de consentement. À changer quand
+    // les conditions (/terms, /privacy) sont modifiées.
+    'consent_terms_version' => env('FACE_VERIFICATION_TERMS_VERSION', '2026-09'),
+
 ];

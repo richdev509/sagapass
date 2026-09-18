@@ -10,6 +10,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Notifie le partenaire du résultat final d'une PartnerVerificationSession
@@ -116,7 +117,11 @@ class NotifyPartnerSessionWebhook implements ShouldQueue
             'blacklist_hit' => $this->session->blacklist_hit,
             // Court motif structuré sur un échec (ex. 'data_mismatch',
             // 'manual_rejection') — complète les 4 champs ci-dessus.
-            'rejection_reason' => $this->session->rejection_reason,
+            // Seul le code avant ':' est transmis : ce qui suit est la note
+            // libre de l'admin ("manual_rejection: <note>"), interne à SagaPass.
+            'rejection_reason' => $this->session->rejection_reason
+                ? Str::before($this->session->rejection_reason, ':')
+                : null,
             'status' => $this->session->status,
             'face_match_score' => $this->session->face_match_score,
             'liveness_passed' => $this->session->liveness_passed,

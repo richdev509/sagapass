@@ -41,6 +41,10 @@ class PartnerVerificationSession extends Model
         'partner_verified_identity_id',
         'blacklist_hit',
         'blacklist_matched_identity_id',
+        'duplicate_check',
+        'pending_face_embedding',
+        'consent_accepted_at',
+        'consent_terms_version',
         'ip_address',
         'user_agent',
         'expires_at',
@@ -55,6 +59,9 @@ class PartnerVerificationSession extends Model
             'analysis_raw' => 'array',
             'warnings' => 'array',
             'partner_submitted_data' => 'array',
+            'duplicate_check' => 'array',
+            'pending_face_embedding' => 'encrypted:array',
+            'consent_accepted_at' => 'datetime',
             'expires_at' => 'datetime',
             'completed_at' => 'datetime',
             'reviewed_at' => 'datetime',
@@ -119,10 +126,23 @@ class PartnerVerificationSession extends Model
     }
 
     /**
-     * Supprime les photos (pièce + selfies) du disque privé. Appelé après
-     * analyse (succès ou échec) et par la commande de nettoyage des sessions
-     * expirées — aucune raison de conserver ces fichiers une fois la session
-     * terminée d'une manière ou d'une autre.
+     * Revue manuelle déclenchée par le contrôle de doublons de visage (voir
+     * FaceDuplicateService), par opposition à un échec technique.
+     */
+    public function isDuplicateReview(): bool
+    {
+        return $this->isAwaitingManualReview()
+            && ! empty($this->duplicate_check['verdict'])
+            && ! in_array($this->duplicate_check['verdict'], ['none', 'unchecked'], true);
+    }
+
+    /**
+     * Supprime les photos (pièce + selfies) du disque privé. N'est PLUS appelé
+     * automatiquement : décision produit, les photos sont conservées sans
+     * expiration pour protéger les utilisateurs contre l'usurpation d'identité
+     * (preuve en cas de fraude, comparaison visuelle par un admin). Reste
+     * disponible pour une suppression volontaire (demande d'effacement d'une
+     * personne, par exemple).
      */
     public function purgePhotos(): void
     {

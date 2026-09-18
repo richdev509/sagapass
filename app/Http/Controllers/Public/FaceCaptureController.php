@@ -68,6 +68,12 @@ class FaceCaptureController extends Controller
         $validator = Validator::make($request->all(), [
             'id_front' => ['required', 'image', 'mimes:jpeg,jpg,png', 'max:8192'],
             'id_back' => [$requiresBack ? 'required' : 'nullable', 'image', 'mimes:jpeg,jpg,png', 'max:8192'],
+            // Consentement affiché avant la capture (conditions d'utilisation,
+            // données biométriques) — vérifié aussi côté serveur, pas seulement
+            // par le bouton désactivé de la page.
+            'consent' => ['accepted'],
+        ], [
+            'consent.accepted' => "Vous devez accepter les conditions d'utilisation pour continuer.",
         ]);
 
         if ($validator->fails()) {
@@ -96,6 +102,8 @@ class FaceCaptureController extends Controller
                 : null,
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
+            'consent_accepted_at' => now(),
+            'consent_terms_version' => config('faceverification.consent_terms_version'),
         ]);
 
         return view('public.face-capture', ['token' => $token]);

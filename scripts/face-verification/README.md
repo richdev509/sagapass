@@ -39,3 +39,14 @@ Doit afficher une seule ligne JSON sur stdout (voir le docstring de `analyze.py`
 Les heuristiques d'extraction de champs (`extract_ocr_fields()` dans `analyze.py`)
 sont des points de départ, pas calibrées sur de vrais échantillons de CIN/passeport
 haïtiens. À ajuster une fois des exemples réels disponibles.
+
+## Empreinte faciale (détection de doublons)
+
+En plus de l'OCR, de la vivacité et du score de correspondance, `analyze.py`
+renvoie `face_embedding` : l'empreinte SFace (128 valeurs) du selfie central,
+produite par `DeepFace.represent` (même modèle que la correspondance, aucune
+dépendance en plus). Laravel la compare à toutes les empreintes déjà vérifiées
+(`FaceDuplicateService`) — le script ne fait que la produire. Valeur `null` si
+l'extraction échoue (un avertissement `face_embedding_*` est alors ajouté) : la
+session continue, le contrôle de doublons est simplement marqué « unchecked ».
+Donnée biométrique : Laravel ne la stocke jamais en clair.
