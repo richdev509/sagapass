@@ -139,15 +139,21 @@
         .btn-primary-soft { background: var(--primary); color: #fff; }
         .btn-primary-soft:hover { background: var(--primary-dark); }
 
-        .manual-fallback {
+        .btn-capture {
+            flex: none;
+            width: min(88vw, 380px);
             border: none;
-            background: transparent;
-            color: rgba(255,255,255,0.55);
-            font-size: 0.8rem;
-            text-decoration: underline;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            font-weight: 700;
+            font-size: 1.05rem;
             cursor: pointer;
-            padding: 0.4rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
         }
+        .btn-capture:disabled { opacity: 0.45; cursor: not-allowed; }
 
         .footer-note { font-size: 0.75rem; color: rgba(255,255,255,0.45); text-align: center; max-width: 22rem; }
 
@@ -200,8 +206,6 @@
                 <video id="video" class="camera-video" autoplay playsinline muted></video>
                 <canvas id="overlayCanvas" class="overlay-canvas"></canvas>
                 <div class="card-guide" id="cardGuide"></div>
-                {{-- TEMPORAIRE (débogage détection de contour — à retirer une fois fiabilisée) --}}
-                <div id="debugInfo" style="position:absolute;bottom:8px;left:8px;right:8px;background:rgba(0,0,0,0.65);color:#0f0;font:11px monospace;padding:4px 6px;border-radius:4px;z-index:20;pointer-events:none;"></div>
             </div>
 
             <div class="review-photo" id="reviewPhoto" hidden>
@@ -221,8 +225,9 @@
                 <button type="button" class="btn-secondary" id="retakeBtn">Reprendre</button>
                 <button type="button" class="btn-primary-soft" id="nextBtn">Suivant</button>
             </div>
-            <button type="button" class="btn-primary-soft" id="manualCaptureBtn" style="width:100%;" hidden>Capturer manuellement</button>
-            <button type="button" class="manual-fallback" id="manualFallbackToggle" hidden>Ça ne fonctionne pas ? Touchez pour capturer manuellement</button>
+            <button type="button" class="btn-primary-soft btn-capture" id="captureBtn" disabled>
+                <i class="fa-solid fa-camera"></i> Capturer
+            </button>
             <p class="footer-note">Vos photos servent uniquement à vérifier votre identité pour {{ config('app.name', 'notre partenaire') }}.</p>
         </div>
     </div>
@@ -300,13 +305,11 @@
         const video = document.getElementById('video');
         const overlayCanvas = document.getElementById('overlayCanvas');
         const cardGuide = document.getElementById('cardGuide');
-        const debugInfo = document.getElementById('debugInfo'); // TEMPORAIRE
         const cameraWrap = document.getElementById('cameraWrap');
         const reviewPhoto = document.getElementById('reviewPhoto');
         const reviewImg = document.getElementById('reviewImg');
         const reviewActions = document.getElementById('reviewActions');
-        const manualCaptureBtn = document.getElementById('manualCaptureBtn');
-        const manualFallbackToggle = document.getElementById('manualFallbackToggle');
+        const captureBtn = document.getElementById('captureBtn');
         const instructionTitle = document.getElementById('instructionTitle');
         const instructionSubtitle = document.getElementById('instructionSubtitle');
 
@@ -327,6 +330,7 @@
             cameraWrap.hidden = false;
             reviewPhoto.hidden = true;
             reviewActions.hidden = true;
+            captureBtn.hidden = false;
             cardGuide.classList.remove('is-detected');
             stableTicks = 0;
         }
@@ -345,11 +349,14 @@
                 return;
             }
 
-            showState('stateModelLoading');
+            // L'écran de capture s'affiche dès que la caméra est prête : le
+            // bouton "Capturer" est utilisable sans attendre le chargement
+            // d'OpenCV (la détection auto démarre ensuite, si elle charge).
+            showState(null);
+            updateStepUi();
+            captureBtn.disabled = false;
             waitForOpenCv(() => {
                 cvReady = true;
-                showState(null);
-                updateStepUi();
                 startDetectionLoop();
             });
         }
@@ -370,11 +377,9 @@
                 } else if (attempts < 100) {
                     setTimeout(check, 100);
                 } else {
-                    // OpenCV n'a pas pu charger — repli manuel plutôt que de
-                    // bloquer l'utilisateur indéfiniment.
+                    // OpenCV n'a pas pu charger — le bouton "Capturer" reste
+                    // disponible, seule la détection auto est désactivée.
                     cvReady = false;
-                    showState(null);
-                    updateStepUi();
                     enableManualMode();
                 }
             };
@@ -384,18 +389,12 @@
         function enableManualMode() {
             manualMode = true;
             if (detectionTimer) clearInterval(detectionTimer);
-            manualCaptureBtn.hidden = false;
-            manualFallbackToggle.hidden = true;
             instructionSubtitle.textContent = 'Touchez le bouton pour capturer';
         }
 
         function startDetectionLoop() {
+            if (detectionTimer) clearInterval(detectionTimer);
             detectionTimer = setInterval(runDetectionTick, DETECTION_INTERVAL_MS);
-            setTimeout(() => {
-                if (!capturing && !manualMode && stableTicks < STABLE_TICKS_REQUIRED) {
-                    manualFallbackToggle.hidden = false;
-                }
-            }, 8000);
         }
 
         function runDetectionTick() {
@@ -414,14 +413,6 @@
             const quad = detection.quad;
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // TEMPORAIRE (débogage) : affiche la meilleure zone/nb de
-            // quadrilatères trouvés à chaque cycle, pour voir pourquoi la
-            // détection auto ne se déclenche pas sans avoir à deviner.
-            if (debugInfo) {
-                const pct = (detection.bestAreaRatio * 100).toFixed(1);
-                debugInfo.textContent = `contours 4pts convexes: ${detection.convexQuadCount} | meilleure zone: ${pct}% (seuil ${(MIN_QUAD_AREA_RATIO * 100).toFixed(0)}%) | stable: ${stableTicks}/${STABLE_TICKS_REQUIRED}`;
-            }
 
             if (!quad) {
                 stableTicks = 0;
@@ -461,8 +452,6 @@
 
             let bestPoints = null;
             let bestArea = 0;
-            let bestAreaSeen = 0; // TEMPORAIRE (débogage) : meilleure zone même sous le seuil
-            let convexQuadCount = 0; // TEMPORAIRE (débogage)
             const frameArea = canvas.width * canvas.height;
 
             try {
@@ -478,9 +467,7 @@
                     cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
 
                     if (approx.rows === 4 && cv.isContourConvex(approx)) {
-                        convexQuadCount++;
                         const area = cv.contourArea(approx);
-                        if (area > bestAreaSeen) bestAreaSeen = area;
                         if (area > frameArea * MIN_QUAD_AREA_RATIO && area > bestArea) {
                             bestArea = area;
                             bestPoints = [];
@@ -501,11 +488,7 @@
                 hierarchy.delete();
             }
 
-            return {
-                quad: bestPoints,
-                bestAreaRatio: frameArea > 0 ? bestAreaSeen / frameArea : 0, // TEMPORAIRE (débogage)
-                convexQuadCount, // TEMPORAIRE (débogage)
-            };
+            return { quad: bestPoints };
         }
 
         function triggerCapture(captureCanvas) {
@@ -525,12 +508,14 @@
                 cameraWrap.hidden = true;
                 reviewPhoto.hidden = false;
                 reviewActions.hidden = false;
+                captureBtn.hidden = true;
 
                 if (stream) stream.getTracks().forEach(t => t.stop());
             }, 'image/jpeg', 0.92);
         }
 
-        document.getElementById('manualCaptureBtn').addEventListener('click', () => {
+        captureBtn.addEventListener('click', () => {
+            if (capturing || !video.videoWidth) return;
             const captureCanvas = document.createElement('canvas');
             captureCanvas.width = video.videoWidth;
             captureCanvas.height = video.videoHeight;
@@ -538,13 +523,10 @@
             triggerCapture(captureCanvas);
         });
 
-        manualFallbackToggle.addEventListener('click', enableManualMode);
-
         document.getElementById('retakeBtn').addEventListener('click', async () => {
             capturing = false;
             manualMode = false;
-            manualCaptureBtn.hidden = true;
-            manualFallbackToggle.hidden = true;
+            captureBtn.hidden = false;
             cameraWrap.hidden = false;
             reviewPhoto.hidden = true;
             reviewActions.hidden = true;
