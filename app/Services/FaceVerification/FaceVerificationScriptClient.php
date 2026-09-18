@@ -64,10 +64,23 @@ class FaceVerificationScriptClient
     }
 
     /**
-     * @param list<string> $arguments
-     * @return array{ocr: array{document_number: ?string, full_name: ?string, date_of_birth: ?string}, liveness_passed: ?bool, face_match_score: ?float, warnings: list<string>}
+     * Mode diagnostic (page de test admin) : compare deux photos et détaille
+     * similarité, verdict DeepFace et vivacité passive de la seconde. Ne stocke
+     * rien, ne touche à aucune session.
+     *
+     * @return array<string, mixed>
      */
-    private function runScript(array $arguments): array
+    public function compareFaces(string $referencePhotoPath, string $probePhotoPath): array
+    {
+        return $this->runScript(['--compare', $referencePhotoPath, $probePhotoPath], 'compare')['compare'];
+    }
+
+    /**
+     * @param list<string> $arguments
+     * @param string $requiredKey clé de premier niveau que la sortie JSON doit contenir
+     * @return array<string, mixed>
+     */
+    private function runScript(array $arguments, string $requiredKey = 'ocr'): array
     {
         $result = Process::path($this->scriptPath)
             ->timeout($this->timeoutSeconds)
@@ -104,7 +117,7 @@ class FaceVerificationScriptClient
 
         $decoded = json_decode($output, true);
 
-        if (! is_array($decoded) || ! array_key_exists('ocr', $decoded)) {
+        if (! is_array($decoded) || ! array_key_exists($requiredKey, $decoded)) {
             throw FaceVerificationUnavailableException::fromUnparsableOutput($output);
         }
 

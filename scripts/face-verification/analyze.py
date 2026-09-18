@@ -596,6 +596,79 @@ def get_face_embedding(selfie_path: str) -> tuple:
         return None, warnings
 
 
+def _cosine_similarity(a: list, b: list) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = sum(x * x for x in a) ** 0.5
+    norm_b = sum(y * y for y in b) ** 0.5
+    return dot / (norm_a * norm_b) if norm_a > 0 and norm_b > 0 else 0.0
+
+
+def compare_faces(reference_path: str, probe_path: str) -> dict:
+    """Mode diagnostic (page de test admin) : compare deux photos et détaille
+    tout ce que le moteur en pense — similarité cosinus brute des empreintes
+    (celle comparée au seuil de doublons de Laravel), verdict DeepFace, et
+    vivacité passive de la seconde photo. Ne stocke rien.
+    """
+    result = {
+        "reference_face_found": False,
+        "probe_face_found": False,
+        "cosine_similarity": None,
+        "deepface_distance": None,
+        "deepface_threshold": None,
+        "deepface_verified": None,
+        "liveness_passed": None,
+        "antispoof_score": None,
+        "warnings": [],
+    }
+
+    try:
+        from deepface import DeepFace
+    except ImportError:
+        result["warnings"].append("deepface_unavailable")
+        return result
+
+    embeddings = {}
+    for key, path in (("reference", reference_path), ("probe", probe_path)):
+        embedding, warnings = get_face_embedding(path)
+        result["warnings"] += [f"{key}: {w}" for w in warnings]
+        if embedding is not None:
+            result[f"{key}_face_found"] = True
+            embeddings[key] = embedding
+
+    if len(embeddings) == 2:
+        result["cosine_similarity"] = round(_cosine_similarity(embeddings["reference"], embeddings["probe"]), 4)
+        try:
+            verified = DeepFace.verify(
+                img1_path=reference_path,
+                img2_path=probe_path,
+                model_name="SFace",
+                enforce_detection=True,
+            )
+            result["deepface_distance"] = verified.get("distance")
+            result["deepface_threshold"] = verified.get("threshold")
+            result["deepface_verified"] = bool(verified.get("verified"))
+        except Exception as exc:  # noqa: BLE001
+            result["warnings"].append(f"deepface_verify_error: {exc}")
+
+    if result["probe_face_found"]:
+        try:
+            faces = DeepFace.extract_faces(img_path=probe_path, anti_spoofing=True, enforce_detection=True)
+            if faces:
+                main_face = max(faces, key=lambda f: f.get("facial_area", {}).get("w", 0))
+                result["liveness_passed"] = bool(main_face.get("is_real", False))
+                score = main_face.get("antispoof_score")
+                result["antispoof_score"] = round(float(score), 4) if score is not None else None
+        except ValueError as exc:
+            if "spoof" in str(exc).lower():
+                result["liveness_passed"] = False
+            else:
+                result["warnings"].append(f"liveness_check_error: {exc}")
+        except Exception as exc:  # noqa: BLE001
+            result["warnings"].append(f"liveness_check_error: {exc}")
+
+    return result
+
+
 def analyze_face(front_photo_path: str, selfie_path: str) -> tuple:
     """Mode single-frame (flux Document/AnalyzeDocumentJob, inchangé).
 
@@ -895,7 +968,23 @@ def analyze_face_active(
     )
 
 
+def main_compare() -> int:
+    """analyze.py --compare <reference_photo> <probe_photo> (page de test admin)."""
+    real_stdout = sys.stdout
+    with contextlib.redirect_stdout(sys.stderr):
+        try:
+            result = compare_faces(sys.argv[2], sys.argv[3])
+        except Exception as exc:  # noqa: BLE001
+            log(traceback.format_exc())
+            result = {"error": str(exc)}
+    print(json.dumps({"compare": result}), file=real_stdout)
+    return 0
+
+
 def main() -> int:
+    if len(sys.argv) == 4 and sys.argv[1] == "--compare":
+        return main_compare()
+
     if len(sys.argv) not in (5, 7):
         log(
             "Usage: analyze.py <document_type> <front_photo_path> <back_photo_path|\"\"> <selfie_path>\n"

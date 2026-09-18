@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\VerificationController;
 use App\Http\Controllers\Admin\PartnerSessionReviewController;
+use App\Http\Controllers\Admin\FaceTestController;
 use App\Http\Controllers\Admin\MobileVerificationController;
 use App\Http\Controllers\Admin\CitizenController;
 use App\Http\Controllers\Admin\AdminController;
@@ -114,6 +115,13 @@ Route::middleware(['auth:admin', 'ensure.2fa'])->prefix('admin')->name('admin.')
         Route::get('/{partnerSession}/image/{type}', [PartnerSessionReviewController::class, 'serveImage'])->name('image');
         Route::post('/{partnerSession}/approve', [PartnerSessionReviewController::class, 'approve'])->name('approve');
         Route::post('/{partnerSession}/reject', [PartnerSessionReviewController::class, 'reject'])->name('reject');
+    });
+
+    // Page de test du moteur facial (comparaison photo/caméra, aucune donnée
+    // conservée) — voir FaceTestController. Middleware dans le constructeur.
+    Route::prefix('face-test')->name('face-test.')->group(function () {
+        Route::get('/', [FaceTestController::class, 'index'])->name('index');
+        Route::post('/compare', [FaceTestController::class, 'compare'])->middleware('throttle:20,1')->name('compare');
     });
 
     // Gestion des citoyens
