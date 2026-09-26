@@ -274,7 +274,8 @@
                     <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>Conforme aux régulations sur la protection des données.</li>
                     <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>Tableau de bord pour gérer vos utilisateurs et analyser les données.</li>
                 </ul>
-                <a href="{{ route('contact') }}" class="btn btn-primary">Découvrir nos solutions pro</a>
+                <a href="{{ route('partner.apply') }}" class="btn btn-primary me-2">Devenir partenaire</a>
+                <a href="{{ route('enterprises') }}" class="btn btn-outline-primary">Découvrir nos solutions pro</a>
             </div>
         </div>
     </div>
