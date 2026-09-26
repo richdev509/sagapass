@@ -10,6 +10,7 @@ class DeveloperApplication extends Model
 {
     protected $fillable = [
         'user_id',
+        'partner_account_id',
         'name',
         'description',
         'website',
@@ -71,6 +72,16 @@ class DeveloperApplication extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Compte entreprise propriétaire, pour une application créée via la
+     * demande de partenariat publique (voir Public\PartnerApplicationController)
+     * — distinct de user() qui reste pour d'autres origines (compte citoyen).
+     */
+    public function partnerAccount(): BelongsTo
+    {
+        return $this->belongsTo(PartnerAccount::class);
     }
 
     /**
