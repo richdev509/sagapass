@@ -89,6 +89,11 @@ class PartnerSessionFinalizer
                 'document_type' => $session->document_type,
                 'full_name' => $ocr['full_name'] ?? null,
                 'date_of_birth' => $ocr['date_of_birth'] ?? null,
+                // Tout ce que l'OCR a extrait, au-delà des 3 champs
+                // historiques ci-dessus — nationalité/MRZ pour un passeport,
+                // adresse/groupe sanguin/catégorie pour un permis, etc. Voir
+                // analyze.py::_ocr_field_keys pour le jeu de clés par type.
+                'extracted_fields' => $ocr,
                 'face_match_score' => $faceMatchScore,
                 'liveness_passed' => $livenessPassed,
                 'status' => 'valid',

@@ -28,6 +28,7 @@ class PartnerVerifiedIdentity extends Model
         'document_number',
         'full_name',
         'date_of_birth',
+        'extracted_fields',
         'face_match_score',
         'liveness_passed',
         'status',
@@ -42,6 +43,7 @@ class PartnerVerifiedIdentity extends Model
     {
         return [
             'date_of_birth' => 'date',
+            'extracted_fields' => 'array',
             'liveness_passed' => 'boolean',
             'verified_at' => 'datetime',
             'valid_until' => 'datetime',

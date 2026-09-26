@@ -10,6 +10,7 @@ use App\Services\SubmittedDataConsistencyChecker;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -96,6 +97,27 @@ class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQ
             return;
         }
 
+        // Pièce expirée (CNI/passeport/permis ont tous un date_of_expiry) :
+        // rejet automatique, avant le criblage liste de vigilance et
+        // l'émission d'un KYC ID — un document expiré ne doit jamais servir
+        // de preuve d'identité valide, quel que soit le reste de l'analyse.
+        if ($this->isDocumentExpired($result->ocr['date_of_expiry'] ?? null)) {
+            $session->forceFill([
+                'status' => 'failed',
+                'ocr_extracted_document_number' => $result->ocr['document_number'],
+                'ocr_extracted_full_name' => $result->ocr['full_name'],
+                'ocr_extracted_date_of_birth' => $result->ocr['date_of_birth'],
+                'analysis_raw' => $result->raw,
+                'warnings' => $result->warnings,
+                'rejection_reason' => 'document_expired',
+                'completed_at' => now(),
+            ])->save();
+
+            NotifyPartnerSessionWebhook::dispatch($session, 'verification.failed');
+
+            return;
+        }
+
         // Détection de doublons de visage, globale (tous partenaires) : une
         // personne peut avoir une pièce de chaque type, jamais deux du même
         // type. Un cas suspect part en revue manuelle — jamais de rejet
@@ -147,5 +169,24 @@ class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQ
             enrollFace: $result->livenessPassed === true,
             attributes: $analysis,
         );
+    }
+
+    /**
+     * Expiré si la date d'expiration OCR est strictement avant AUJOURD'HUI
+     * (une pièce qui expire ce jour reste valide jusqu'à la fin de la
+     * journée). Silencieusement non-expiré si la date est absente/illisible
+     * — l'OCR n'ayant pas pu lire ce champ n'est pas un motif de rejet en soi.
+     */
+    private function isDocumentExpired(?string $dateOfExpiry): bool
+    {
+        if (! $dateOfExpiry) {
+            return false;
+        }
+
+        try {
+            return Carbon::parse($dateOfExpiry)->lt(now()->startOfDay());
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }

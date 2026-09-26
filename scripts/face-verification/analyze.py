@@ -102,9 +102,9 @@ _CNI_LABEL_KEYWORDS = [
 ]
 
 
-def _looks_like_label(text: str) -> bool:
+def _looks_like_label(text: str, label_keywords: list = _CNI_LABEL_KEYWORDS) -> bool:
     normalized = text.lower()
-    return any(kw in normalized for kw in _CNI_LABEL_KEYWORDS)
+    return any(kw in normalized for kw in label_keywords)
 
 
 def _find_label_line(lines: list, must_contain: list, must_not_contain: list = (), prefer_last: bool = False):
@@ -125,7 +125,9 @@ def _find_label_line(lines: list, must_contain: list, must_not_contain: list = (
     return match
 
 
-def _value_candidates_below(lines: list, label_line: dict, max_y_gap: float = 150) -> list:
+def _value_candidates_below(
+    lines: list, label_line: dict, max_y_gap: float = 150, label_keywords: list = _CNI_LABEL_KEYWORDS
+) -> list:
     """Lignes EN DESSOUS de label_line, dans la même colonne (chevauchement
     horizontal), triées par proximité verticale — jamais une autre étiquette
     connue (voir _looks_like_label).
@@ -145,7 +147,7 @@ def _value_candidates_below(lines: list, label_line: dict, max_y_gap: float = 15
     """
     candidates = []
     for line in lines:
-        if line is label_line or _looks_like_label(line["text"]):
+        if line is label_line or _looks_like_label(line["text"], label_keywords):
             continue
         overlap = min(line["x_max"], label_line["x_max"]) - max(line["x_min"], label_line["x_min"])
         if overlap <= 0:
@@ -158,18 +160,18 @@ def _value_candidates_below(lines: list, label_line: dict, max_y_gap: float = 15
     return [c[1] for c in candidates]
 
 
-def _find_value_below(lines: list, label_line: dict):
-    candidates = _value_candidates_below(lines, label_line)
+def _find_value_below(lines: list, label_line: dict, label_keywords: list = _CNI_LABEL_KEYWORDS):
+    candidates = _value_candidates_below(lines, label_line, label_keywords=label_keywords)
     return candidates[0]["text"] if candidates else None
 
 
-def _find_row_below(lines: list, label_line: dict, row_tolerance: float = 20):
+def _find_row_below(lines: list, label_line: dict, row_tolerance: float = 20, label_keywords: list = _CNI_LABEL_KEYWORDS):
     """Comme _find_value_below, mais rassemble TOUTES les lignes de la même
     "rangée" (écart vertical proche du plus proche trouvé) et les joint de
     gauche à droite — pour une valeur écrite sur plusieurs morceaux côte à
     côte (ex. "OUEST" + "PORT-AU-PRINCE" pour le lieu de naissance, détectés
     comme deux lignes séparées à la même hauteur)."""
-    candidates = _value_candidates_below(lines, label_line)
+    candidates = _value_candidates_below(lines, label_line, label_keywords=label_keywords)
     if not candidates:
         return None
 
@@ -275,14 +277,57 @@ def _extract_cni_fields(lines: list) -> dict:
     return fields
 
 
-_OCR_FIELD_KEYS = (
-    "document_number", "full_name", "date_of_birth",
-    "sex", "place_of_birth", "date_of_issue", "date_of_expiry",
-)
+# Description de chaque champ par type de document — sert à la fois de
+# schéma pour le prompt Claude vision (valeur = instruction pour le modèle)
+# et de source unique pour la liste des clés attendues (_ocr_field_keys) :
+# jamais deux listes de clés à maintenir en synchronisation séparément.
+_CNI_OCR_FIELD_DESCRIPTIONS = {
+    "document_number": "numéro d'identification unique (NIU) — pas le numéro de carte",
+    "full_name": "prénom + nom en majuscules",
+    "date_of_birth": "YYYY-MM-DD",
+    "sex": "M ou F",
+    "place_of_birth": "lieu de naissance",
+    "date_of_issue": "YYYY-MM-DD",
+    "date_of_expiry": "YYYY-MM-DD",
+}
+
+_PASSPORT_OCR_FIELD_DESCRIPTIONS = {
+    **_CNI_OCR_FIELD_DESCRIPTIONS,
+    "nationality": "nationalité telle qu'imprimée, ex. HAITIENNE",
+    "personal_number": "numéro personnel / NIF imprimé sur le passeport (distinct du numéro de passeport)",
+    "mrz_line1": "première ligne de la zone de lecture automatique en bas du document (commence par P<)",
+    "mrz_line2": "seconde ligne de la zone de lecture automatique",
+}
+
+_DRIVERS_LICENSE_OCR_FIELD_DESCRIPTIONS = {
+    "document_number": 'numéro de dossier (champ "Dossier"), ex. JJ-61703-AC',
+    "full_name": 'nom complet en majuscules tel qu\'imprimé (champ "Nom")',
+    "date_of_birth": "YYYY-MM-DD",
+    "sex": "M ou F",
+    "nif": "numéro NIF imprimé",
+    "address": 'adresse telle qu\'imprimée (champ "Adresse")',
+    "blood_type": 'groupe sanguin (champ "G. Sang"), ex. O+',
+    "license_category": 'catégorie de véhicule (champ "Type"), ex. A, AC',
+    "place_of_issue": 'lieu d\'émission (champ "Lieu d\'émission")',
+    "date_of_issue": 'YYYY-MM-DD (champ "Emis le")',
+    "date_of_expiry": 'YYYY-MM-DD (champ "Expire le")',
+}
+
+_OCR_FIELD_DESCRIPTIONS_BY_TYPE = {
+    "cni": _CNI_OCR_FIELD_DESCRIPTIONS,
+    "national_id": _CNI_OCR_FIELD_DESCRIPTIONS,
+    "passport": _PASSPORT_OCR_FIELD_DESCRIPTIONS,
+    "drivers_license": _DRIVERS_LICENSE_OCR_FIELD_DESCRIPTIONS,
+}
 
 
-def _empty_ocr_fields() -> dict:
-    return {key: None for key in _OCR_FIELD_KEYS}
+def _ocr_field_keys(document_type: str) -> tuple:
+    descriptions = _OCR_FIELD_DESCRIPTIONS_BY_TYPE.get(document_type, _CNI_OCR_FIELD_DESCRIPTIONS)
+    return tuple(descriptions.keys())
+
+
+def _empty_ocr_fields(document_type: str = "cni") -> dict:
+    return {key: None for key in _ocr_field_keys(document_type)}
 
 
 def _extract_ocr_fields_via_claude(document_type: str, front_photo_path: str) -> dict | None:
@@ -310,20 +355,23 @@ def _extract_ocr_fields_via_claude(document_type: str, front_photo_path: str) ->
         log(f"Claude OCR: lecture image impossible: {exc}")
         return None
 
-    doc_label = "carte d'identification nationale haïtienne (recto)" if document_type in ("cni", "national_id") else "passeport"
+    doc_labels = {
+        "cni": "carte d'identification nationale haïtienne (recto)",
+        "national_id": "carte d'identification nationale haïtienne (recto)",
+        "passport": "passeport haïtien (page principale avec photo)",
+        "drivers_license": "permis de conduire haïtien",
+    }
+    doc_label = doc_labels.get(document_type, "passeport")
+    descriptions = _OCR_FIELD_DESCRIPTIONS_BY_TYPE.get(document_type, _CNI_OCR_FIELD_DESCRIPTIONS)
+    schema_json = json.dumps(descriptions, ensure_ascii=False)
 
     prompt = (
-        f"Voici la photo d'une {doc_label}. Extrais EXACTEMENT les champs suivants tels "
+        f"Voici la photo d'un(e) {doc_label}. Extrais EXACTEMENT les champs suivants tels "
         "qu'imprimés sur le document, sans les traduire ni les reformater au-delà du format "
         "demandé. Réponds UNIQUEMENT avec un objet JSON valide, aucun texte autour, aucun bloc "
-        "de code — juste le JSON brut, avec exactement ces clés :\n"
-        '{"document_number": "numéro d\'identification unique (NIU) — pas le numéro de carte",'
-        ' "full_name": "prénom + nom en majuscules",'
-        ' "date_of_birth": "YYYY-MM-DD",'
-        ' "sex": "M ou F",'
-        ' "place_of_birth": "lieu de naissance",'
-        ' "date_of_issue": "YYYY-MM-DD",'
-        ' "date_of_expiry": "YYYY-MM-DD"}\n'
+        "de code — juste le JSON brut, avec exactement ces clés (le texte de chaque valeur "
+        "ci-dessous décrit ce qu'il faut y mettre, ce n'est pas la valeur à renvoyer) :\n"
+        f"{schema_json}\n"
         "Mets null (pas la chaîne \"null\") pour tout champ absent, illisible, ou dont tu n'es "
         "pas raisonnablement sûr — ne devine jamais une valeur plausible à la place d'une "
         "valeur réellement lue sur le document."
@@ -374,8 +422,8 @@ def _extract_ocr_fields_via_claude(document_type: str, front_photo_path: str) ->
         log(f"Claude OCR: réponse inexploitable: {exc}")
         return None
 
-    fields = _empty_ocr_fields()
-    for key in _OCR_FIELD_KEYS:
+    fields = _empty_ocr_fields(document_type)
+    for key in descriptions:
         value = parsed.get(key)
         if isinstance(value, str) and value.strip():
             fields[key] = value.strip()
@@ -383,18 +431,246 @@ def _extract_ocr_fields_via_claude(document_type: str, front_photo_path: str) ->
     return fields
 
 
-def _extract_ocr_fields_via_easyocr(document_type: str, front_photo_path: str) -> dict:
-    """Retourne {"document_number": ?str, "full_name": ?str, "date_of_birth": ?str,
-    "sex": ?str, "place_of_birth": ?str, "date_of_issue": ?str, "date_of_expiry": ?str}.
+# --- Permis de conduire haïtien : étiquettes françaises uniquement (pas de
+# bilinguisme comme sur la CNI), mise en page à plusieurs colonnes courtes. ---
+_DRIVERS_LICENSE_LABEL_KEYWORDS = [
+    "dossier", "nif", "nom", "adresse", "naissa", "sexe", "sang",
+    "lieu", "emission", "émission", "emis", "expir", "type", "signature", "circulation", "permis",
+]
 
-    Champs de date toujours normalisés en YYYY-MM-DD si trouvés. Pour un
-    passeport (pas encore de vrai échantillon pour calibrer une extraction
-    ancrée par position, voir _extract_cni_fields), seuls document_number/
-    full_name/date_of_birth peuvent être renseignés — les 4 champs
-    supplémentaires (sex, place_of_birth, date_of_issue, date_of_expiry)
-    restent toujours null dans ce cas.
+
+def _extract_drivers_license_fields(lines: list) -> dict:
+    """Permis de conduire haïtien — ancrage par étiquette/position, même
+    principe que _extract_cni_fields mais PAS ENCORE testé contre une vraie
+    sortie EasyOCR (contrairement à la CNI) : construit uniquement à partir
+    de la mise en page visuelle de 2 échantillons fournis par l'utilisateur.
+    À recalibrer une fois de vrais tests OCR disponibles.
     """
-    fields = _empty_ocr_fields()
+    fields = _empty_ocr_fields("drivers_license")
+    kw = _DRIVERS_LICENSE_LABEL_KEYWORDS
+
+    dossier_label = _find_label_line(lines, must_contain=["dossier"])
+    if dossier_label:
+        value = _find_value_below(lines, dossier_label, label_keywords=kw)
+        if value:
+            fields["document_number"] = value.strip().upper()
+
+    nif_label = _find_label_line(lines, must_contain=["nif"])
+    if nif_label:
+        value = _find_value_below(lines, nif_label, label_keywords=kw)
+        if value:
+            fields["nif"] = re.sub(r"[^0-9-]", "", value) or None
+
+    # "Nom" seul (pas "Dossier", ni une fausse capture du titre du document).
+    name_label = _find_label_line(lines, must_contain=["nom"], must_not_contain=["dossier"])
+    if name_label:
+        value = _find_row_below(lines, name_label, label_keywords=kw)
+        if value:
+            fields["full_name"] = value.upper()
+
+    address_label = _find_label_line(lines, must_contain=["adresse"])
+    if address_label:
+        value = _find_row_below(lines, address_label, label_keywords=kw)
+        if value:
+            fields["address"] = value.upper()
+
+    dob_label = _find_label_line(lines, must_contain=["naissa"])
+    if dob_label:
+        fields["date_of_birth"] = _parse_date(_find_value_below(lines, dob_label, label_keywords=kw))
+
+    sex_label = _find_label_line(lines, must_contain=["sexe"])
+    if sex_label:
+        value = _find_value_below(lines, sex_label, label_keywords=kw)
+        if value and value.strip().upper() in ("M", "F"):
+            fields["sex"] = value.strip().upper()
+
+    blood_label = _find_label_line(lines, must_contain=["sang"])
+    if blood_label:
+        value = _find_value_below(lines, blood_label, label_keywords=kw)
+        if value:
+            match = re.search(r"\b(A|B|AB|O)[+-]", value.upper())
+            if match:
+                fields["blood_type"] = match.group(0)
+
+    place_label = _find_label_line(lines, must_contain=["lieu"])
+    if place_label:
+        value = _find_row_below(lines, place_label, label_keywords=kw)
+        if value:
+            fields["place_of_issue"] = value.upper()
+
+    issue_label = _find_label_line(lines, must_contain=["emis"], must_not_contain=["lieu"])
+    if issue_label:
+        fields["date_of_issue"] = _parse_date(_find_value_below(lines, issue_label, label_keywords=kw))
+
+    expiry_label = _find_label_line(lines, must_contain=["expir"])
+    if expiry_label:
+        fields["date_of_expiry"] = _parse_date(_find_value_below(lines, expiry_label, label_keywords=kw))
+
+    type_label = _find_label_line(lines, must_contain=["type"])
+    if type_label:
+        value = _find_value_below(lines, type_label, label_keywords=kw)
+        if value:
+            category = re.sub(r"[^A-Z0-9]", "", value.upper())
+            if category:
+                fields["license_category"] = category
+
+    return fields
+
+
+# --- Passeport : décodage de la zone de lecture automatique (MRZ, norme ICAO
+# 9303, format TD3 sur 2 lignes de 44 caractères) — approche algorithmique
+# avec chiffres de contrôle, PAS une heuristique de position à calibrer sur un
+# échantillon comme _extract_cni_fields : la MRZ est conçue pour être lue par
+# machine, ses positions de champs sont fixes et documentées. N'a pas pu être
+# testée contre une vraie sortie EasyOCR (la segmentation en lignes d'EasyOCR
+# pourrait couper la bande MRZ différemment de ce qui est supposé ici — une
+# ligne détectée = une ligne physique de la MRZ) ; à vérifier une fois un vrai
+# test effectué. ---
+
+def _mrz_char_value(ch: str) -> int:
+    if ch.isdigit():
+        return int(ch)
+    if ch == "<":
+        return 0
+    if "A" <= ch <= "Z":
+        return ord(ch) - ord("A") + 10
+    return 0
+
+
+def _mrz_check_digit(data: str) -> int:
+    weights = (7, 3, 1)
+    total = 0
+    for i, ch in enumerate(data):
+        total += _mrz_char_value(ch) * weights[i % 3]
+    return total % 10
+
+
+def _mrz_field_if_valid(data: str, check_char: str):
+    """None si le chiffre de contrôle ICAO 9303 ne correspond pas — un champ
+    manquant est préférable à une valeur corrompue par une erreur de lecture
+    OCR sur la bande MRZ."""
+    if not check_char.isdigit():
+        return None
+    return data if _mrz_check_digit(data) == int(check_char) else None
+
+
+def _mrz_date(yyMMdd: str):
+    if not re.fullmatch(r"\d{6}", yyMMdd):
+        return None
+    yy, mm, dd = yyMMdd[0:2], yyMMdd[2:4], yyMMdd[4:6]
+    import datetime
+
+    # Pas de siècle imprimé dans la MRZ elle-même : bascule standard autour
+    # d'une fenêtre glissante (une naissance ne peut pas être dans le futur,
+    # une expiration ne remonte pas à plus de ~20 ans dans le passé).
+    current_yy = datetime.date.today().year % 100
+    century = "19" if int(yy) > current_yy + 20 else "20"
+    return f"{century}{yy}-{mm}-{dd}"
+
+
+def _find_mrz_lines(raw_text_lines: list):
+    """Cherche les 2 lignes de la MRZ (44 caractères A-Z0-9<, très
+    majoritairement des '<' de remplissage) parmi les lignes OCR brutes."""
+    candidates = []
+    for raw in raw_text_lines:
+        compact = re.sub(r"[^A-Z0-9<]", "", raw.upper())
+        if len(compact) >= 30 and compact.count("<") >= 2:
+            candidates.append(compact)
+
+    if len(candidates) < 2:
+        return None, None
+
+    # La MRZ est toujours en bas du document — en cas de faux positif
+    # ailleurs sur la page, les 2 DERNIÈRES lignes qui y ressemblent restent
+    # le choix le plus sûr (ordre de détection EasyOCR ~ position verticale,
+    # voir _extract_cni_fields).
+    return candidates[-2], candidates[-1]
+
+
+def _extract_passport_mrz_fields(raw_text_lines: list) -> dict:
+    fields = _empty_ocr_fields("passport")
+
+    line1, line2 = _find_mrz_lines(raw_text_lines)
+    if not line1 or not line2:
+        return fields
+
+    line1 = (line1 + "<" * 44)[:44]
+    line2 = (line2 + "<" * 44)[:44]
+
+    # Ligne 1 : P< + pays émetteur (3) + NOM<<PRENOMS (rempli de '<').
+    name_field = line1[5:]
+    surname, _, given = name_field.partition("<<")
+    surname = surname.replace("<", " ").strip()
+    given = given.replace("<", " ").strip()
+    if surname or given:
+        fields["full_name"] = " ".join(part for part in (surname, given) if part)
+
+    document_number = _mrz_field_if_valid(line2[0:9], line2[9:10])
+    if document_number:
+        cleaned = document_number.replace("<", "").strip()
+        if cleaned:
+            fields["document_number"] = cleaned
+
+    nationality = line2[10:13].replace("<", "").strip()
+    if nationality:
+        fields["nationality"] = nationality
+
+    birth = _mrz_field_if_valid(line2[13:19], line2[19:20])
+    if birth:
+        fields["date_of_birth"] = _mrz_date(birth)
+
+    sex_char = line2[20:21]
+    if sex_char in ("M", "F"):
+        fields["sex"] = sex_char
+
+    expiry = _mrz_field_if_valid(line2[21:27], line2[27:28])
+    if expiry:
+        fields["date_of_expiry"] = _mrz_date(expiry)
+
+    personal_number = line2[28:42].replace("<", "").strip()
+    if personal_number:
+        fields["personal_number"] = personal_number
+
+    fields["mrz_line1"] = line1
+    fields["mrz_line2"] = line2
+
+    return fields
+
+
+def _extract_passport_generic_fields(lines: list) -> dict:
+    """Repli si la bande MRZ n'a pas pu être détectée dans la sortie OCR
+    (photo cadrée sans la bande du bas, ou lecture illisible) — heuristique
+    large sur le texte brut, pas calibrée sur un vrai échantillon.
+    """
+    fields = _empty_ocr_fields("passport")
+    full_text = " ".join(lines)
+
+    match = re.search(r"\b[A-Z0-9]{6,20}\b", full_text.upper())
+    if match:
+        fields["document_number"] = match.group(0)
+
+    date_match = re.search(r"\b(\d{2})[./-](\d{2})[./-](\d{4})\b", full_text)
+    if date_match:
+        day, month, year = date_match.groups()
+        fields["date_of_birth"] = f"{year}-{month}-{day}"
+
+    name_candidates = [
+        line for line in lines
+        if re.fullmatch(r"[A-ZÀ-Ÿ' -]{4,}", line.upper()) and not re.search(r"\d", line)
+    ]
+    if name_candidates:
+        fields["full_name"] = max(name_candidates, key=len).upper()
+
+    return fields
+
+
+def _extract_ocr_fields_via_easyocr(document_type: str, front_photo_path: str) -> dict:
+    """Retourne un dict dont les clés dépendent du type de document (voir
+    _ocr_field_keys) — toujours document_number/full_name/date_of_birth au
+    minimum, plus des champs spécifiques au type (voir les fonctions
+    _extract_*_fields dédiées).
+    """
+    fields = _empty_ocr_fields(document_type)
 
     try:
         # EASYOCR_MODULE_PATH doit être fixée AVANT l'import : easyocr/config.py
@@ -429,29 +705,17 @@ def _extract_ocr_fields_via_easyocr(document_type: str, front_photo_path: str) -
     if document_type in ("cni", "national_id"):
         return _extract_cni_fields(_ocr_line_boxes(raw_results))
 
-    # Passeport : pas encore de vrai échantillon pour calibrer une extraction
-    # ancrée par position (voir _extract_cni_fields) — heuristique large sur
-    # le texte brut en attendant, comme avant.
+    if document_type == "drivers_license":
+        return _extract_drivers_license_fields(_ocr_line_boxes(raw_results))
+
+    # Passeport : priorité à la MRZ (fiable, checksums), repli sur
+    # l'heuristique texte libre si la bande MRZ n'a pas été détectée.
     lines = [text.strip() for (_bbox, text, _confidence) in raw_results if text.strip()]
-    full_text = " ".join(lines)
+    mrz_fields = _extract_passport_mrz_fields(lines)
+    if any(value is not None for value in mrz_fields.values()):
+        return mrz_fields
 
-    match = re.search(r"\b[A-Z0-9]{6,20}\b", full_text.upper())
-    if match:
-        fields["document_number"] = match.group(0)
-
-    date_match = re.search(r"\b(\d{2})[./-](\d{2})[./-](\d{4})\b", full_text)
-    if date_match:
-        day, month, year = date_match.groups()
-        fields["date_of_birth"] = f"{year}-{month}-{day}"
-
-    name_candidates = [
-        line for line in lines
-        if re.fullmatch(r"[A-ZÀ-Ÿ' -]{4,}", line.upper()) and not re.search(r"\d", line)
-    ]
-    if name_candidates:
-        fields["full_name"] = max(name_candidates, key=len).upper()
-
-    return fields
+    return _extract_passport_generic_fields(lines)
 
 
 def extract_ocr_fields(document_type: str, front_photo_path: str) -> dict:

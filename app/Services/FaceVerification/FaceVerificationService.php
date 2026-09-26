@@ -59,11 +59,15 @@ class FaceVerificationService
 
     private function toResult(array $decoded): FaceVerificationResult
     {
-        $ocr = [
-            'document_number' => $decoded['ocr']['document_number'] ?? null,
-            'full_name' => $decoded['ocr']['full_name'] ?? null,
-            'date_of_birth' => $decoded['ocr']['date_of_birth'] ?? null,
-        ];
+        // Tous les champs renvoyés par analyze.py, pas seulement les 3
+        // historiques (document_number/full_name/date_of_birth) : le jeu de
+        // clés dépend du type de document (voir _ocr_field_keys côté Python)
+        // — nationalité/MRZ pour un passeport, adresse/groupe sanguin/
+        // catégorie pour un permis, etc. Ces champs supplémentaires doivent
+        // survivre jusqu'à PartnerSessionFinalizer pour être conservés sur
+        // l'identité vérifiée (PartnerVerifiedIdentity::extracted_fields),
+        // pas seulement dans le blob d'audit brut.
+        $ocr = $decoded['ocr'] ?? [];
 
         // L'empreinte faciale est une donnée biométrique : jamais recopiée dans
         // $raw (persisté tel quel dans analysis_raw, en clair) — elle voyage

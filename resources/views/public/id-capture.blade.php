@@ -310,14 +310,19 @@
     <script src="{{ asset('js/opencv.js') }}"></script>
     <script>
         const DOCUMENT_TYPE = @json($documentType);
-        const STEPS = DOCUMENT_TYPE === 'national_id'
-            ? [
+        const STEPS_BY_TYPE = {
+            national_id: [
                 { key: 'front', title: "Photographiez le recto de votre pièce", subtitle: 'Placez-la bien dans le cadre, à plat' },
                 { key: 'back', title: "Photographiez le verso de votre pièce", subtitle: 'Retournez la pièce, même cadrage' },
-            ]
-            : [
+            ],
+            passport: [
                 { key: 'front', title: "Photographiez votre passeport", subtitle: 'Page principale, bien à plat dans le cadre' },
-            ];
+            ],
+            drivers_license: [
+                { key: 'front', title: "Photographiez votre permis de conduire", subtitle: 'Placez-le bien dans le cadre, à plat' },
+            ],
+        };
+        const STEPS = STEPS_BY_TYPE[DOCUMENT_TYPE] ?? STEPS_BY_TYPE.passport;
 
         // Aire minimale du quadrilatère détecté (proportion de la frame) pour
         // le considérer comme "la pièce bien cadrée" — évite de déclencher
