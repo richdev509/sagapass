@@ -215,12 +215,6 @@
                 <div class="hero-text-content">
                     <h1 class="display-4 mb-4">Une seule identité pour un accès universel et sécurisé.</h1>
                     <p class="lead mb-5">SAGAPASS est votre clé d'accès numérique qui simplifie votre vie en ligne. Connectez-vous à tous vos services en un clic, sans compromettre votre sécurité.</p>
-                    <div class="d-flex align-items-center gap-4 mt-5">
-                        <h5 class="mb-0 fw-bold text-secondary cta-text">Créez votre SAGAPASS</h5>
-                        <a href="#" class="btn btn-primary btn-lg">
-                            <i class="fas fa-download me-2"></i>Télécharger l'application
-                        </a>
-                    </div>
                 </div>
             </div>
             <div class="col-lg-6 text-center" data-aos="fade-left">
@@ -291,9 +285,6 @@
     <div class="container" data-aos="fade-up">
         <h2 class="fw-bold">Prêt à simplifier votre vie numérique ?</h2>
         <p class="lead mb-4">Rejoignez des milliers d'utilisateurs et d'entreprises qui font confiance à SAGAPASS.</p>
-        <a href="#" class="btn btn-light btn-lg">
-            <i class="fas fa-download me-2"></i>Télécharger l'application
-        </a>
     </div>
 </section>
 

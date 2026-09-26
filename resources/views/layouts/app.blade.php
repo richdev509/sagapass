@@ -118,13 +118,13 @@
                             <a class="nav-link" href="#">Particuliers</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#">Entreprises</a>
+                            <a class="nav-link" href="{{ route('enterprises') }}">Entreprises</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('documentation') }}">Développeurs</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#">Tarifs</a>
+                            <a class="nav-link" href="{{ route('pricing') }}">Tarifs</a>
                         </li>
                     </ul>
                     <div class="d-flex align-items-center">
@@ -152,8 +152,8 @@
                     <h5>Produit</h5>
                     <ul class="list-unstyled">
                         <li><a href="#">Pour les particuliers</a></li>
-                        <li><a href="#">Pour les entreprises</a></li>
-                        <li><a href="#">Tarifs</a></li>
+                        <li><a href="{{ route('enterprises') }}">Pour les entreprises</a></li>
+                        <li><a href="{{ route('pricing') }}">Tarifs</a></li>
                     </ul>
                 </div>
                 <div class="col-lg-2 col-md-6 mb-4">

@@ -48,6 +48,8 @@ Route::get('/about', [PageController::class, 'about'])->name('about');
 Route::get('/blog', [PageController::class, 'blog'])->name('blog');
 Route::get('/careers', [PageController::class, 'careers'])->name('careers');
 Route::get('/contact', [PageController::class, 'contact'])->name('contact');
+Route::get('/entreprises', [PageController::class, 'enterprises'])->name('enterprises');
+Route::get('/tarifs', [PageController::class, 'pricing'])->name('pricing');
 
 // Ressources
 Route::get('/documentation', [PageController::class, 'documentation'])->name('documentation');

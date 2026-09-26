@@ -62,6 +62,17 @@
         font-size: 0.9rem;
         white-space: pre-wrap;
     }
+    .doc-content table {
+        width: 100%;
+        margin: 1.5rem 0;
+        border-collapse: collapse;
+    }
+    .doc-content th, .doc-content td {
+        border: 1px solid var(--border-color);
+        padding: 0.6rem 0.8rem;
+        font-size: 0.92rem;
+        text-align: left;
+    }
     .doc-content .alert {
         border-radius: 8px;
     }
@@ -75,13 +86,13 @@
         <nav id="doc-sidebar" class="col-lg-3 col-xl-2 d-none d-lg-block doc-sidebar">
             <ul class="nav flex-column">
                 <li class="nav-item"><a class="nav-link" href="#introduction">Introduction</a></li>
-                <li class="nav-item"><a class="nav-link" href="#authentication">Flux d'Authentification</a></li>
-                <li class="nav-item"><a class="nav-link" href="#endpoints">Points d'Accès (Endpoints)</a></li>
-                <li class="nav-item"><a class="nav-link" href="#scopes">Scopes</a></li>
-                <li class="nav-item"><a class="nav-link" href="#tokens">Gestion des Tokens</a></li>
-                <li class="nav-item"><a class="nav-link" href="#user-info">Récupérer les infos utilisateur</a></li>
-                <li class="nav-item"><a class="nav-link" href="#errors">Gestion des Erreurs</a></li>
-                <li class="nav-item"><a class="nav-link" href="#security">Sécurité & Bonnes Pratiques</a></li>
+                <li class="nav-item"><a class="nav-link" href="#credentials">Identifiants</a></li>
+                <li class="nav-item"><a class="nav-link" href="#create-session">Créer une session</a></li>
+                <li class="nav-item"><a class="nav-link" href="#status">Vérifier le statut</a></li>
+                <li class="nav-item"><a class="nav-link" href="#webhook">Webhook de résultat</a></li>
+                <li class="nav-item"><a class="nav-link" href="#fields">Champs par type de pièce</a></li>
+                <li class="nav-item"><a class="nav-link" href="#expiry">Pièce expirée</a></li>
+                <li class="nav-item"><a class="nav-link" href="#kyc-id">Revérifier un KYC ID</a></li>
             </ul>
         </nav>
 
@@ -90,95 +101,89 @@
             <div class="pb-5">
                 <div class="text-center text-lg-start">
                     <h1 class="display-4 fw-bold">Documentation Développeur</h1>
-                    <p class="lead text-muted">Intégrez l'authentification SAGAPASS à votre application en suivant notre guide complet.</p>
+                    <p class="lead text-muted">Intégrez la vérification d'identité SAGAPASS — le seul service exposé aux partenaires pour le moment.</p>
                 </div>
 
                 <section id="introduction">
                     <h2><i class="fas fa-rocket me-2 text-primary"></i>Introduction</h2>
-                    <p>Bienvenue sur la documentation de l'API SAGAPASS. Notre objectif est de vous fournir tous les outils nécessaires pour intégrer une authentification OAuth2 robuste, sécurisée et simple pour vos utilisateurs.</p>
-                    <p>SAGAPASS utilise le standard <strong>OAuth 2.0</strong> avec le flux <a href="https://oauth.net/2/grant-types/authorization-code/" target="_blank">Authorization Code Grant</a>, complété par la spécification <strong>PKCE</strong> (Proof Key for Code Exchange) pour une sécurité accrue, notamment pour les applications mobiles et les Single-Page Applications (SPA).</p>
+                    <p>SAGAPASS capture lui-même (sur sa propre page web, caméra en direct) la pièce d'identité et le selfie de votre utilisateur, effectue l'OCR, la vivacité et la correspondance visage↔pièce, puis vous notifie le résultat par webhook. Vous n'avez jamais besoin de manipuler de photos vous-même.</p>
+                    <p>C'est aujourd'hui le seul service exposé via l'API partenaire. D'autres services (identification entreprise, etc.) sont en préparation — <a href="{{ route('contact') }}">contactez-nous</a> si votre besoin dépasse la vérification d'identité.</p>
                 </section>
 
-                <section id="authentication">
-                    <h2><i class="fas fa-project-diagram me-2 text-primary"></i>Flux d'Authentification</h2>
-                    <p>Le processus d'authentification se déroule en plusieurs étapes :</p>
-                    <ol>
-                        <li><strong>Redirection de l'utilisateur :</strong> Votre application redirige l'utilisateur vers le point d'accès <code>/oauth/authorize</code> de SAGAPASS avec les paramètres de votre application (client_id, redirect_uri, etc.).</li>
-                        <li><strong>Consentement de l'utilisateur :</strong> L'utilisateur se connecte sur SAGAPASS et autorise votre application à accéder aux informations demandées (définies par les scopes).</li>
-                        <li><strong>Réception du code d'autorisation :</strong> SAGAPASS redirige l'utilisateur vers votre <code>redirect_uri</code> avec un code d'autorisation (<code>code</code>) à usage unique.</li>
-                        <li><strong>Échange du code contre un Access Token :</strong> Votre serveur, de manière sécurisée, échange ce code d'autorisation contre un <code>access_token</code> en appelant le point d'accès <code>/oauth/token</code>.</li>
-                        <li><strong>Appels API :</strong> Avec l'<code>access_token</code>, votre application peut maintenant appeler les points d'accès protégés de l'API SAGAPASS (par exemple, pour récupérer les informations de l'utilisateur).</li>
-                    </ol>
-                </section>
-
-                <section id="endpoints">
-                    <h2><i class="fas fa-network-wired me-2 text-primary"></i>Points d'Accès (Endpoints)</h2>
-                    <h3>Point d'accès d'autorisation</h3>
-                    <p>C'est le point de départ du flux. Vous devez rediriger vos utilisateurs vers cette URL.</p>
-                    <pre><code>GET {{ config('app.url') }}/oauth/authorize</code></pre>
-
-                    <h3>Point d'accès de Token</h3>
-                    <p>Utilisé par votre serveur pour échanger un code d'autorisation contre un access token.</p>
-                    <pre><code>POST {{ config('app.url') }}/oauth/token</code></pre>
-
-                    <h3>Point d'accès d'informations utilisateur</h3>
-                    <p>Une fois que vous avez un access token valide, vous pouvez l'utiliser pour récupérer les informations de l'utilisateur.</p>
-                    <pre><code>GET {{ config('app.url') }}/api/oauth/userinfo</code></pre>
-                </section>
-
-                <section id="scopes">
-                    <h2><i class="fas fa-user-shield me-2 text-primary"></i>Scopes</h2>
-                    <p>Les scopes permettent de limiter l'accès d'une application aux données d'un utilisateur. Vous devez spécifier les scopes dont vous avez besoin lors de la demande d'autorisation.</p>
+                <section id="credentials">
+                    <h2><i class="fas fa-key me-2 text-primary"></i>Identifiants</h2>
+                    <p>Après approbation de votre <a href="{{ route('partner.apply') }}">demande de partenariat</a>, vous recevez depuis votre <a href="{{ route('partner.dashboard') }}">tableau de bord</a> :</p>
                     <ul>
-                        <li><code>profile</code>: Accès aux informations de base du profil (nom, email).</li>
-                        <li><code>email</code>: Accès à l'adresse email de l'utilisateur.</li>
-                        <li><code>openid</code>: Requis pour la compatibilité OpenID Connect.</li>
-                        <li><code>kyc.status</code>: Permet de savoir si l'identité de l'utilisateur a été vérifiée (KYC).</li>
+                        <li><code>client_id</code> / <code>client_secret</code> — authentification HTTP Basic sur les appels sortants.</li>
+                        <li><code>webhook_secret</code> — vérifie la signature des webhooks entrants. Distinct du <code>client_secret</code>.</li>
                     </ul>
                 </section>
 
-                <section id="tokens">
-                    <h2><i class="fas fa-key me-2 text-primary"></i>Gestion des Tokens</h2>
-                    <p>Lorsque vous échangez le code d'autorisation, l'API vous retourne un <code>access_token</code> et un <code>refresh_token</code>.</p>
+                <section id="create-session">
+                    <h2><i class="fas fa-network-wired me-2 text-primary"></i>Créer une session de vérification</h2>
+                    <pre><code>POST {{ config('app.url') }}/api/partner/v1/verification-sessions
+Auth: Basic (client_id, client_secret)
+Body (JSON):
+  document_type: "national_id" | "passport" | "drivers_license"
+  partner_reference: string
+  webhook_url: string
+  partner_submitted_data: object
+
+Réponse (201):
+  session_token: string
+  capture_url: string
+  expires_at: string (ISO 8601)</code></pre>
+                    <p>Redirigez l'utilisateur vers <code>capture_url</code> — SagaPass gère toute la capture caméra (pièce + selfie + vivacité active) sur sa propre page.</p>
+                </section>
+
+                <section id="status">
+                    <h2><i class="fas fa-satellite-dish me-2 text-primary"></i>Vérifier le statut (filet de sécurité)</h2>
+                    <pre><code>GET {{ config('app.url') }}/api/partner/v1/verification-sessions/{session_token}/status
+Auth: Basic (client_id, client_secret)</code></pre>
+                    <p>À utiliser uniquement si le webhook tarde — le webhook reste le chemin principal, pas du polling actif.</p>
+                </section>
+
+                <section id="webhook">
+                    <h2><i class="fas fa-bell me-2 text-primary"></i>Webhook de résultat</h2>
+                    <p>SagaPass envoie le résultat en <code>POST</code> sur votre <code>webhook_url</code>.</p>
                     <ul>
-                        <li><strong>Access Token :</strong> Il a une durée de vie courte (généralement 1 heure). Il doit être inclus dans l'en-tête <code>Authorization</code> de chaque requête API : <code>Authorization: Bearer VOTRE_ACCESS_TOKEN</code>.</li>
-                        <li><strong>Refresh Token :</strong> Il a une durée de vie plus longue et est utilisé pour obtenir un nouvel access token lorsque l'actuel a expiré, sans que l'utilisateur ait besoin de se reconnecter.</li>
+                        <li>Header <code>X-Saga-Signature</code>, valeur <code>sha256=&lt;hmac&gt;</code>.</li>
+                        <li>Calcul : <code>hash_hmac('sha256', &lt;corps brut&gt;, webhook_secret)</code> — comparez en temps constant (<code>hash_equals</code>).</li>
+                        <li>Événements : <code>verification.completed</code>, <code>verification.failed</code>, <code>verification.expired</code>, <code>kyc.expired</code>.</li>
+                        <li>Le payload contient <code>session_token</code> et/ou <code>kyc_id</code> — utilisez-les comme clé d'idempotence.</li>
                     </ul>
+                    <p>Répondez vite (<code>200 {"received": true}</code>) et traitez le résultat en file d'attente, jamais en synchrone dans le contrôleur du webhook.</p>
                 </section>
 
-                <section id="user-info">
-                    <h2><i class="fas fa-user-circle me-2 text-primary"></i>Récupérer les infos utilisateur</h2>
-                    <p>Pour obtenir les informations de l'utilisateur connecté, effectuez une requête GET vers le point d'accès <code>userinfo</code> avec l'access token.</p>
-                    <pre>
-fetch('{{ config('app.url') }}/api/oauth/userinfo', {
-    headers: {
-        'Authorization': 'Bearer ' + accessToken,
-        'Accept': 'application/json'
-    }
-})
-.then(response => response.json())
-.then(data => console.log(data));</pre>
-                    <p>La réponse sera un objet JSON contenant les informations de l'utilisateur correspondant aux scopes autorisés.</p>
+                <section id="fields">
+                    <h2><i class="fas fa-table me-2 text-primary"></i>Champs disponibles selon le type de pièce</h2>
+                    <p>Tous les types renvoient au minimum <code>document_number</code>, <code>full_name</code>, <code>date_of_birth</code>, <code>date_of_expiry</code>.</p>
+                    <table>
+                        <thead><tr><th>Type</th><th>Champs supplémentaires</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>national_id</code></td><td><code>sex</code>, <code>place_of_birth</code>, <code>date_of_issue</code></td></tr>
+                            <tr><td><code>passport</code></td><td><code>sex</code>, <code>nationality</code>, <code>personal_number</code>, <code>mrz_line1</code>, <code>mrz_line2</code></td></tr>
+                            <tr><td><code>drivers_license</code></td><td><code>sex</code>, <code>nif</code>, <code>address</code>, <code>blood_type</code>, <code>license_category</code>, <code>place_of_issue</code>, <code>date_of_issue</code></td></tr>
+                        </tbody>
+                    </table>
+                    <p>Ne bloquez pas votre décision sur <code>face_match_score</code> seul — c'est un signal indicatif, pas un verdict.</p>
                 </section>
 
-                <section id="errors">
-                    <h2><i class="fas fa-exclamation-triangle me-2 text-primary"></i>Gestion des Erreurs</h2>
-                    <p>L'API utilise les codes de statut HTTP standards pour indiquer le succès ou l'échec d'une requête. Une réponse d'erreur (4xx ou 5xx) inclura un corps JSON avec des détails sur l'erreur.</p>
-                    <pre>
-{
-  "error": "invalid_request",
-  "error_description": "The request is missing a required parameter, includes an invalid parameter value, includes a parameter more than once, or is otherwise malformed."
-}</pre>
+                <section id="expiry">
+                    <h2><i class="fas fa-calendar-times me-2 text-primary"></i>Pièce expirée</h2>
+                    <p>Une pièce dont <code>date_of_expiry</code> est dans le passé est automatiquement rejetée (<code>verification.failed</code>) — vous n'avez rien à vérifier vous-même.</p>
                 </section>
 
-                <section id="security">
-                    <h2><i class="fas fa-shield-alt me-2 text-primary"></i>Sécurité & Bonnes Pratiques</h2>
-                    <ul>
-                        <li><strong>PKCE est obligatoire :</strong> Toutes les demandes d'autorisation doivent inclure les paramètres <code>code_challenge</code> et <code>code_challenge_method</code>.</li>
-                        <li><strong>Stockage sécurisé des tokens :</strong> Ne stockez jamais les tokens côté client dans un stockage persistant (comme le localStorage). Pour les SPAs, utilisez la mémoire de l'application. Pour les applications web traditionnelles, stockez-les dans des sessions côté serveur.</li>
-                        <li><strong>Validation du `state` :</strong> Utilisez le paramètre <code>state</code> pour prévenir les attaques CSRF. Générez une chaîne aléatoire avant la redirection et validez-la au retour.</li>
-                    </ul>
+                <section id="kyc-id">
+                    <h2><i class="fas fa-id-badge me-2 text-primary"></i>Revérifier un KYC ID durable</h2>
+                    <pre><code>GET {{ config('app.url') }}/api/partner/v1/kyc-identities/{kyc_id}/status
+Auth: Basic (client_id, client_secret)</code></pre>
+                    <p>Permet de vérifier qu'une identité déjà validée est toujours dans sa période de validité, sans repasser par toute la capture.</p>
                 </section>
+
+                <div class="alert alert-light border mt-5">
+                    <strong>Aller plus loin :</strong> le <a href="{{ route('partner.docs.index') }}">centre de documentation partenaire</a> couvre en détail chaque guide, y compris les cas particuliers déjà rencontrés en production.
+                </div>
             </div>
         </main>
     </div>
@@ -209,4 +214,3 @@ fetch('{{ config('app.url') }}/api/oauth/userinfo', {
     });
 </script>
 @endpush
-

@@ -27,6 +27,16 @@ class PageController extends Controller
         return view('pages.contact');
     }
 
+    public function enterprises()
+    {
+        return view('pages.enterprises');
+    }
+
+    public function pricing()
+    {
+        return view('pages.pricing');
+    }
+
     // Ressources
     public function documentation()
     {

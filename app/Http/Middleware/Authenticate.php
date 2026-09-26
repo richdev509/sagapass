@@ -18,6 +18,12 @@ class Authenticate extends Middleware
                 return route('admin.login');
             }
 
+            // Si l'URL commence par /partenaire, rediriger vers la connexion
+            // entreprise partenaire (guard 'partner'), pas vers le login citoyen.
+            if ($request->is('partenaire/*')) {
+                return route('partner.login');
+            }
+
             // Sinon rediriger vers citizen login
             return route('login');
         }
