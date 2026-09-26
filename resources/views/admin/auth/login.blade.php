@@ -172,7 +172,7 @@
                                id="email"
                                name="email"
                                value="{{ old('email') }}"
-                               placeholder="admin@sagaid.com"
+                               placeholder="votre@email.com"
                                required
                                autofocus>
                     </div>
@@ -218,17 +218,6 @@
                     <i class="fas fa-sign-in-alt me-2"></i>Se Connecter
                 </button>
             </form>
-
-            <!-- Info Box -->
-            <div class="alert alert-info mt-4 mb-0">
-                <small>
-                    <i class="fas fa-info-circle me-1"></i>
-                    <strong>Accès réservé aux administrateurs</strong><br>
-                    Comptes de test disponibles :<br>
-                    • <code>admin@sagaid.com</code> / password (Super Admin)<br>
-                    • <code>verifier@sagaid.com</code> / password (Vérificateur)
-                </small>
-            </div>
 
             <!-- Back to Home -->
             <div class="back-link">
