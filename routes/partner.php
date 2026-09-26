@@ -27,6 +27,14 @@ Route::prefix('partenaire')->name('partner.')->group(function () {
     Route::post('/connexion', [PartnerAuthController::class, 'login'])->name('login.submit');
     Route::post('/deconnexion', [PartnerAuthController::class, 'logout'])->name('logout');
 
+    // Verification en 2 etapes (code envoye par email) - throttle serre sur
+    // la soumission du code, seul point qu'un brute force viserait.
+    Route::get('/otp', [PartnerAuthController::class, 'showOtpForm'])->name('otp.verify');
+    Route::middleware('throttle:8,1')->group(function () {
+        Route::post('/otp', [PartnerAuthController::class, 'verifyOtp'])->name('otp.verify.submit');
+        Route::post('/otp/renvoyer', [PartnerAuthController::class, 'resendOtp'])->name('otp.resend');
+    });
+
     // Documentation : publique (pas de contenu sensible), utile avant même
     // qu'une demande soit approuvée.
     Route::prefix('documentation')->name('docs.')->group(function () {
