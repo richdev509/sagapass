@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 /**
- * Tableau de bord entreprise partenaire (guard 'partner') — profil, statut
+ * Tableau de bord entreprise partenaire (guard 'partner') - profil, statut
  * de la demande, et identifiants API une fois approuvée. Tout est scopé via
  * partnerAccount()->developerApplications() : jamais un ID arbitraire pris
  * dans l'URL, pour ne jamais exposer les données d'un autre partenaire.
@@ -49,7 +49,7 @@ class DashboardController extends Controller
         ]);
 
         // Le nom/site/description affichés à l'admin (OAuthManagementController)
-        // restent ceux de la DeveloperApplication — on les garde synchronisés
+        // restent ceux de la DeveloperApplication - on les garde synchronisés
         // avec le profil plutôt que d'avoir deux sources qui divergent.
         $application?->update([
             'name' => $data['company_name'],
@@ -68,7 +68,7 @@ class DashboardController extends Controller
         return back()
             ->with('revealed_label', 'client_secret')
             ->with('revealed_value', $plain)
-            ->with('status', 'Nouveau client_secret généré — copiez-le maintenant, il ne sera plus jamais affiché en clair.');
+            ->with('status', 'Nouveau client_secret généré - copiez-le maintenant, il ne sera plus jamais affiché en clair.');
     }
 
     public function regenerateWebhookSecret(): RedirectResponse
@@ -79,7 +79,7 @@ class DashboardController extends Controller
         return back()
             ->with('revealed_label', 'webhook_secret')
             ->with('revealed_value', $plain)
-            ->with('status', 'Nouveau webhook_secret généré — mettez à jour votre configuration de vérification de signature.');
+            ->with('status', 'Nouveau webhook_secret généré - mettez à jour votre configuration de vérification de signature.');
     }
 
     private function account(): PartnerAccount

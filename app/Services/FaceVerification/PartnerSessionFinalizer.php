@@ -62,13 +62,13 @@ class PartnerSessionFinalizer
     }
 
     /**
-     * Émet ou renouvelle le KYC ID durable de cette personne — dès qu'une
+     * Émet ou renouvelle le KYC ID durable de cette personne - dès qu'une
      * session se termine avec une analyse exécutée sans erreur, quel que soit
      * le résultat (score de correspondance / vivacité indicatifs, laissés au
      * partenaire). Une seule ligne par (partenaire, numéro de document) :
      * une nouvelle session pour le même document prolonge sa validité au lieu
      * d'en créer une autre. Aucun KYC ID n'est émis si l'OCR n'a pas réussi à
-     * extraire de numéro de document — limite connue de l'OCR, pas un bug.
+     * extraire de numéro de document - limite connue de l'OCR, pas un bug.
      *
      * @param array{document_number: ?string, full_name: ?string, date_of_birth: ?string} $ocr
      */
@@ -90,7 +90,7 @@ class PartnerSessionFinalizer
                 'full_name' => $ocr['full_name'] ?? null,
                 'date_of_birth' => $ocr['date_of_birth'] ?? null,
                 // Tout ce que l'OCR a extrait, au-delà des 3 champs
-                // historiques ci-dessus — nationalité/MRZ pour un passeport,
+                // historiques ci-dessus - nationalité/MRZ pour un passeport,
                 // adresse/groupe sanguin/catégorie pour un permis, etc. Voir
                 // analyze.py::_ocr_field_keys pour le jeu de clés par type.
                 'extracted_fields' => $ocr,

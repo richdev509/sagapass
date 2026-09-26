@@ -77,7 +77,7 @@ class DeveloperApplication extends Model
     /**
      * Compte entreprise propriétaire, pour une application créée via la
      * demande de partenariat publique (voir Public\PartnerApplicationController)
-     * — distinct de user() qui reste pour d'autres origines (compte citoyen).
+     * - distinct de user() qui reste pour d'autres origines (compte citoyen).
      */
     public function partnerAccount(): BelongsTo
     {
@@ -94,7 +94,7 @@ class DeveloperApplication extends Model
 
     /**
      * Email à notifier (approbation/rejet/suspension) quelle que soit
-     * l'origine de l'application — compte citoyen (user) ou entreprise
+     * l'origine de l'application - compte citoyen (user) ou entreprise
      * partenaire (partnerAccount). Sans ça, Mail::to($application->user->email)
      * échouait silencieusement pour toute application créée via la demande
      * de partenariat publique (user_id null).
@@ -186,7 +186,7 @@ class DeveloperApplication extends Model
     }
 
     /**
-     * Get the plaintext webhook_secret (admin only) — utilisé pour signer les
+     * Get the plaintext webhook_secret (admin only) - utilisé pour signer les
      * webhooks sortants (voir NotifyPartnerSessionWebhook).
      */
     public function getPlaintextWebhookSecret(): ?string

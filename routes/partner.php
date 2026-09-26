@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 |
 | Demande de partenariat (publique) + tableau de bord (guard 'partner',
-| distinct du guard 'admin' et du guard 'web' citoyen — voir
+| distinct du guard 'admin' et du guard 'web' citoyen - voir
 | config/auth.php et App\Models\PartnerAccount).
 |
 */

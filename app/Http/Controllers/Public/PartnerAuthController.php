@@ -10,7 +10,7 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
- * Connexion des comptes entreprise partenaire (guard 'partner') — même
+ * Connexion des comptes entreprise partenaire (guard 'partner') - même
  * squelette que Admin\Auth\LoginController, guard différent.
  */
 class PartnerAuthController extends Controller

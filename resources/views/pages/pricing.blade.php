@@ -25,7 +25,7 @@
     <div class="container">
         <div class="text-center mb-5" data-aos="fade-up">
             <h1 class="display-5 fw-bold">Tarifs</h1>
-            <p class="lead text-muted">Simple et transparent — vous ne payez que ce que vous utilisez.</p>
+            <p class="lead text-muted">Simple et transparent - vous ne payez que ce que vous utilisez.</p>
         </div>
 
         <div class="row g-4 justify-content-center">

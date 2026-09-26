@@ -35,14 +35,14 @@
                 <div class="ent-feature text-center">
                     <i class="fas fa-id-card"></i>
                     <h5 class="fw-bold">Vérification d'identité partenaire</h5>
-                    <p class="text-muted">Carte nationale, passeport ou permis de conduire — capture, OCR, vivacité et correspondance faciale gérés entièrement par SagaPass.</p>
+                    <p class="text-muted">Carte nationale, passeport ou permis de conduire - capture, OCR, vivacité et correspondance faciale gérés entièrement par SagaPass.</p>
                 </div>
             </div>
             <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
                 <div class="ent-feature text-center">
                     <i class="fas fa-bell"></i>
                     <h5 class="fw-bold">Résultat en temps réel</h5>
-                    <p class="text-muted">Un webhook signé vous notifie dès que la vérification est terminée — aucune intégration de polling nécessaire.</p>
+                    <p class="text-muted">Un webhook signé vous notifie dès que la vérification est terminée - aucune intégration de polling nécessaire.</p>
                 </div>
             </div>
             <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
@@ -53,7 +53,7 @@
                 </div>
             </div>
         </div>
-        <p class="text-center text-muted mt-5">D'autres services (identification entreprise, etc.) sont en préparation — <a href="{{ route('contact') }}">contactez-nous</a> pour en discuter.</p>
+        <p class="text-center text-muted mt-5">D'autres services (identification entreprise, etc.) sont en préparation - <a href="{{ route('contact') }}">contactez-nous</a> pour en discuter.</p>
     </div>
 </section>
 

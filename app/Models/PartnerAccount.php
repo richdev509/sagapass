@@ -8,7 +8,7 @@ use Illuminate\Notifications\Notifiable;
 
 /**
  * Compte d'une entreprise partenaire (guard 'partner', voir config/auth.php)
- * — distinct des comptes citoyens (User) : pas de KYC personnel, juste une
+ * - distinct des comptes citoyens (User) : pas de KYC personnel, juste une
  * identité de connexion pour gérer ses DeveloperApplication (demande de
  * partenariat + tableau de bord, voir Public\PartnerApplicationController /
  * Partner\DashboardController).

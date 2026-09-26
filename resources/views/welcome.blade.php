@@ -166,7 +166,7 @@
             transition: transform 0.05s linear, opacity 0.05s linear;
         }
 
-        /* Hero text below the sticky scene — peek visible at bottom */
+        /* Hero text below the sticky scene - peek visible at bottom */
         .hero-text-content {
             padding: 1rem 1.5rem 2rem;
             margin-top: -2rem; /* pull text up to overlap slightly under the stage */

@@ -7,11 +7,11 @@ Contrat d'E/S (voir config/faceverification.php et le plan associé) :
   argv (mode single-frame, utilisé par le flux Document/AnalyzeDocumentJob) :
     <document_type: cni|passport> <front_photo_path> <back_photo_path|""> <selfie_path>
   argv (mode vivacité active 3-frames, utilisé par le flux session partenaire
-  QR — voir PartnerVerificationSession/AnalyzePartnerSessionJob) :
+  QR - voir PartnerVerificationSession/AnalyzePartnerSessionJob) :
     <document_type: national_id|passport|drivers_license> <front_photo_path>
     <back_photo_path|""> <selfie_center_path> <selfie_left_path> <selfie_right_path>
   Note : "cni" et "national_id" désignent le même type de pièce (carte
-  d'identité nationale) sous deux noms différents selon le flux appelant —
+  d'identité nationale) sous deux noms différents selon le flux appelant -
   extract_ocr_fields() accepte les deux.
   stdout : UNE seule ligne JSON : ocr, liveness_passed, face_match_score,
            face_embedding (empreinte SFace 128 valeurs ou null), warnings
@@ -19,13 +19,13 @@ Contrat d'E/S (voir config/faceverification.php et le plan associé) :
   exit 0 : l'analyse a pu tourner (même si le verdict métier est négatif)
   exit != 0 : échec technique réel (dépendance manquante, image illisible...)
 
-IMPORTANT — non testé en conditions réelles à l'écriture de ce script : les
+IMPORTANT - non testé en conditions réelles à l'écriture de ce script : les
 heuristiques d'extraction OCR par champ (regex ci-dessous) sont des points de
 départ raisonnables, PAS calibrées sur de vrais échantillons de CIN/passeport
 haïtiens (voir le plan : échantillons demandés à l'utilisateur, pas encore
 reçus). À ajuster une fois de vrais exemples disponibles.
 
-IMPORTANT — la vivacité active (mode 3-frames) est également une heuristique
+IMPORTANT - la vivacité active (mode 3-frames) est également une heuristique
 de première version, à valider sur de vrais échantillons : elle mesure une
 rotation de tête gauche/centre/droite via la position relative du nez sur les
 landmarks mediapipe (proxy simple, pas une estimation de pose 3D complète par
@@ -46,7 +46,7 @@ def log(message: str) -> None:
 
 
 # Une vraie photo de téléphone (souvent 3000-4000px de large) a provoqué un
-# OOM-kill d'EasyOCR en conditions réelles sur ce serveur à RAM limitée —
+# OOM-kill d'EasyOCR en conditions réelles sur ce serveur à RAM limitée -
 # confirmé en testant avec un vrai échantillon de carte d'identité. Le texte
 # d'une pièce d'identité reste lisible bien en dessous de cette résolution ;
 # rétrécir avant l'OCR borne l'empreinte mémoire quelle que soit la photo
@@ -57,7 +57,7 @@ OCR_MAX_IMAGE_DIMENSION = 1600
 
 def _load_image_for_ocr(image_path: str):
     """Charge l'image et la redimensionne si nécessaire (garde le ratio
-    d'aspect, ne réduit jamais — seulement si trop grande)."""
+    d'aspect, ne réduit jamais - seulement si trop grande)."""
     from PIL import Image
     import numpy as np
 
@@ -87,12 +87,12 @@ def _ocr_line_boxes(raw_results) -> list:
 
 
 # Vocabulaire de TOUTES les étiquettes de la carte (français + créole,
-# fragments tolérants à la casse/aux accents/au garbling OCR) — utilisé pour
+# fragments tolérants à la casse/aux accents/au garbling OCR) - utilisé pour
 # qu'une recherche de valeur ne prenne jamais par erreur une AUTRE étiquette
 # empilée juste en dessous. Très fréquent sur cette carte : chaque champ a sa
 # version française puis créole l'une sous l'autre, et laquelle des deux
 # s'aligne horizontalement avec la vraie valeur varie d'un champ à l'autre
-# (parfois la française, parfois la créole) — confirmé en traçant un vrai
+# (parfois la française, parfois la créole) - confirmé en traçant un vrai
 # échantillon. Exclure tout texte "qui ressemble à une étiquette connue" est
 # plus robuste que de deviner un ordre fixe.
 _CNI_LABEL_KEYWORDS = [
@@ -109,7 +109,7 @@ def _looks_like_label(text: str, label_keywords: list = _CNI_LABEL_KEYWORDS) -> 
 
 def _find_label_line(lines: list, must_contain: list, must_not_contain: list = (), prefer_last: bool = False):
     """Ligne (texte normalisé : minuscule) contenant au moins un des mots-clés
-    de must_contain et aucun de must_not_contain — la première par défaut, la
+    de must_contain et aucun de must_not_contain - la première par défaut, la
     dernière si prefer_last (nécessaire pour "identification" : le titre du
     document, "CARTE D'IDENTIFICATION NATIONALE", contient aussi ce mot et
     apparaît AVANT la vraie étiquette du champ NIU plus bas sur la carte)."""
@@ -129,7 +129,7 @@ def _value_candidates_below(
     lines: list, label_line: dict, max_y_gap: float = 150, label_keywords: list = _CNI_LABEL_KEYWORDS
 ) -> list:
     """Lignes EN DESSOUS de label_line, dans la même colonne (chevauchement
-    horizontal), triées par proximité verticale — jamais une autre étiquette
+    horizontal), triées par proximité verticale - jamais une autre étiquette
     connue (voir _looks_like_label).
 
     Nécessaire car l'ordre de détection d'EasyOCR suit grossièrement la
@@ -137,7 +137,7 @@ def _value_candidates_below(
     lecture visuel d'une mise en page à deux colonnes : sur un vrai
     échantillon de CIN haïtienne, l'étiquette et sa valeur ne sont presque
     jamais des lignes adjacentes dans la liste brute (une ou deux lignes de
-    l'autre colonne — ou l'étiquette créole du même champ — s'intercalent
+    l'autre colonne - ou l'étiquette créole du même champ - s'intercalent
     presque toujours entre les deux).
 
     Tolère un léger chevauchement vertical négatif (jusqu'à -20px) entre
@@ -168,7 +168,7 @@ def _find_value_below(lines: list, label_line: dict, label_keywords: list = _CNI
 def _find_row_below(lines: list, label_line: dict, row_tolerance: float = 20, label_keywords: list = _CNI_LABEL_KEYWORDS):
     """Comme _find_value_below, mais rassemble TOUTES les lignes de la même
     "rangée" (écart vertical proche du plus proche trouvé) et les joint de
-    gauche à droite — pour une valeur écrite sur plusieurs morceaux côte à
+    gauche à droite - pour une valeur écrite sur plusieurs morceaux côte à
     côte (ex. "OUEST" + "PORT-AU-PRINCE" pour le lieu de naissance, détectés
     comme deux lignes séparées à la même hauteur)."""
     candidates = _value_candidates_below(lines, label_line, label_keywords=label_keywords)
@@ -196,12 +196,12 @@ def _parse_date(value: str):
 
 
 def _extract_cni_fields(lines: list) -> dict:
-    """Carte d'identification nationale haïtienne — étiquettes bilingues
+    """Carte d'identification nationale haïtienne - étiquettes bilingues
     (français/créole) ancrées par position, calibré sur un vrai échantillon
     (voir le plan associé). Les LIGNES d'étiquette sont souvent mal lues par
     l'OCR (accents, mots tronqués) ; les VALEURS elles-mêmes (dates, nom,
     numéro) se sont lues avec une précision parfaite sur l'échantillon testé
-    — d'où des mots-clés d'étiquette volontairement tolérants (sous-chaînes
+    - d'où des mots-clés d'étiquette volontairement tolérants (sous-chaînes
     courtes) plutôt que des libellés exacts.
     """
     fields = {
@@ -214,18 +214,18 @@ def _extract_cni_fields(lines: list) -> dict:
         "date_of_expiry": None,
     }
 
-    # "Lieu de Naissance" contient aussi "naissance" — exclu explicitement
+    # "Lieu de Naissance" contient aussi "naissance" - exclu explicitement
     # pour ne pas confondre les deux champs.
     dob_label = _find_label_line(lines, must_contain=["naissa"], must_not_contain=["lieu"])
     if dob_label:
         fields["date_of_birth"] = _parse_date(_find_value_below(lines, dob_label))
 
     # "identification" seul (pas "identification unique") : sur l'échantillon
-    # testé, l'OCR a lu "unique" en "unicue" — "identification" reste lisible
+    # testé, l'OCR a lu "unique" en "unicue" - "identification" reste lisible
     # tel quel. Le mot-clé apparaît aussi dans le titre du document ("CARTE
     # D'IDENTIFICATION NATIONALE"), plus haut sur la carte, mais son
     # étiquette de champ (au singulier "identification" comme sous-chaîne)
-    # n'a pas de valeur alignée juste en dessous à cet endroit — sans effet.
+    # n'a pas de valeur alignée juste en dessous à cet endroit - sans effet.
     niu_label = _find_label_line(
         lines,
         must_contain=["identification", "idantifikasyon", "identifikasyon"],
@@ -264,7 +264,7 @@ def _extract_cni_fields(lines: list) -> dict:
             fields["place_of_birth"] = value.upper()
 
     # "emission"/"émission" : sans ambiguïté avec "expiration" (mots
-    # distincts) — pas besoin d'exclusion supplémentaire au-delà du
+    # distincts) - pas besoin d'exclusion supplémentaire au-delà du
     # vocabulaire d'étiquettes déjà filtré dans _value_candidates_below.
     issue_label = _find_label_line(lines, must_contain=["emission", "émission"])
     if issue_label:
@@ -277,12 +277,12 @@ def _extract_cni_fields(lines: list) -> dict:
     return fields
 
 
-# Description de chaque champ par type de document — sert à la fois de
+# Description de chaque champ par type de document - sert à la fois de
 # schéma pour le prompt Claude vision (valeur = instruction pour le modèle)
 # et de source unique pour la liste des clés attendues (_ocr_field_keys) :
 # jamais deux listes de clés à maintenir en synchronisation séparément.
 _CNI_OCR_FIELD_DESCRIPTIONS = {
-    "document_number": "numéro d'identification unique (NIU) — pas le numéro de carte",
+    "document_number": "numéro d'identification unique (NIU) - pas le numéro de carte",
     "full_name": "prénom + nom en majuscules",
     "date_of_birth": "YYYY-MM-DD",
     "sex": "M ou F",
@@ -331,11 +331,11 @@ def _empty_ocr_fields(document_type: str = "cni") -> dict:
 
 
 def _extract_ocr_fields_via_claude(document_type: str, front_photo_path: str) -> dict | None:
-    """Extraction OCR via l'API de vision Claude (Anthropic) — en test face à
+    """Extraction OCR via l'API de vision Claude (Anthropic) - en test face à
     EasyOCR/_extract_cni_fields (ancrage par étiquette/position, fragile face
     aux erreurs de lecture de l'étiquette elle-même). Retourne None (jamais
     d'exception) si la clé n'est pas configurée ou si l'appel échoue, pour un
-    repli transparent sur EasyOCR — jamais de dépendance dure à un service
+    repli transparent sur EasyOCR - jamais de dépendance dure à un service
     tiers pour une fonctionnalité déjà existante.
     """
     import base64
@@ -369,11 +369,11 @@ def _extract_ocr_fields_via_claude(document_type: str, front_photo_path: str) ->
         f"Voici la photo d'un(e) {doc_label}. Extrais EXACTEMENT les champs suivants tels "
         "qu'imprimés sur le document, sans les traduire ni les reformater au-delà du format "
         "demandé. Réponds UNIQUEMENT avec un objet JSON valide, aucun texte autour, aucun bloc "
-        "de code — juste le JSON brut, avec exactement ces clés (le texte de chaque valeur "
+        "de code - juste le JSON brut, avec exactement ces clés (le texte de chaque valeur "
         "ci-dessous décrit ce qu'il faut y mettre, ce n'est pas la valeur à renvoyer) :\n"
         f"{schema_json}\n"
         "Mets null (pas la chaîne \"null\") pour tout champ absent, illisible, ou dont tu n'es "
-        "pas raisonnablement sûr — ne devine jamais une valeur plausible à la place d'une "
+        "pas raisonnablement sûr - ne devine jamais une valeur plausible à la place d'une "
         "valeur réellement lue sur le document."
     )
 
@@ -413,7 +413,7 @@ def _extract_ocr_fields_via_claude(document_type: str, front_photo_path: str) ->
     try:
         text = body["content"][0]["text"].strip()
         # Au cas où le modèle encadrerait quand même sa réponse d'un bloc de
-        # code malgré la consigne — tolérance, pas une hypothèse de départ.
+        # code malgré la consigne - tolérance, pas une hypothèse de départ.
         if text.startswith("```"):
             text = text.strip("`")
             text = text[4:] if text.lower().startswith("json") else text
@@ -440,7 +440,7 @@ _DRIVERS_LICENSE_LABEL_KEYWORDS = [
 
 
 def _extract_drivers_license_fields(lines: list) -> dict:
-    """Permis de conduire haïtien — ancrage par étiquette/position, même
+    """Permis de conduire haïtien - ancrage par étiquette/position, même
     principe que _extract_cni_fields mais PAS ENCORE testé contre une vraie
     sortie EasyOCR (contrairement à la CNI) : construit uniquement à partir
     de la mise en page visuelle de 2 échantillons fournis par l'utilisateur.
@@ -518,12 +518,12 @@ def _extract_drivers_license_fields(lines: list) -> dict:
 
 
 # --- Passeport : décodage de la zone de lecture automatique (MRZ, norme ICAO
-# 9303, format TD3 sur 2 lignes de 44 caractères) — approche algorithmique
+# 9303, format TD3 sur 2 lignes de 44 caractères) - approche algorithmique
 # avec chiffres de contrôle, PAS une heuristique de position à calibrer sur un
 # échantillon comme _extract_cni_fields : la MRZ est conçue pour être lue par
 # machine, ses positions de champs sont fixes et documentées. N'a pas pu être
 # testée contre une vraie sortie EasyOCR (la segmentation en lignes d'EasyOCR
-# pourrait couper la bande MRZ différemment de ce qui est supposé ici — une
+# pourrait couper la bande MRZ différemment de ce qui est supposé ici - une
 # ligne détectée = une ligne physique de la MRZ) ; à vérifier une fois un vrai
 # test effectué. ---
 
@@ -546,7 +546,7 @@ def _mrz_check_digit(data: str) -> int:
 
 
 def _mrz_field_if_valid(data: str, check_char: str):
-    """None si le chiffre de contrôle ICAO 9303 ne correspond pas — un champ
+    """None si le chiffre de contrôle ICAO 9303 ne correspond pas - un champ
     manquant est préférable à une valeur corrompue par une erreur de lecture
     OCR sur la bande MRZ."""
     if not check_char.isdigit():
@@ -580,7 +580,7 @@ def _find_mrz_lines(raw_text_lines: list):
     if len(candidates) < 2:
         return None, None
 
-    # La MRZ est toujours en bas du document — en cas de faux positif
+    # La MRZ est toujours en bas du document - en cas de faux positif
     # ailleurs sur la page, les 2 DERNIÈRES lignes qui y ressemblent restent
     # le choix le plus sûr (ordre de détection EasyOCR ~ position verticale,
     # voir _extract_cni_fields).
@@ -639,7 +639,7 @@ def _extract_passport_mrz_fields(raw_text_lines: list) -> dict:
 
 def _extract_passport_generic_fields(lines: list) -> dict:
     """Repli si la bande MRZ n'a pas pu être détectée dans la sortie OCR
-    (photo cadrée sans la bande du bas, ou lecture illisible) — heuristique
+    (photo cadrée sans la bande du bas, ou lecture illisible) - heuristique
     large sur le texte brut, pas calibrée sur un vrai échantillon.
     """
     fields = _empty_ocr_fields("passport")
@@ -666,7 +666,7 @@ def _extract_passport_generic_fields(lines: list) -> dict:
 
 def _extract_ocr_fields_via_easyocr(document_type: str, front_photo_path: str) -> dict:
     """Retourne un dict dont les clés dépendent du type de document (voir
-    _ocr_field_keys) — toujours document_number/full_name/date_of_birth au
+    _ocr_field_keys) - toujours document_number/full_name/date_of_birth au
     minimum, plus des champs spécifiques au type (voir les fonctions
     _extract_*_fields dédiées).
     """
@@ -675,7 +675,7 @@ def _extract_ocr_fields_via_easyocr(document_type: str, front_photo_path: str) -
     try:
         # EASYOCR_MODULE_PATH doit être fixée AVANT l'import : easyocr/config.py
         # résout son BASE_PATH ("~/.EasyOCR/" par défaut) au niveau module, à
-        # l'import — passer model_storage_directory au constructeur Reader()
+        # l'import - passer model_storage_directory au constructeur Reader()
         # ne suffit pas, une autre partie de l'initialisation retombe quand
         # même sur ce chemin par défaut (confirmé : même erreur reproduite
         # avec le seul model_storage_directory).
@@ -683,7 +683,7 @@ def _extract_ocr_fields_via_easyocr(document_type: str, front_photo_path: str) -
         os.environ.setdefault("EASYOCR_MODULE_PATH", _EASYOCR_MODEL_DIR)
         import easyocr
     except ImportError:
-        log("easyocr n'est pas installé — extraction OCR ignorée.")
+        log("easyocr n'est pas installé - extraction OCR ignorée.")
         return fields
 
     try:
@@ -697,11 +697,11 @@ def _extract_ocr_fields_via_easyocr(document_type: str, front_photo_path: str) -
 
     # "cni" : valeur historique du flux citoyen (Document/AnalyzeDocumentJob).
     # "national_id" : valeur envoyée par le flux session partenaire (voir
-    # CardIdType::NationalId côté SwapLajan) — deux noms pour le même type de
+    # CardIdType::NationalId côté SwapLajan) - deux noms pour le même type de
     # pièce, jamais unifiés jusqu'ici. Sans les deux, une session partenaire
     # carte nationale retombait silencieusement sur l'heuristique passeport
     # ci-dessous (jamais calibrée pour la mise en page à deux colonnes de la
-    # CIN), et n'extrayait rien — confirmé sur deux sessions de test réelles.
+    # CIN), et n'extrayait rien - confirmé sur deux sessions de test réelles.
     if document_type in ("cni", "national_id"):
         return _extract_cni_fields(_ocr_line_boxes(raw_results))
 
@@ -719,11 +719,11 @@ def _extract_ocr_fields_via_easyocr(document_type: str, front_photo_path: str) -
 
 
 def extract_ocr_fields(document_type: str, front_photo_path: str) -> dict:
-    """Point d'entrée OCR — essaie l'API de vision Claude en premier si
+    """Point d'entrée OCR - essaie l'API de vision Claude en premier si
     ANTHROPIC_API_KEY est configurée (voir _extract_ocr_fields_via_claude),
     repli automatique et transparent sur EasyOCR
     (_extract_ocr_fields_via_easyocr) si la clé est absente ou si l'appel
-    échoue pour quelque raison que ce soit — jamais de dépendance dure à un
+    échoue pour quelque raison que ce soit - jamais de dépendance dure à un
     service tiers pour une fonctionnalité qui marchait déjà en local.
     """
     claude_fields = _extract_ocr_fields_via_claude(document_type, front_photo_path)
@@ -745,7 +745,7 @@ def check_passive_liveness(selfie_path: str) -> tuple:
     try:
         from deepface import DeepFace
     except ImportError:
-        log("deepface n'est pas installé — vivacité passive ignorée.")
+        log("deepface n'est pas installé - vivacité passive ignorée.")
         warnings.append("deepface_unavailable")
         return liveness_passed, warnings
 
@@ -761,7 +761,7 @@ def check_passive_liveness(selfie_path: str) -> tuple:
             main_face = max(faces, key=lambda f: f.get("facial_area", {}).get("w", 0))
             liveness_passed = bool(main_face.get("is_real", False))
             if not liveness_passed:
-                # Verdict métier légitime (pas une panne technique) — quand
+                # Verdict métier légitime (pas une panne technique) - quand
                 # même noté pour que le résultat final reste explicable :
                 # sans ça, un liveness_passed=False silencieux ressemble à un
                 # bug plutôt qu'à un vrai refus du modèle anti-spoofing.
@@ -770,7 +770,7 @@ def check_passive_liveness(selfie_path: str) -> tuple:
             warnings.append("no_face_detected_in_selfie")
     except ValueError as exc:
         # DeepFace lève parfois une ValueError explicite "Spoof detected" selon
-        # la version — dans ce cas précis, on sait que c'est bien un échec de
+        # la version - dans ce cas précis, on sait que c'est bien un échec de
         # vivacité, pas une panne technique.
         if "spoof" in str(exc).lower():
             liveness_passed = False
@@ -788,7 +788,7 @@ def check_face_match(front_photo_path: str, selfie_path: str) -> tuple:
 
     model_name="SFace" : modèle volontairement léger (quelques Mo, backend
     ONNX) plutôt que le VGG-Face par défaut de DeepFace (~580 Mo de poids +
-    TensorFlow complet) — le serveur de déploiement est une VM partagée à RAM
+    TensorFlow complet) - le serveur de déploiement est une VM partagée à RAM
     très limitée (~3.8 Go, plusieurs autres apps), où VGG-Face a provoqué un
     OOM-kill du process en conditions réelles.
     """
@@ -798,7 +798,7 @@ def check_face_match(front_photo_path: str, selfie_path: str) -> tuple:
     try:
         from deepface import DeepFace
     except ImportError:
-        log("deepface n'est pas installé — correspondance ignorée.")
+        log("deepface n'est pas installé - correspondance ignorée.")
         warnings.append("deepface_unavailable")
         return face_match_score, warnings
 
@@ -825,7 +825,7 @@ def check_face_match(front_photo_path: str, selfie_path: str) -> tuple:
 def get_face_embedding(selfie_path: str) -> tuple:
     """Retourne (embedding: ?list[float], warnings: list[str]).
 
-    Empreinte faciale SFace (128 valeurs) du selfie — même modèle que
+    Empreinte faciale SFace (128 valeurs) du selfie - même modèle que
     check_face_match(), donc aucune dépendance ni téléchargement de modèle en
     plus. Sert à la détection de doublons de visage côté Laravel (voir
     FaceDuplicateService) : c'est Laravel qui compare et décide, ce script
@@ -869,7 +869,7 @@ def _cosine_similarity(a: list, b: list) -> float:
 
 def compare_faces(reference_path: str, probe_path: str) -> dict:
     """Mode diagnostic (page de test admin) : compare deux photos et détaille
-    tout ce que le moteur en pense — similarité cosinus brute des empreintes
+    tout ce que le moteur en pense - similarité cosinus brute des empreintes
     (celle comparée au seuil de doublons de Laravel), verdict DeepFace, et
     vivacité passive de la seconde photo. Ne stocke rien.
     """
@@ -946,7 +946,7 @@ def analyze_face(front_photo_path: str, selfie_path: str) -> tuple:
 # --- Vivacité active (mode 3-frames, flux session partenaire QR) ---
 
 # Décalage horizontal normalisé du nez au-delà duquel on considère que la tête
-# est tournée (proxy simple, pas une pose 3D — voir avertissement en tête de
+# est tournée (proxy simple, pas une pose 3D - voir avertissement en tête de
 # fichier). Point de départ raisonnable, à ajuster une fois testé en réel.
 ACTIVE_LIVENESS_TURN_THRESHOLD = 0.12
 # En dessous de ce seuil, le frame "centre" est considéré comme suffisamment
@@ -960,7 +960,7 @@ _MEDIAPIPE_RIGHT_FACE_EDGE = 454
 _MEDIAPIPE_NOSE_TIP = 1
 
 # Modèles .task auto-hébergés (voir scripts/face-verification/models/,
-# commités dans le repo) — l'API "legacy" mediapipe.solutions.* n'existe plus
+# commités dans le repo) - l'API "legacy" mediapipe.solutions.* n'existe plus
 # dans les wheels mediapipe récentes (confirmé en conditions réelles : même
 # avec mediapipe épinglé <1, le paquet installé n'a ni mediapipe.solutions ni
 # mediapipe.python, seulement mediapipe.tasks). On utilise donc directement
@@ -969,10 +969,10 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _FACE_LANDMARKER_MODEL_PATH = os.path.join(_SCRIPT_DIR, "models", "face_landmarker.task")
 _HAND_LANDMARKER_MODEL_PATH = os.path.join(_SCRIPT_DIR, "models", "hand_landmarker.task")
 
-# Par défaut, EasyOCR télécharge/lit ses modèles dans ~/.EasyOCR — sur le
+# Par défaut, EasyOCR télécharge/lit ses modèles dans ~/.EasyOCR - sur le
 # worker de production (utilisateur www-data), ce home n'est ni inscriptible
 # ni lisible, faisant échouer Reader() avec une PermissionError silencieuse
-# (avalée par le except Exception plus bas, jamais remontée) — confirmé sur
+# (avalée par le except Exception plus bas, jamais remontée) - confirmé sur
 # deux sessions de test réelles où l'OCR revenait entièrement vide sans
 # erreur visible. Même principe que DEEPFACE_HOME pour DeepFace : un cache
 # dédié dans le projet, hors du home utilisateur.
@@ -1020,7 +1020,7 @@ def _create_hand_landmarker():
 
 def _detect_face_landmarks(face_landmarker, image_path: str):
     """Landmarks du premier visage détecté (liste d'objets avec .x/.y/.z), ou
-    None si aucun visage. Réutilise un FaceLandmarker déjà créé — le créer une
+    None si aucun visage. Réutilise un FaceLandmarker déjà créé - le créer une
     fois par lot d'images, pas une fois par image (coût de chargement du
     modèle).
     """
@@ -1066,7 +1066,7 @@ def check_active_liveness(selfie_left_path: str, selfie_center_path: str, selfie
     try:
         import mediapipe  # noqa: F401
     except ImportError:
-        log("mediapipe n'est pas installé — vivacité active ignorée.")
+        log("mediapipe n'est pas installé - vivacité active ignorée.")
         warnings.append("mediapipe_unavailable")
         return None, warnings
 
@@ -1120,11 +1120,11 @@ def _detect_hand_landmarks(hand_landmarker, image_path: str) -> list:
     return result.hand_landmarks or []
 
 
-# Indices des 5 bouts de doigts (topologie main à 21 points) — seuls ces
+# Indices des 5 bouts de doigts (topologie main à 21 points) - seuls ces
 # points comptent, pas les 21 (poignet/base de paume inclus). Confirmé en
 # test manuel réel : compter tous les points de la main faisait remonter un
 # faux positif quand la main tenant le téléphone passait près de la mâchoire
-# pendant une rotation de tête, sans jamais couvrir le visage — le poignet/la
+# pendant une rotation de tête, sans jamais couvrir le visage - le poignet/la
 # paume qui tient l'appareil est naturellement proche du bord du cadre, alors
 # que de vrais doigts posés sur la bouche/le menton se distinguent par
 # plusieurs BOUTS de doigts (pas juste la paume) qui empiètent sur le centre
@@ -1137,14 +1137,14 @@ _HAND_FINGERTIP_INDICES = (4, 8, 12, 16, 20)
 HAND_OCCLUSION_MIN_FINGERTIPS_INSIDE = 2
 
 # Rétrécit fortement la boîte du visage testée, vers sa zone centrale
-# (yeux/nez/bouche) — exclut la mâchoire/les oreilles/le contour, là où une
+# (yeux/nez/bouche) - exclut la mâchoire/les oreilles/le contour, là où une
 # main tenant le téléphone se trouve naturellement sans occlusion réelle.
 HAND_OCCLUSION_BOX_MARGIN_RATIO = 0.22
 
 
 def check_hand_occlusion(labeled_paths: list) -> tuple:
     """labeled_paths : [(label, path), ...]. Retourne (occlusion_detected: bool,
-    warnings: list[str]) — True si une main recouvre significativement le
+    warnings: list[str]) - True si une main recouvre significativement le
     visage sur au moins une des images fournies. Demande explicite : un
     visage partiellement caché par la main ne doit jamais passer la
     vérification, même si les autres contrôles (rotation, correspondance)
@@ -1156,7 +1156,7 @@ def check_hand_occlusion(labeled_paths: list) -> tuple:
     try:
         import mediapipe  # noqa: F401
     except ImportError:
-        log("mediapipe n'est pas installé — détection de main sur le visage ignorée.")
+        log("mediapipe n'est pas installé - détection de main sur le visage ignorée.")
         warnings.append("hand_occlusion_check_unavailable")
         return False, warnings
 
@@ -1199,7 +1199,7 @@ def analyze_face_active(
     Retourne (face_match_score: ?float, liveness_passed: ?bool, warnings: list[str]).
     Le frame "centre" sert à la fois de référence de correspondance (le plus
     proche d'une pose frontale) et de base pour la vérification passive
-    (MiniFASNet) — combinée à la vérification active de rotation de tête et à
+    (MiniFASNet) - combinée à la vérification active de rotation de tête et à
     l'absence de main détectée sur le visage sur les 3 frames, liveness_passed
     n'est vrai que si TOUTES ces vérifications le sont.
     """
@@ -1217,7 +1217,7 @@ def analyze_face_active(
         # vivacité quoi qu'il arrive, même si un autre contrôle échoue par
         # ailleurs pour une raison technique (ex. la main elle-même gêne la
         # détection du visage sur un autre frame, laissant active_passed à
-        # None) — un résultat "inconclusif" ne doit jamais masquer un rejet
+        # None) - un résultat "inconclusif" ne doit jamais masquer un rejet
         # explicite déjà constaté.
         liveness_passed = False
     elif passive_passed is None or active_passed is None:
@@ -1260,7 +1260,7 @@ def main() -> int:
     document_type, front_photo_path, _back_photo_path, selfie_path = sys.argv[1:5]
 
     # Le contrat d'E/S exige un stdout composé d'UNE seule ligne JSON (voir
-    # docstring en tête de fichier) — mais deepface/easyocr/mediapipe
+    # docstring en tête de fichier) - mais deepface/easyocr/mediapipe
     # impriment parfois eux-mêmes sur stdout (ex. progression de
     # téléchargement d'un modèle au premier lancement, comme MiniFASNet pour
     # l'anti-spoofing), ce qui corrompt la sortie et casse le parsing JSON

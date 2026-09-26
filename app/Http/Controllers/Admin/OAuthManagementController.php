@@ -14,11 +14,11 @@ use App\Mail\ApplicationRejectedMail;
 use App\Mail\ApplicationSuspendedMail;
 
 /**
- * Gestion des applications partenaires (DeveloperApplication) — recentré sur
+ * Gestion des applications partenaires (DeveloperApplication) - recentré sur
  * la seule approbation/suspension/gestion du secret des applications qui
  * consomment l'API partenaire (voir Api\Partner\PartnerVerifyController).
  * L'ancien flux OAuth ("Login with SagaID"), le portail développeur
- * self-service, et la gestion des scopes ont été retirés — hors périmètre
+ * self-service, et la gestion des scopes ont été retirés - hors périmètre
  * du cas d'usage vérification document+selfie pour partenaires.
  */
 class OAuthManagementController extends Controller
@@ -349,7 +349,7 @@ class OAuthManagementController extends Controller
 
     /**
      * Régénère le secret dédié à la signature des webhooks sortants (voir
-     * NotifyPartnerSessionWebhook) — distinct de client_secret, pour ne pas
+     * NotifyPartnerSessionWebhook) - distinct de client_secret, pour ne pas
      * coupler leurs rotations.
      */
     public function regenerateWebhookSecret(Request $request, DeveloperApplication $application)

@@ -135,7 +135,7 @@
                                         @if ($app->partner_account_id)
                                             {{ $app->partnerAccount?->company_name }}
                                             <span class="badge bg-info text-dark">Entreprise</span><br>
-                                            <small class="text-muted">{{ $app->contactName() }} — {{ $app->contactEmail() }}</small>
+                                            <small class="text-muted">{{ $app->contactName() }} - {{ $app->contactEmail() }}</small>
                                         @else
                                             {{ $app->user->first_name }} {{ $app->user->last_name }}<br>
                                             <small class="text-muted">{{ $app->user->email }}</small>

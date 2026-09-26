@@ -9,12 +9,12 @@ use Illuminate\Support\Str;
 /**
  * Identité KYC durable ("kyc_id"), distincte de PartnerVerificationSession
  * (éphémère, photos purgées après analyse). Une ligne par (partenaire,
- * numéro de document) — mise à jour et sa validité prolongée à chaque
+ * numéro de document) - mise à jour et sa validité prolongée à chaque
  * nouvelle session complétée pour le même document, jamais dupliquée
  * (contrainte unique developer_application_id+document_number).
  *
  * Permet au partenaire de revérifier plus tard, sans refaire toute la
- * capture, si une personne déjà vérifiée est toujours "KYC valide" — voir
+ * capture, si une personne déjà vérifiée est toujours "KYC valide" - voir
  * Api\Partner\PartnerKycIdentityController::status(). SagaID alerte aussi
  * proactivement le partenaire par webhook (NotifyPartnerKycExpiryWebhook)
  * dès que la période de validité se termine.

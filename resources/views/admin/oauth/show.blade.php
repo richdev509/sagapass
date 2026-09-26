@@ -107,7 +107,7 @@
                             </tr>
                             <tr>
                                 <th>Téléphone</th>
-                                <td>{{ $application->partnerAccount?->phone ?? '—' }}</td>
+                                <td>{{ $application->partnerAccount?->phone ?? '-' }}</td>
                             </tr>
                         @else
                             <tr>
@@ -237,7 +237,7 @@
                                         <i class="fas fa-sync-alt me-1"></i> Régénérer
                                     </button>
                                     <small class="text-muted d-block mt-1">
-                                        <i class="fas fa-info-circle"></i> Utilisé pour signer (HMAC) les webhooks de résultat de vérification envoyés à ce partenaire — distinct du client_secret.
+                                        <i class="fas fa-info-circle"></i> Utilisé pour signer (HMAC) les webhooks de résultat de vérification envoyés à ce partenaire - distinct du client_secret.
                                     </small>
                                 </div>
                             </td>
@@ -399,7 +399,7 @@
                         <ul class="mb-0 mt-2">
                             <li>L'ancien secret sera <strong>immédiatement invalidé</strong></li>
                             <li>L'application <strong>{{ $application->name }}</strong> ne pourra plus échanger de tokens jusqu'à mise à jour de son secret</li>
-                            <li>Le nouveau secret sera affiché <strong>une seule fois</strong> — copiez-le immédiatement</li>
+                            <li>Le nouveau secret sera affiché <strong>une seule fois</strong> - copiez-le immédiatement</li>
                         </ul>
                     </div>
                     <p>Êtes-vous sûr de vouloir régénérer le secret pour <strong>{{ $application->name }}</strong> ?</p>
@@ -434,7 +434,7 @@
                         <ul class="mb-0 mt-2">
                             <li>L'ancienne app_key sera <strong>immédiatement invalidée</strong></li>
                             <li>Les vérifications d'identité Server-to-Server <strong>échoueront</strong> jusqu'à mise à jour de l'app_key</li>
-                            <li>La nouvelle app_key sera affichée <strong>une seule fois</strong> — copiez-la immédiatement</li>
+                            <li>La nouvelle app_key sera affichée <strong>une seule fois</strong> - copiez-la immédiatement</li>
                             <li>Communiquez la nouvelle clé au développeur de manière sécurisée</li>
                         </ul>
                     </div>
@@ -473,7 +473,7 @@
                         <ul class="mb-0 mt-2">
                             <li>L'ancien secret webhook sera <strong>immédiatement invalidé</strong></li>
                             <li>Le partenaire ne pourra plus vérifier la signature des webhooks <strong>jusqu'à mise à jour</strong> de sa configuration</li>
-                            <li>Le nouveau secret sera affiché <strong>une seule fois</strong> — copiez-le immédiatement</li>
+                            <li>Le nouveau secret sera affiché <strong>une seule fois</strong> - copiez-le immédiatement</li>
                             <li>Communiquez la nouvelle clé au partenaire de manière sécurisée</li>
                         </ul>
                     </div>

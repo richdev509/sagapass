@@ -78,7 +78,7 @@ class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQ
         // Les informations transmises par le partenaire à la création de la
         // session ne correspondent pas à ce que l'OCR a réellement lu sur la
         // pièce présentée : signe qu'une personne tente de créer un compte
-        // avec la pièce de quelqu'un d'autre — rejet direct, sans passer par
+        // avec la pièce de quelqu'un d'autre - rejet direct, sans passer par
         // le criblage liste de vigilance ni l'émission d'un KYC ID.
         if ($consistency->isMismatch($session->partner_submitted_data, $result->ocr)) {
             $session->forceFill([
@@ -99,7 +99,7 @@ class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQ
 
         // Pièce expirée (CNI/passeport/permis ont tous un date_of_expiry) :
         // rejet automatique, avant le criblage liste de vigilance et
-        // l'émission d'un KYC ID — un document expiré ne doit jamais servir
+        // l'émission d'un KYC ID - un document expiré ne doit jamais servir
         // de preuve d'identité valide, quel que soit le reste de l'analyse.
         if ($this->isDocumentExpired($result->ocr['date_of_expiry'] ?? null)) {
             $session->forceFill([
@@ -120,7 +120,7 @@ class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQ
 
         // Détection de doublons de visage, globale (tous partenaires) : une
         // personne peut avoir une pièce de chaque type, jamais deux du même
-        // type. Un cas suspect part en revue manuelle — jamais de rejet
+        // type. Un cas suspect part en revue manuelle - jamais de rejet
         // automatique (jumeaux, fausses correspondances possibles).
         if ($result->faceEmbedding === null) {
             $duplicateCheck = ['verdict' => 'unchecked', 'severity' => null, 'matches' => []];
@@ -175,7 +175,7 @@ class AnalyzePartnerSessionJob implements ShouldBeUniqueUntilProcessing, ShouldQ
      * Expiré si la date d'expiration OCR est strictement avant AUJOURD'HUI
      * (une pièce qui expire ce jour reste valide jusqu'à la fin de la
      * journée). Silencieusement non-expiré si la date est absente/illisible
-     * — l'OCR n'ayant pas pu lire ce champ n'est pas un motif de rejet en soi.
+     * - l'OCR n'ayant pas pu lire ce champ n'est pas un motif de rejet en soi.
      */
     private function isDocumentExpired(?string $dateOfExpiry): bool
     {

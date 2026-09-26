@@ -16,7 +16,7 @@ Route::get('/', function () {
 })->name('home');
 
 // Page publique de capture (pièce d'identité, étape 1, puis vivacité
-// faciale, étape 2 — flux session partenaire QR) — aucune authentification,
+// faciale, étape 2 - flux session partenaire QR) - aucune authentification,
 // le jeton dans l'URL en tient lieu. Throttle plus strict (IP anonyme) qu'un
 // endpoint applicatif normal.
 Route::middleware('throttle:20,1')->group(function () {
@@ -26,7 +26,7 @@ Route::middleware('throttle:20,1')->group(function () {
 });
 
 // Page TEMPORAIRE de test du moteur facial, sans connexion (lien secret +
-// désactivée par défaut) — voir Public\FaceTestController. À désactiver
+// désactivée par défaut) - voir Public\FaceTestController. À désactiver
 // (FACE_TEST_ENABLED=false) une fois les tests terminés.
 Route::middleware('throttle:10,1')->group(function () {
     Route::get('/face-test/{token}', [FaceTestController::class, 'show'])->name('face-test.show');
@@ -67,7 +67,7 @@ Auth::routes();
 
 /*
 |--------------------------------------------------------------------------
-| Inscription Basic (2 étapes: infos → photo — l'étape vidéo a été retirée,
+| Inscription Basic (2 étapes: infos → photo - l'étape vidéo a été retirée,
 | voir Admin\VerificationController et Services\FaceVerification\* pour la
 | vérification automatisée document+selfie qui la remplace)
 |--------------------------------------------------------------------------
@@ -84,7 +84,7 @@ Route::prefix('register/basic')->name('register.basic.')->group(function () {
         Route::get('/step1', [RegisterBasicController::class, 'showStep1'])->name('step1');
         Route::post('/step1', [RegisterBasicController::class, 'postStep1'])->name('step1.submit');
 
-        // Étape 2 : Photo de profil (webcam) — crée le compte à la soumission
+        // Étape 2 : Photo de profil (webcam) - crée le compte à la soumission
         Route::get('/step2', [RegisterBasicController::class, 'showStep2'])->name('step2');
         Route::post('/step2', [RegisterBasicController::class, 'postStep2'])->name('step2.submit');
     });
@@ -146,7 +146,7 @@ Route::get('/home', function () {
 /*
 |--------------------------------------------------------------------------
 | (Portail développeur self-service, OAuth "Login with SagaID" et
-| "Services connectés" retirés — hors périmètre du cas d'usage
+| "Services connectés" retirés - hors périmètre du cas d'usage
 | vérification document+selfie pour partenaires. La gestion admin des
 | DeveloperApplication pour l'API partenaire reste dans routes/admin.php.)
 |--------------------------------------------------------------------------

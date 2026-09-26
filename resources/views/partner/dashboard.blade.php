@@ -69,7 +69,7 @@
 
         @if (session('revealed_value'))
             <div class="reveal">
-                <strong>Nouveau {{ session('revealed_label') }} généré</strong> — copiez-le maintenant, il ne sera plus jamais affiché en clair.
+                <strong>Nouveau {{ session('revealed_label') }} généré</strong> - copiez-le maintenant, il ne sera plus jamais affiché en clair.
                 <code>{{ session('revealed_value') }}</code>
             </div>
         @endif
@@ -105,7 +105,7 @@
                     <span class="label">webhook_secret</span>
                     <code>••••••••••••••••</code>
                 </div>
-                <p class="muted" style="margin-top:0.75rem;">Les secrets ne sont jamais réaffichés — régénérez-les si vous les avez perdus (l'ancien cesse immédiatement de fonctionner).</p>
+                <p class="muted" style="margin-top:0.75rem;">Les secrets ne sont jamais réaffichés - régénérez-les si vous les avez perdus (l'ancien cesse immédiatement de fonctionner).</p>
                 <div class="actions">
                     <form method="POST" action="{{ route('partner.dashboard.regenerate-client-secret') }}" onsubmit="return confirm('Régénérer le client_secret ? L\'ancien cessera immédiatement de fonctionner.');">
                         @csrf

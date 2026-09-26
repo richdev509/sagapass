@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Compte "entreprise partenaire" — séparé des comptes citoyens
+        // Compte "entreprise partenaire" - séparé des comptes citoyens
         // (users) : une entreprise n'a pas de KYC personnel, pas de selfie,
         // etc. Guard Laravel dédié ('partner', voir config/auth.php),
         // authentifiable comme n'importe quel guard.

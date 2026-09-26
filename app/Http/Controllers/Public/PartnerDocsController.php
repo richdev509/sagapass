@@ -9,7 +9,7 @@ use League\CommonMark\CommonMarkConverter;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Documentation partenaire — rend les fichiers Markdown de docs/partner-api/
+ * Documentation partenaire - rend les fichiers Markdown de docs/partner-api/
  * en HTML (league/commonmark, déjà une dépendance du projet). Accessible aux
  * partenaires connectés (lien depuis le tableau de bord) ; pas de contenu
  * sensible dans ces fichiers, donc pas besoin de restreindre par statut
@@ -19,7 +19,7 @@ class PartnerDocsController extends Controller
 {
     private const DOCS_PATH = 'docs/partner-api';
 
-    /** Ordre d'affichage voulu — le guide du flux actuel en premier. */
+    /** Ordre d'affichage voulu - le guide du flux actuel en premier. */
     private const ORDER = [
         'VERIFICATION_SESSIONS_GUIDE',
         'PARTNER_WEBHOOK_GUIDE',

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Orchestration : appelle FaceVerificationScriptClient et convertit tout échec
- * technique en FaceVerificationResult::failed() — même principe que
+ * technique en FaceVerificationResult::failed() - même principe que
  * NiuLookupService côté SwapLajan. Ne lève jamais.
  */
 class FaceVerificationService
@@ -28,7 +28,7 @@ class FaceVerificationService
     }
 
     /**
-     * Vivacité active 3-frames (flux session partenaire QR) — voir
+     * Vivacité active 3-frames (flux session partenaire QR) - voir
      * FaceVerificationScriptClient::analyzeWithActiveLiveness().
      */
     public function analyzeWithActiveLiveness(
@@ -62,7 +62,7 @@ class FaceVerificationService
         // Tous les champs renvoyés par analyze.py, pas seulement les 3
         // historiques (document_number/full_name/date_of_birth) : le jeu de
         // clés dépend du type de document (voir _ocr_field_keys côté Python)
-        // — nationalité/MRZ pour un passeport, adresse/groupe sanguin/
+        // - nationalité/MRZ pour un passeport, adresse/groupe sanguin/
         // catégorie pour un permis, etc. Ces champs supplémentaires doivent
         // survivre jusqu'à PartnerSessionFinalizer pour être conservés sur
         // l'identité vérifiée (PartnerVerifiedIdentity::extracted_fields),
@@ -70,7 +70,7 @@ class FaceVerificationService
         $ocr = $decoded['ocr'] ?? [];
 
         // L'empreinte faciale est une donnée biométrique : jamais recopiée dans
-        // $raw (persisté tel quel dans analysis_raw, en clair) — elle voyage
+        // $raw (persisté tel quel dans analysis_raw, en clair) - elle voyage
         // à part, dans $faceEmbedding, et est stockée chiffrée par
         // FaceDuplicateService/FaceEmbedding.
         $embedding = $decoded['face_embedding'] ?? null;

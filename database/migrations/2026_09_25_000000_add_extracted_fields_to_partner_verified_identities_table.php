@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('partner_verified_identities', function (Blueprint $table) {
             // Tous les champs OCR extraits (voir analyze.py::_ocr_field_keys),
-            // pas seulement document_number/full_name/date_of_birth — support
+            // pas seulement document_number/full_name/date_of_birth - support
             // du passeport (nationalité, MRZ, numéro personnel) et du permis
             // de conduire (adresse, groupe sanguin, catégorie de véhicule,
             // etc.). Générique par type plutôt qu'une colonne dédiée par

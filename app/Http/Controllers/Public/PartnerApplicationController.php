@@ -13,12 +13,12 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 
 /**
- * Demande de partenariat entreprise — page publique, aucune authentification
+ * Demande de partenariat entreprise - page publique, aucune authentification
  * requise pour la soumettre. Crée un PartnerAccount (guard 'partner',
  * distinct des comptes citoyens SagaPass) et une DeveloperApplication en
  * attente ('pending'). Les identifiants API restent inutilisables tant
  * qu'un admin n'a pas approuvé (voir Admin\OAuthManagementController::approve())
- * — jamais auto-approuvé, ces identifiants donnant accès à de la
+ * - jamais auto-approuvé, ces identifiants donnant accès à de la
  * vérification d'identité sur des données réelles.
  */
 class PartnerApplicationController extends Controller

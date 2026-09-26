@@ -101,21 +101,21 @@
             <div class="pb-5">
                 <div class="text-center text-lg-start">
                     <h1 class="display-4 fw-bold">Documentation Développeur</h1>
-                    <p class="lead text-muted">Intégrez la vérification d'identité SAGAPASS — le seul service exposé aux partenaires pour le moment.</p>
+                    <p class="lead text-muted">Intégrez la vérification d'identité SAGAPASS - le seul service exposé aux partenaires pour le moment.</p>
                 </div>
 
                 <section id="introduction">
                     <h2><i class="fas fa-rocket me-2 text-primary"></i>Introduction</h2>
                     <p>SAGAPASS capture lui-même (sur sa propre page web, caméra en direct) la pièce d'identité et le selfie de votre utilisateur, effectue l'OCR, la vivacité et la correspondance visage↔pièce, puis vous notifie le résultat par webhook. Vous n'avez jamais besoin de manipuler de photos vous-même.</p>
-                    <p>C'est aujourd'hui le seul service exposé via l'API partenaire. D'autres services (identification entreprise, etc.) sont en préparation — <a href="{{ route('contact') }}">contactez-nous</a> si votre besoin dépasse la vérification d'identité.</p>
+                    <p>C'est aujourd'hui le seul service exposé via l'API partenaire. D'autres services (identification entreprise, etc.) sont en préparation - <a href="{{ route('contact') }}">contactez-nous</a> si votre besoin dépasse la vérification d'identité.</p>
                 </section>
 
                 <section id="credentials">
                     <h2><i class="fas fa-key me-2 text-primary"></i>Identifiants</h2>
                     <p>Après approbation de votre <a href="{{ route('partner.apply') }}">demande de partenariat</a>, vous recevez depuis votre <a href="{{ route('partner.dashboard') }}">tableau de bord</a> :</p>
                     <ul>
-                        <li><code>client_id</code> / <code>client_secret</code> — authentification HTTP Basic sur les appels sortants.</li>
-                        <li><code>webhook_secret</code> — vérifie la signature des webhooks entrants. Distinct du <code>client_secret</code>.</li>
+                        <li><code>client_id</code> / <code>client_secret</code> - authentification HTTP Basic sur les appels sortants.</li>
+                        <li><code>webhook_secret</code> - vérifie la signature des webhooks entrants. Distinct du <code>client_secret</code>.</li>
                     </ul>
                 </section>
 
@@ -133,14 +133,14 @@ Réponse (201):
   session_token: string
   capture_url: string
   expires_at: string (ISO 8601)</code></pre>
-                    <p>Redirigez l'utilisateur vers <code>capture_url</code> — SagaPass gère toute la capture caméra (pièce + selfie + vivacité active) sur sa propre page.</p>
+                    <p>Redirigez l'utilisateur vers <code>capture_url</code> - SagaPass gère toute la capture caméra (pièce + selfie + vivacité active) sur sa propre page.</p>
                 </section>
 
                 <section id="status">
                     <h2><i class="fas fa-satellite-dish me-2 text-primary"></i>Vérifier le statut (filet de sécurité)</h2>
                     <pre><code>GET {{ config('app.url') }}/api/partner/v1/verification-sessions/{session_token}/status
 Auth: Basic (client_id, client_secret)</code></pre>
-                    <p>À utiliser uniquement si le webhook tarde — le webhook reste le chemin principal, pas du polling actif.</p>
+                    <p>À utiliser uniquement si le webhook tarde - le webhook reste le chemin principal, pas du polling actif.</p>
                 </section>
 
                 <section id="webhook">
@@ -148,9 +148,9 @@ Auth: Basic (client_id, client_secret)</code></pre>
                     <p>SagaPass envoie le résultat en <code>POST</code> sur votre <code>webhook_url</code>.</p>
                     <ul>
                         <li>Header <code>X-Saga-Signature</code>, valeur <code>sha256=&lt;hmac&gt;</code>.</li>
-                        <li>Calcul : <code>hash_hmac('sha256', &lt;corps brut&gt;, webhook_secret)</code> — comparez en temps constant (<code>hash_equals</code>).</li>
+                        <li>Calcul : <code>hash_hmac('sha256', &lt;corps brut&gt;, webhook_secret)</code> - comparez en temps constant (<code>hash_equals</code>).</li>
                         <li>Événements : <code>verification.completed</code>, <code>verification.failed</code>, <code>verification.expired</code>, <code>kyc.expired</code>.</li>
-                        <li>Le payload contient <code>session_token</code> et/ou <code>kyc_id</code> — utilisez-les comme clé d'idempotence.</li>
+                        <li>Le payload contient <code>session_token</code> et/ou <code>kyc_id</code> - utilisez-les comme clé d'idempotence.</li>
                     </ul>
                     <p>Répondez vite (<code>200 {"received": true}</code>) et traitez le résultat en file d'attente, jamais en synchrone dans le contrôleur du webhook.</p>
                 </section>
@@ -166,12 +166,12 @@ Auth: Basic (client_id, client_secret)</code></pre>
                             <tr><td><code>drivers_license</code></td><td><code>sex</code>, <code>nif</code>, <code>address</code>, <code>blood_type</code>, <code>license_category</code>, <code>place_of_issue</code>, <code>date_of_issue</code></td></tr>
                         </tbody>
                     </table>
-                    <p>Ne bloquez pas votre décision sur <code>face_match_score</code> seul — c'est un signal indicatif, pas un verdict.</p>
+                    <p>Ne bloquez pas votre décision sur <code>face_match_score</code> seul - c'est un signal indicatif, pas un verdict.</p>
                 </section>
 
                 <section id="expiry">
                     <h2><i class="fas fa-calendar-times me-2 text-primary"></i>Pièce expirée</h2>
-                    <p>Une pièce dont <code>date_of_expiry</code> est dans le passé est automatiquement rejetée (<code>verification.failed</code>) — vous n'avez rien à vérifier vous-même.</p>
+                    <p>Une pièce dont <code>date_of_expiry</code> est dans le passé est automatiquement rejetée (<code>verification.failed</code>) - vous n'avez rien à vérifier vous-même.</p>
                 </section>
 
                 <section id="kyc-id">

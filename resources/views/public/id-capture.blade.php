@@ -325,7 +325,7 @@
         const STEPS = STEPS_BY_TYPE[DOCUMENT_TYPE] ?? STEPS_BY_TYPE.passport;
 
         // Aire minimale du quadrilatère détecté (proportion de la frame) pour
-        // le considérer comme "la pièce bien cadrée" — évite de déclencher
+        // le considérer comme "la pièce bien cadrée" - évite de déclencher
         // sur un petit rectangle parasite en arrière-plan.
         const MIN_QUAD_AREA_RATIO = 0.30;
         const STABLE_TICKS_REQUIRED = 4;
@@ -401,7 +401,7 @@
 
         function waitForOpenCv(callback) {
             // opencv.js expose cv comme une factory tant que le runtime WASM
-            // n'est pas prêt — cv['onRuntimeInitialized'] est l'accroche
+            // n'est pas prêt - cv['onRuntimeInitialized'] est l'accroche
             // standard une fois l'initialisation terminée.
             if (typeof cv !== 'undefined' && cv.Mat) {
                 callback();
@@ -415,7 +415,7 @@
                 } else if (attempts < 100) {
                     setTimeout(check, 100);
                 } else {
-                    // OpenCV n'a pas pu charger — le bouton "Capturer" reste
+                    // OpenCV n'a pas pu charger - le bouton "Capturer" reste
                     // disponible, seule la détection auto est désactivée.
                     cvReady = false;
                     enableManualMode();
@@ -475,7 +475,7 @@
 
         /**
          * Détecte le plus grand quadrilatère convexe plausible dans l'image
-         * (niveaux de gris -> flou -> Canny -> contours -> approxPolyDP) —
+         * (niveaux de gris -> flou -> Canny -> contours -> approxPolyDP) -
          * retourne ses 4 coins ([{x,y}, ...]) ou null. Toutes les Mat
          * OpenCV sont explicitement libérées (pas de ramasse-miettes côté
          * WASM) avant de retourner.

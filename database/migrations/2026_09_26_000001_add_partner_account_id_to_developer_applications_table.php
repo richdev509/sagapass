@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('developer_applications', function (Blueprint $table) {
             // Une DeveloperApplication créée via la demande de partenariat
             // publique (Public\PartnerApplicationController) appartient à un
-            // PartnerAccount, pas à un User citoyen — user_id reste pour les
+            // PartnerAccount, pas à un User citoyen - user_id reste pour les
             // applications créées autrement (compte OAuth "Login with
             // SagaID" côté citoyen), d'où les deux colonnes nullable en
             // parallèle plutôt qu'un remplacement.
@@ -25,7 +25,7 @@ return new class extends Migration
                 ->cascadeOnDelete();
         });
 
-        // user_id était NOT NULL à la création de la table — une entreprise
+        // user_id était NOT NULL à la création de la table - une entreprise
         // partenaire n'a pas de compte citoyen, donc ce champ doit devenir
         // optionnel pour permettre une DeveloperApplication rattachée
         // uniquement à un partner_account_id.
