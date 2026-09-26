@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 
 Route::get('/', function () {
     return view('welcome');
-});
+})->name('home');
 
 // Page publique de capture (pièce d'identité, étape 1, puis vivacité
 // faciale, étape 2 — flux session partenaire QR) — aucune authentification,

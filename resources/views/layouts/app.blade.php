@@ -115,7 +115,7 @@
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav mx-auto">
                         <li class="nav-item">
-                            <a class="nav-link" href="#">Particuliers</a>
+                            <a class="nav-link" href="{{ route('home') }}">Particuliers</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('enterprises') }}">Entreprises</a>
@@ -151,7 +151,7 @@
                 <div class="col-lg-2 col-md-6 mb-4">
                     <h5>Produit</h5>
                     <ul class="list-unstyled">
-                        <li><a href="#">Pour les particuliers</a></li>
+                        <li><a href="{{ route('home') }}">Pour les particuliers</a></li>
                         <li><a href="{{ route('enterprises') }}">Pour les entreprises</a></li>
                         <li><a href="{{ route('pricing') }}">Tarifs</a></li>
                     </ul>
