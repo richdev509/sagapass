@@ -51,7 +51,7 @@
 </head>
 <body>
     <div class="wrap">
-        <div class="brand"><span>SAGA</span>PASS &mdash; Partenaires</div>
+        <div class="brand"><span>SAGA</span>PASS - Partenaires</div>
         <h1>Devenir partenaire</h1>
         <p class="subtitle">Intégrez la vérification d'identité SagaPass à votre service. Un administrateur revoit chaque demande avant d'activer les identifiants API.</p>
 

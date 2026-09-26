@@ -22,7 +22,7 @@
 </head>
 <body>
     <div class="wrap">
-        <div class="brand"><span>SAGA</span>PASS &mdash; Documentation partenaire</div>
+        <div class="brand"><span>SAGA</span>PASS - Documentation partenaire</div>
         <h1>Guides d'intégration</h1>
         <ul>
             @foreach ($slugs as $slug)

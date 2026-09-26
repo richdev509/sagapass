@@ -52,7 +52,7 @@
 </head>
 <body>
     <div class="topbar">
-        <div class="brand"><span>SAGA</span>PASS &mdash; Partenaires</div>
+        <div class="brand"><span>SAGA</span>PASS - Partenaires</div>
         <div>
             <a href="{{ route('partner.docs.index') }}">Documentation</a>
             <form method="POST" action="{{ route('partner.logout') }}" style="display:inline">

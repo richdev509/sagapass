@@ -42,7 +42,7 @@
 </head>
 <body>
     <div class="card">
-        <div class="brand"><span>SAGA</span>PASS &mdash; Partenaires</div>
+        <div class="brand"><span>SAGA</span>PASS - Partenaires</div>
         <h1>Connexion partenaire</h1>
 
         @error('email') <p class="error">{{ $message }}</p> @enderror
