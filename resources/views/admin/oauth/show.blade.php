@@ -88,18 +88,37 @@
         <div class="col-md-6 mb-4">
             <div class="card h-100">
                 <div class="card-header bg-primary text-white">
-                    <i class="fas fa-user"></i> Développeur
+                    <i class="fas fa-user"></i> {{ $application->partner_account_id ? 'Entreprise partenaire' : 'Développeur' }}
                 </div>
                 <div class="card-body">
                     <table class="table table-sm table-borderless">
-                        <tr>
-                            <th width="40%">Nom</th>
-                            <td>{{ $application->user->first_name }} {{ $application->user->last_name }}</td>
-                        </tr>
-                        <tr>
-                            <th>Email</th>
-                            <td>{{ $application->user->email }}</td>
-                        </tr>
+                        @if ($application->partner_account_id)
+                            <tr>
+                                <th width="40%">Entreprise</th>
+                                <td>{{ $application->partnerAccount?->company_name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Contact</th>
+                                <td>{{ $application->contactName() }}</td>
+                            </tr>
+                            <tr>
+                                <th>Email</th>
+                                <td>{{ $application->contactEmail() }}</td>
+                            </tr>
+                            <tr>
+                                <th>Téléphone</th>
+                                <td>{{ $application->partnerAccount?->phone ?? '—' }}</td>
+                            </tr>
+                        @else
+                            <tr>
+                                <th width="40%">Nom</th>
+                                <td>{{ $application->user->first_name }} {{ $application->user->last_name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Email</th>
+                                <td>{{ $application->user->email }}</td>
+                            </tr>
+                        @endif
                     </table>
                 </div>
             </div>

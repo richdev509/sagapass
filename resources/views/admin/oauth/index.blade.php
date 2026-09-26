@@ -132,8 +132,14 @@
                                         <small class="text-muted">{{ Str::limit($app->description, 50) }}</small>
                                     </td>
                                     <td>
-                                        {{ $app->user->first_name }} {{ $app->user->last_name }}<br>
-                                        <small class="text-muted">{{ $app->user->email }}</small>
+                                        @if ($app->partner_account_id)
+                                            {{ $app->partnerAccount?->company_name }}
+                                            <span class="badge bg-info text-dark">Entreprise</span><br>
+                                            <small class="text-muted">{{ $app->contactName() }} — {{ $app->contactEmail() }}</small>
+                                        @else
+                                            {{ $app->user->first_name }} {{ $app->user->last_name }}<br>
+                                            <small class="text-muted">{{ $app->user->email }}</small>
+                                        @endif
                                     </td>
                                     <td>
                                         @if($app->status === 'pending')

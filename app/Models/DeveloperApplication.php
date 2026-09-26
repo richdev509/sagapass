@@ -93,6 +93,33 @@ class DeveloperApplication extends Model
     }
 
     /**
+     * Email à notifier (approbation/rejet/suspension) quelle que soit
+     * l'origine de l'application — compte citoyen (user) ou entreprise
+     * partenaire (partnerAccount). Sans ça, Mail::to($application->user->email)
+     * échouait silencieusement pour toute application créée via la demande
+     * de partenariat publique (user_id null).
+     */
+    public function contactEmail(): ?string
+    {
+        return $this->partner_account_id
+            ? $this->partnerAccount?->email
+            : $this->user?->email;
+    }
+
+    /**
+     * Nom à afficher pour le contact (admin/oauth), même principe que
+     * contactEmail().
+     */
+    public function contactName(): ?string
+    {
+        if ($this->partner_account_id) {
+            return $this->partnerAccount?->contact_name;
+        }
+
+        return $this->user ? trim("{$this->user->first_name} {$this->user->last_name}") : null;
+    }
+
+    /**
      * Check if the application is approved.
      */
     public function isApproved(): bool

@@ -32,7 +32,10 @@ class OAuthManagementController extends Controller
             abort(403, 'Accès refusé. Permission requise: view-oauth-apps');
         }
 
-        $query = DeveloperApplication::with(['user', 'approver']);
+        // partnerAccount : applications creees via la demande de partenariat
+        // publique (Public\PartnerApplicationController) - n'ont pas de
+        // user_id, voir App\Models\DeveloperApplication::partnerAccount().
+        $query = DeveloperApplication::with(['user', 'partnerAccount', 'approver']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -46,6 +49,11 @@ class OAuthManagementController extends Controller
                       $userQuery->where('email', 'like', "%{$search}%")
                                 ->orWhere('first_name', 'like', "%{$search}%")
                                 ->orWhere('last_name', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('partnerAccount', function ($partnerQuery) use ($search) {
+                      $partnerQuery->where('email', 'like', "%{$search}%")
+                                   ->orWhere('company_name', 'like', "%{$search}%")
+                                   ->orWhere('contact_name', 'like', "%{$search}%");
                   });
             });
         }
@@ -76,7 +84,7 @@ class OAuthManagementController extends Controller
             abort(403, 'Accès refusé. Permission requise: view-oauth-apps');
         }
 
-        $application->load(['user', 'approver']);
+        $application->load(['user', 'partnerAccount', 'approver']);
 
         return view('admin.oauth.show', compact('application'));
     }
@@ -108,7 +116,9 @@ class OAuthManagementController extends Controller
         ]);
 
         try {
-            Mail::to($application->user->email)->send(new ApplicationApprovedMail($application));
+            if ($email = $application->contactEmail()) {
+                Mail::to($email)->send(new ApplicationApprovedMail($application));
+            }
         } catch (\Exception $e) {
             Log::error('Erreur envoi email approbation application partenaire: ' . $e->getMessage());
         }
@@ -150,7 +160,9 @@ class OAuthManagementController extends Controller
         ]);
 
         try {
-            Mail::to($application->user->email)->send(new ApplicationRejectedMail($application, $request->rejection_reason));
+            if ($email = $application->contactEmail()) {
+                Mail::to($email)->send(new ApplicationRejectedMail($application, $request->rejection_reason));
+            }
         } catch (\Exception $e) {
             Log::error('Erreur envoi email rejet application partenaire: ' . $e->getMessage());
         }
@@ -192,7 +204,9 @@ class OAuthManagementController extends Controller
         ]);
 
         try {
-            Mail::to($application->user->email)->send(new ApplicationSuspendedMail($application, $request->suspension_reason));
+            if ($email = $application->contactEmail()) {
+                Mail::to($email)->send(new ApplicationSuspendedMail($application, $request->suspension_reason));
+            }
         } catch (\Exception $e) {
             Log::error('Erreur envoi email suspension application partenaire: ' . $e->getMessage());
         }
