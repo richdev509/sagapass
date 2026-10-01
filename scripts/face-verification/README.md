@@ -50,3 +50,13 @@ dépendance en plus). Laravel la compare à toutes les empreintes déjà vérifi
 l'extraction échoue (un avertissement `face_embedding_*` est alors ajouté) : la
 session continue, le contrôle de doublons est simplement marqué « unchecked ».
 Donnée biométrique : Laravel ne la stocke jamais en clair.
+
+## Contrôle de qualité du selfie (capture)
+
+`check_quality.py` (OpenCV + YuNet, sans DeepFace) refuse à la capture un selfie
+sans visage, avec plusieurs visages, trop petit, trop sombre, terne ou flou.
+Il utilise `opencv_face.py` et deux modèles OpenCV Zoo placés dans `models/`
+(non versionnés, 39 Mo) : `face_detection_yunet_2023mar.onnx` et
+`face_recognition_sface_2021dec.onnx`. À copier à la main sur le serveur.
+Activation : `FACE_QUALITY_GATE_ENABLED=true` dans `.env` puis `config:cache`
+(désactivé par défaut, voir `SelfieQualityGate`).

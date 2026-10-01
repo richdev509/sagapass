@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Jobs\AnalyzePartnerSessionJob;
 use App\Models\PartnerVerificationSession;
+use App\Services\FaceVerification\SelfieQualityGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -39,7 +40,12 @@ class FaceCaptureController extends Controller
         }
 
         if ($session->isAwaitingSelfieCapture()) {
-            return view('public.face-capture', ['token' => $token]);
+            return view('public.face-capture', [
+                'token' => $token,
+                // Raison du refus du dernier selfie (voir submitSelfie), passée
+                // en flash pour survivre à la redirection.
+                'captureError' => session('capture_error'),
+            ]);
         }
 
         return view('public.face-capture-unavailable', [
@@ -113,7 +119,7 @@ class FaceCaptureController extends Controller
      * POST /capture/{token}/selfie — les 3 frames de vivacité active
      * (gauche/centre/droite).
      */
-    public function submitSelfie(Request $request, string $token): RedirectResponse|View
+    public function submitSelfie(Request $request, string $token, SelfieQualityGate $gate): RedirectResponse|View
     {
         $validator = Validator::make($request->all(), [
             'selfie_left' => ['required', 'image', 'mimes:jpeg,jpg,png', 'max:8192'],
@@ -126,6 +132,26 @@ class FaceCaptureController extends Controller
                 'token' => $token,
                 'errors' => $validator->errors(),
             ]);
+        }
+
+        // Photo inexploitable (sombre, floue, sans visage...) : on renvoie le
+        // client à la capture avec la raison, AVANT de consommer la session
+        // (statut inchangé, rien de stocké) pour qu'il puisse réessayer.
+        // Seul le frame "centre" est contrôlé, voir SelfieQualityGate.
+        $qualityMessage = $gate->rejectionMessage($request->file('selfie_center')->getRealPath());
+
+        if ($qualityMessage !== null) {
+            $session = PartnerVerificationSession::where('token', $token)->first();
+
+            // Session déjà consommée/expirée : on ne rouvre pas la capture.
+            // Redirection (POST-redirect-GET) plutôt que rendu direct : la
+            // page reste sur /capture/{token}, donc actualiser ne renvoie pas
+            // les photos, et la raison survit dans le flash de session.
+            if ($session && $session->isAwaitingSelfieCapture()) {
+                return redirect()
+                    ->route('capture.show', $token)
+                    ->with('capture_error', $qualityMessage);
+            }
         }
 
         // Mise à jour conditionnelle atomique : empêche qu'un double-tap ou

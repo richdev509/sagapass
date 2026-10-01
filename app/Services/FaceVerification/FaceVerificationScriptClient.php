@@ -76,11 +76,24 @@ class FaceVerificationScriptClient
     }
 
     /**
+     * Contrôle de qualité rapide de photos de visage (luminosité, netteté,
+     * taille, nombre de visages) via scripts/face-verification/check_quality.py,
+     * sans charger DeepFace. Voir SelfieQualityGate pour l'interprétation.
+     *
+     * @param list<string> $photoPaths
+     * @return array{images: list<array{path: string, ok: bool, reasons: list<string>}>, error?: string}
+     */
+    public function checkPhotoQuality(array $photoPaths): array
+    {
+        return $this->runScript($photoPaths, 'images', 'check_quality.py');
+    }
+
+    /**
      * @param list<string> $arguments
      * @param string $requiredKey clé de premier niveau que la sortie JSON doit contenir
      * @return array<string, mixed>
      */
-    private function runScript(array $arguments, string $requiredKey = 'ocr'): array
+    private function runScript(array $arguments, string $requiredKey = 'ocr', string $script = 'analyze.py'): array
     {
         $result = Process::path($this->scriptPath)
             ->timeout($this->timeoutSeconds)
@@ -101,7 +114,7 @@ class FaceVerificationScriptClient
             ])
             ->run([
                 $this->pythonBinary,
-                'analyze.py',
+                $script,
                 ...$arguments,
             ]);
 

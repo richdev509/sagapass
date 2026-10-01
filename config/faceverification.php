@@ -67,6 +67,14 @@ return [
 
     'duplicate_similarity_threshold' => (float) env('FACE_DUPLICATE_SIMILARITY_THRESHOLD', 0.363),
 
+    // Refus, à la capture, d'un selfie trop sombre / flou / sans visage / avec
+    // plusieurs visages (voir SelfieQualityGate, scripts/face-verification/
+    // check_quality.py). Désactivé par défaut : seuils calés sur 27 selfies
+    // seulement, à activer et recalibrer avec plus de données.
+    'quality_gate' => [
+        'enabled' => (bool) env('FACE_QUALITY_GATE_ENABLED', false),
+    ],
+
     // Version des conditions d'utilisation acceptées sur la page de capture —
     // enregistrée avec la session comme preuve de consentement. À changer quand
     // les conditions (/terms, /privacy) sont modifiées.

@@ -227,6 +227,24 @@
             padding: 0.4rem;
         }
 
+        /* Raison du refus du dernier selfie : reste affichée pendant la capture
+           (un .state-panel serait masqué par showState() dès le chargement). */
+        .capture-alert {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+            width: 100%;
+            max-width: 26rem;
+            margin: 0 0 0.75rem;
+            padding: 0.75rem 0.9rem;
+            border-radius: 0.75rem;
+            border: 1px solid var(--danger);
+            background: rgba(220, 53, 69, 0.15);
+            font-size: 0.9rem;
+            line-height: 1.35;
+        }
+        .capture-alert i { color: var(--danger); margin-top: 0.15rem; }
+
         .spinner {
             width: 2.5rem;
             height: 2.5rem;
@@ -244,6 +262,14 @@
 
     <div class="screen" id="captureScreen">
         <div class="brand"><i class="fa-solid fa-shield-halved"></i> SAGAPASS</div>
+
+        @php($alertMessage = $captureError ?? ((isset($errors) && $errors->any()) ? $errors->first() : null))
+        @if ($alertMessage)
+            <div class="capture-alert" role="alert">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span><strong>Photo refusée.</strong> {{ $alertMessage }}</span>
+            </div>
+        @endif
 
         <div style="width:100%; max-width: 26rem; display:flex; flex-direction:column; align-items:center;">
             <div class="steps" id="steps">
@@ -304,15 +330,6 @@
         <h2>Analyse en cours…</h2>
         <p>Merci de patienter quelques secondes, n'actualisez pas cette page.</p>
     </div>
-
-    @if (isset($errors) && $errors->any())
-        <div class="state-panel is-visible" id="stateError">
-            <i class="fa-solid fa-triangle-exclamation" style="color: var(--danger);"></i>
-            <h2>Une erreur est survenue</h2>
-            <p>{{ $errors->first() }}</p>
-            <button type="button" class="btn-primary-soft" onclick="window.location.reload()">Réessayer</button>
-        </div>
-    @endif
 
     <form id="captureForm" method="POST" action="{{ route('capture.submit-selfie', $token) }}" enctype="multipart/form-data" hidden>
         @csrf
